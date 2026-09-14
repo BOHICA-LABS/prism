@@ -1,23 +1,23 @@
 ---
 document_type: session-handoff
 level: ops
-version: "9.015"
+version: "9.016"
 status: current
 timestamp: 2026-09-14T00:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2517 (2026-09-14): SESSION WRAP (TD-VSDD-053) — This session shipped S-REL-CHANGELOG-CHANNEL-SCOPE-001 PR #281 + org rename PR #283/D-2516. RECONCILIATION: develop +2 out-of-session (#284, #287) to 561d8bac. develop_head 85f30ea7f→561d8baccc (RECONCILIATION-PENDING). records-lint L1/L7/L9/L10 PASS. STATE v10.022→v10.023; SESSION-HANDOFF v9.014→v9.015. §RESUME SNAPSHOT D-2516 SUPERSEDED by D-2517.**
+> **D-2518 (2026-09-14): RECORDS-ONLY MICRO-BURST (TD-VSDD-096 + TD-VSDD-053) — vsdd-factory plugin 1.0.0-rc.23→rc.25 installed + re-activated (darwin-arm64; rc.25 hooks.json + dispatcher binary verified). settings.local.json machine-local refreshed. develop_head 561d8baccc UNCHANGED. records-lint L1/L7/L9/L10 PASS. STATE v10.023→v10.024; SESSION-HANDOFF v9.015→v9.016. §RESUME SNAPSHOT D-2517 SUPERSEDED by D-2518.**
 
-_D-2321..D-2491 delta entries and superseded snapshots archived to cycles/wave-5-e-demo-fidelity/session-handoff-archive.md (D-2494 compaction 2026-09-08). D-2505 snapshot superseded by D-2509. D-2509 snapshot superseded by D-2510. D-2510 snapshot superseded by D-2511. D-2511 snapshot superseded by D-2512. D-2512 snapshot superseded by D-2513. D-2513 snapshot superseded by D-2514. D-2514 snapshot superseded by D-2515. D-2515 snapshot superseded by D-2516. D-2516 snapshot superseded by D-2517._
+_D-2321..D-2491 delta entries and superseded snapshots archived to cycles/wave-5-e-demo-fidelity/session-handoff-archive.md (D-2494 compaction 2026-09-08). D-2505 snapshot superseded by D-2509. D-2509 snapshot superseded by D-2510. D-2510 snapshot superseded by D-2511. D-2511 snapshot superseded by D-2512. D-2512 snapshot superseded by D-2513. D-2513 snapshot superseded by D-2514. D-2514 snapshot superseded by D-2515. D-2515 snapshot superseded by D-2516. D-2516 snapshot superseded by D-2517. D-2517 snapshot superseded by D-2518._
 
 ---
 
-## §RESUME SNAPSHOT — D-2517 (2026-09-14 — SESSION WRAP; STATE v10.023) [supersedes D-2516]
+## §RESUME SNAPSHOT — D-2518 (2026-09-14 — PLUGIN UPGRADE rc.25; STATE v10.024) [supersedes D-2517]
 
 ### RESUME IN ONE BREATH
-Prism at develop@561d8bac — org BOHICA-LABS/prism; this session shipped S-REL-CHANGELOG-CHANNEL-SCOPE-001 PR #281 + org rename PR #283/D-2516; nothing in flight; develop advanced +2 out-of-session (#284, #287) — reconcile; NEXT = triage open PRs #288/#291/#292/#282 + Dependabot, verify RELEASE_PROMOTE_TOKEN for BOHICA-LABS, branch-protection fix, remaining v1 scope; NOT stable.
+Prism at develop@561d8bac — org BOHICA-LABS/prism; vsdd-factory plugin upgraded 1.0.0-rc.23→rc.25 (D-2518 records-only micro-burst); all D-2517 open items carry forward: reconcile out-of-session #284/#287, triage open PRs #288/#291/#292/#282 + Dependabot, verify RELEASE_PROMOTE_TOKEN for BOHICA-LABS, branch-protection fix, remaining v1 scope; NOT stable.
 
 **RESUME STEP 0:** `CronList` → re-arm heartbeat cron b98bd9dc (8,23,38,53 * * * *) if absent/expired (.factory/ops/vsdd-heartbeat-autorecovery.md).
 
@@ -39,9 +39,9 @@ Prism at develop@561d8bac — org BOHICA-LABS/prism; this session shipped S-REL-
 
 **HEARTBEAT:** durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json. CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule.
 
-**DECISION-LOG DELTA THIS BURST:** D-2517 (SESSION WRAP — this session shipped S-REL-CHANGELOG-CHANNEL-SCOPE-001 PR #281 + org rename PR #283/D-2516; RECONCILIATION: develop +2 out-of-session to 561d8bac; develop_head 85f30ea7f→561d8baccc; STATE v10.022→v10.023; SESSION-HANDOFF v9.014→v9.015). All recorded.
+**DECISION-LOG DELTA THIS BURST:** D-2518 (RECORDS-ONLY MICRO-BURST — vsdd-factory 1.0.0-rc.23→rc.25 plugin upgrade + re-activation; darwin-arm64; settings.local.json machine-local refreshed; develop_head 561d8baccc UNCHANGED; STATE v10.023→v10.024; SESSION-HANDOFF v9.015→v9.016). All recorded.
 
-**STANDING DECISIONS (carry forward):** (a) No pragmatic convergence / fix all issues (production-grade default). (b) D-989 + D-2445 autonomy grant in force (merge+tag on green gates; force-push any branch still needs human). (c) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO. (d) Live xDome validation: canonical runbook .factory/ops/live-tenant-validation-runbook.md. (e) AUTONOMOUS MERGE + TAG (D-2445): all PRs autonomous on green gates; force-push STILL requires explicit human approval. (f) DEFECT-1 RESOLVED by PR #237. (g) POST-v1: TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001. (h) Sensor scope v1: Claroty xDome ONLY (D-2440/D-2443). (i) RELEASING.md at repo root; release-config quality_gates vsdd-partial. (j) No registry publish in v1. (k) Demo bundle + DTU parity DEFERRED post-beta.1. (l) BETA channel; v1.0.0-rc.1 = immutable never-published ghost (D-2452). (m) ADR-063 v1.14 git-cliff hybrid model + §D7 per-channel scoping SHIPPED PR #281; cargo-release 1.1.5 (ADR-064 §D3); PRISM_VERSION COMPLETE; docs VERSION-AGNOSTIC. (n) DEMO-SCOPE.md v2.1; live-monroe-capstone-runbook.md v1.0. (o) S-REL-DOCS-CI-WIRE-001 v0.1. (p) S-REL-HOLDOUT-HARNESS-001 v0.1. (q) Nightly lane LIVE; S-REL-NIGHTLY-NOTES-001 COMPLETE. (r) S-REL-SPECS-TARBALL-001 COMPLETE: PR #279 @54523dccd; all 9 ACs. (s) PROCESS-GAP D-2503 (4th recurrence D-2515): JUSTIFIED DEFERRAL; cycle-close target. (t) S-REL-CHANGELOG-CHANNEL-SCOPE-001 MERGED develop@09e9b28d2 (PR #281 2026-09-10). (u) v1.0.0-beta.2 PRE-RELEASE PUBLISHED. (v) ORG RENAME COMPLETE: BOHICA-LABS/prism (D-2516; PR #283 develop@85f30ea7f); .factory swept exhaustively. (w) RECONCILIATION-PENDING: develop +2 out-of-session (#284, #287) to 561d8bac + tag v1.0.0-nightly.20260910.
+**STANDING DECISIONS (carry forward):** (a) No pragmatic convergence / fix all issues (production-grade default). (b) D-989 + D-2445 autonomy grant in force (merge+tag on green gates; force-push any branch still needs human). (c) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO. (d) Live xDome validation: canonical runbook .factory/ops/live-tenant-validation-runbook.md. (e) AUTONOMOUS MERGE + TAG (D-2445): all PRs autonomous on green gates; force-push STILL requires explicit human approval. (f) DEFECT-1 RESOLVED by PR #237. (g) POST-v1: TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001. (h) Sensor scope v1: Claroty xDome ONLY (D-2440/D-2443). (i) RELEASING.md at repo root; release-config quality_gates vsdd-partial. (j) No registry publish in v1. (k) Demo bundle + DTU parity DEFERRED post-beta.1. (l) BETA channel; v1.0.0-rc.1 = immutable never-published ghost (D-2452). (m) ADR-063 v1.14 git-cliff hybrid model + §D7 per-channel scoping SHIPPED PR #281; cargo-release 1.1.5 (ADR-064 §D3); PRISM_VERSION COMPLETE; docs VERSION-AGNOSTIC. (n) DEMO-SCOPE.md v2.1; live-monroe-capstone-runbook.md v1.0. (o) S-REL-DOCS-CI-WIRE-001 v0.1. (p) S-REL-HOLDOUT-HARNESS-001 v0.1. (q) Nightly lane LIVE; S-REL-NIGHTLY-NOTES-001 COMPLETE. (r) S-REL-SPECS-TARBALL-001 COMPLETE: PR #279 @54523dccd; all 9 ACs. (s) PROCESS-GAP D-2503 (4th recurrence D-2515): JUSTIFIED DEFERRAL; cycle-close target. (t) S-REL-CHANGELOG-CHANNEL-SCOPE-001 MERGED develop@09e9b28d2 (PR #281 2026-09-10). (u) v1.0.0-beta.2 PRE-RELEASE PUBLISHED. (v) ORG RENAME COMPLETE: BOHICA-LABS/prism (D-2516; PR #283 develop@85f30ea7f); .factory swept exhaustively. (w) RECONCILIATION-PENDING: develop +2 out-of-session (#284, #287) to 561d8bac + tag v1.0.0-nightly.20260910. (x) vsdd-factory plugin rc.25 INSTALLED + RE-ACTIVATED (darwin-arm64; rc.25 hooks.json + dispatcher binary verified; settings.local.json machine-local refreshed; D-2518 records-only micro-burst).
 
 ---
 
