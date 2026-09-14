@@ -839,3 +839,13 @@ Prism Phase-3, v1 = live Claroty xDome. S-ENGINE-LIMIT-EARLY-STOP-001 round-16 L
 **HEADS (D-2515 2026-09-10):** develop: `09e9b28d2` (origin; S-REL-CHANGELOG-CHANNEL-SCOPE-001 merged; nightly LIVE); factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053); main: `bdf24cec8` (stub). Open PRs: PR #255 (OBSOLETE — verify/close). Dependabot: #265–#274 (UNTRIAGED). WORKTREES REMOVABLE-POST-MERGE: S-REL-NIGHTLY-NOTES-001, E-REL-NOTES (#264), S-CLAROTY-VULNS-001 (#245), S-ENGINE-LIMIT-EARLY-STOP-001 (#243), S-REL-NIGHTLY-001 (#276), S-REL-SPECS-TARBALL-001 (#279). PARKED: S-3.09, W3-FIX-S307-001 (DIRTY), S-ENGINE-H2-LARGE-RESPONSE-001. Releases: v1.0.0-beta.1 + v1.0.0-beta.2 + v1.0.0-nightly.* (multiple) + edge-nightly.
 
 **NOTE: Superseded by D-2516 — drbothen/prism→BOHICA-LABS/prism org rename COMPLETE (PR #283 squash-merged develop@85f30ea7f 2026-09-10). .factory swept exhaustively (83 occurrences/47 files). develop_head 09e9b28d2→85f30ea7f. STATE v10.021→v10.022. SESSION-HANDOFF v9.013→v9.014.**
+
+---
+
+## D-2516 Checkpoint — ORG RENAME COMPLETE; BOHICA-LABS/prism; develop@85f30ea7f — 2026-09-10 (superseded by D-2517)
+
+**RESUME IN ONE BREATH:** Prism at develop@85f30ea7f — org renamed drbothen/prism → BOHICA-LABS/prism COMPLETE (PR #283 squash-merged 2026-09-10). .factory swept exhaustively: 83 occurrences/47 files. Nothing in flight. NEXT: Dependabot #265–#274 triage; RELEASE_PROMOTE_TOKEN check for BOHICA-LABS (non-blocking); branch-protection fix (D-2503, cycle-close/human); remaining v1 feature scope. FRAMING: NOT stable — substantial feature scope remains before v1.0.0 stable.
+
+**HEADS (D-2516 2026-09-10):** develop: `85f30ea7f` (origin; PR #283 org-rename merged 2026-09-10; nightly LIVE); factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053); main: `bdf24cec8` (stub). Open PRs: PR #255 (OBSOLETE — verify/close). Dependabot: #265–#274 (UNTRIAGED). WORKTREES REMOVABLE-POST-MERGE: S-REL-NIGHTLY-NOTES-001, E-REL-NOTES (#264), S-CLAROTY-VULNS-001 (#245), S-ENGINE-LIMIT-EARLY-STOP-001 (#243), S-REL-NIGHTLY-001 (#276), S-REL-SPECS-TARBALL-001 (#279). PARKED: S-3.09, W3-FIX-S307-001 (DIRTY), S-ENGINE-H2-LARGE-RESPONSE-001. Releases: v1.0.0-beta.1 + v1.0.0-beta.2 + v1.0.0-nightly.* (multiple) + edge-nightly.
+
+**NOTE: Superseded by D-2517 — SESSION WRAP: this session shipped S-REL-CHANGELOG-CHANNEL-SCOPE-001 PR #281 + org rename PR #283/D-2516. RECONCILIATION: develop advanced +2 out-of-session (#284 ci nightly+fuzz-nightly; #287 fix dtu-claroty embed fixtures) to 561d8bac + tag v1.0.0-nightly.20260910. develop_head 85f30ea7f→561d8baccc. STATE v10.022→v10.023. SESSION-HANDOFF v9.014→v9.015.**
