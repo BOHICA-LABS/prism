@@ -1156,6 +1156,24 @@ SESSION WRAP (TD-VSDD-053) — Durable §RESUME SNAPSHOT D-2517 written; D-2516 
 
 ---
 
+### D-2519 — SESSION WRAP — Durable §RESUME SNAPSHOT D-2519; demo assets inventoried; beta.1 boot-log non-bug conclusion — 2026-09-15
+
+**Agent:** state-manager | **Decision:** D-2519 | **Cycle:** wave-5-e-demo-fidelity
+
+SESSION WRAP (TD-VSDD-053) — Durable §RESUME SNAPSHOT D-2519 written; D-2518 SUPERSEDED (archived to session-checkpoints.md). Nothing in flight. FIRST NEXT ACTION = review incoming live-test feedback on beta.2 Monroe demo before any other backlog. DEMO ASSETS inventoried (external, test-soc/live-soc/): (a) bin/prism beta.2 binary (SHA-256 5108c6a60fbf32dd249c1cf28fb74658275fb9873f6ab6e151482065b8b31a2f; from BOHICA-LABS/prism release v1.0.0-beta.2, checksum-verified); (b) .prism-live/specs/claroty.sensor.toml (byte-identical to canonical crates/prism-sensors/specs/claroty.sensor.toml); (c) monroe-demo-script.md v1.1. BETA.1 BOOT-LOG INVESTIGATION CONCLUSION: NOT a beta.2 defect. Root cause: boot banner + --version share single compile-time source env!("PRISM_VERSION") baked by build.rs (prism-bin/src/boot.rs §banner + §audit prism_version + §serverInfo.version); never read from persisted state. Staged bin/prism is beta.2-only; no beta.1 binary on host; stale artifact was from earlier rc.1 provisioning run (monroe/state/rc1-live-validation-evidence.json era). Only if CURRENT bin/prism prints beta.1 is there a real new bug. CARRY-FORWARD OPEN ITEMS (all still open, none started): open PRs #292 (ci clippy all-targets) / #291 (dev-setup protoc) / #288 (dtu embed armis/cyberint/nvd fixtures) / #282 (dependabot taiki-e) + Dependabot backlog #266–#274; RELEASE_PROMOTE_TOKEN re-scope pending BOHICA-LABS; branch-protection fix to retire --admin/self-approval merge deadlock (D-2503); reconcile 2 out-of-session develop merges #284 + #287 that advanced develop 85f30ea7f→561d8bac. develop_head 561d8baccc UNCHANGED (NOTE unchanged). bc_index v10.06 / vp_index v2.22 / arch_index v2.381 / story_index v3.036 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. TD-VSDD-097: Dim-1 N/A. Dim-2 N/A. Dim-3 N/A. records-lint L1/L7/L9/L10 PASS. STATE v10.024→v10.025. SESSION-HANDOFF v9.016→v9.017.
+
+**Files touched (factory):** `.factory/STATE.md` — v10.024→v10.025 (D-2519 steps+decisions rows; D-2514 rotated to burst-log; D-2519 session resume checkpoint; last-updated updated; size banner updated; version/timestamp updated). `.factory/SESSION-HANDOFF.md` — v9.016→v9.017 (§RESUME SNAPSHOT D-2518 SUPERSEDED by D-2519; D-2519 snapshot written with live-test feedback top-priority; demo assets + beta.1 conclusion added). `.factory/cycles/wave-5-e-demo-fidelity/burst-log.md` — D-2514 archived + D-2519 burst summary appended. `.factory/cycles/wave-5-e-demo-fidelity/session-checkpoints.md` — D-2518 checkpoint archived.
+
+---
+
+### D-2514 — SINGLE-COMMIT BURST — S-REL-CHANGELOG-CHANNEL-SCOPE-001 story v1.2→v1.3 LOCAL 3-CLEAN — 2026-09-09 (ARCHIVED from STATE.md D-2519 rotation)
+
+**Agent:** state-manager | **Decision:** D-2514 | **Cycle:** wave-5-e-demo-fidelity
+
+SINGLE-COMMIT BURST (TD-VSDD-053) — S-REL-CHANGELOG-CHANNEL-SCOPE-001 story v1.2→v1.3 (AC-007 precise grep-c check; Task 9/AC-009 RELEASING.md dual-path doc). LOCAL 3-CLEAN CONVERGED on feature/S-REL-CHANGELOG-CHANNEL-SCOPE-001 @0583581ce (BC-5.39.001 strict passes 15/16/17 on frozen HEAD; 17 passes total / 9 fix-bursts). Notable in-scope robustness fixes found by the cascade: SIGPIPE-safe here-string empty-section guards (Site 1 + Site 2), broadened step-3b nightly-reject guard (Site 1), empty-section fail-fast (EC-006), comprehensive both-lane RELEASING.md doc closure (AC-009). Story-level holdout gate N/A (facade; no MCP surface). FRAMING: S-REL-CHANGELOG-CHANNEL-SCOPE-001 is a PREREQUISITE for correct stable changelog, NOT the final gate before v1.0.0 stable — substantial feature scope remains; this PR merges to develop only, NO stable tag. D-2509 archived to burst-log (D-2514 rotation). story_index v3.034→v3.035. develop_head baf720d89 UNCHANGED. bc_index v10.06 / vp_index v2.22 / arch_index v2.381 UNCHANGED. workspace_test_count UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v10.019→v10.020. SESSION-HANDOFF v9.011→v9.012.
+
+---
+
 ### D-2513 — SINGLE-COMMIT BURST — ADR-063 §D7 per-channel tag-scoping amendment AUTHORED + CORRECTED — 2026-09-09 (ARCHIVED from STATE.md D-2518 rotation)
 
 **Agent:** state-manager | **Decision:** D-2513 | **Cycle:** wave-5-e-demo-fidelity

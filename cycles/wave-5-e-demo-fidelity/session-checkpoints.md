@@ -11,6 +11,18 @@ Current checkpoint lives in `.factory/STATE.md §Session Resume Checkpoint`.
 
 ---
 
+## Archived: D-2518 — 2026-09-14; STATE v10.024 — RECORDS-ONLY MICRO-BURST (TD-VSDD-096); vsdd-factory rc.25
+
+**RESUME IN ONE BREATH (D-2518):** Prism at develop@561d8bac — org BOHICA-LABS/prism; vsdd-factory plugin upgraded 1.0.0-rc.23→rc.25 (D-2518 records-only micro-burst); all D-2517 open items carry forward: reconcile out-of-session #284/#287, triage open PRs #288/#291/#292/#282 + Dependabot, verify RELEASE_PROMOTE_TOKEN for BOHICA-LABS, branch-protection fix, remaining v1 scope; NOT stable.
+
+**NEXT ACTIONS (D-2518):** (0) Re-arm heartbeat cron b98bd9dc. (1) Reconcile out-of-session #284/#287 (confirm factory tracking owed). (2) Triage open PRs #288/#291/#292/#282 + Dependabot. (3) Continue v1 feature scope.
+
+**HEADS (D-2518):** develop `561d8baccc` (RECONCILIATION-PENDING: +2 out-of-session). factory-artifacts: `git -C .factory log -1 --format='%h'` (TD-VSDD-053). main: `bdf24cec8` (stub). Open PRs: #288, #291, #292, #282 (all untriaged); Dependabot: #266–#274. Worktrees: REMOVABLE-POST-MERGE: E-REL-NOTES/S-CLAROTY-VULNS-001/S-ENGINE-LIMIT-EARLY-STOP-001/S-REL-NIGHTLY-001/S-REL-NIGHTLY-NOTES-001. PARKED: S-3.09, W3-FIX-S307-001 (DIRTY), S-ENGINE-H2-LARGE-RESPONSE-001.
+
+**NOTE: Superseded by D-2519 — SESSION WRAP; durable §RESUME SNAPSHOT D-2519 written. STATE v10.024→v10.025; SESSION-HANDOFF v9.016→v9.017.**
+
+---
+
 ## Archived: D-2511 — 2026-09-09; STATE v10.017 — RECORDS-ONLY MICRO-BURST; v1.0.0-beta.2 PRE-RELEASE PUBLISHED
 
 **RESUME IN ONE BREATH (D-2511):** Prism at develop@baf720d89 — beta.1 SHIPPED; nightly lane LIVE; S-REL-NIGHTLY-NOTES-001 + S-REL-SPECS-TARBALL-001 COMPLETE; v1.0.0-beta.2 PRE-RELEASE PUBLISHED (release-tag.yml run 34407101117 + release.yml run 34407137100; RELEASING.md §6 all 8 PASS; beta.2 workstream COMPLETE). S-REL-CHANGELOG-CHANNEL-SCOPE-001 MATERIALIZED (P1; draft; ADR-063 §D7 amendment pending; BLOCKS v1.0.0 stable).
