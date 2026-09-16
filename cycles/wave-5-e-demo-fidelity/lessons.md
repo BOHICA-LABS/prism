@@ -5297,4 +5297,144 @@ At each burst, before committing, explicitly enumerate Dim-2 targets as a checkl
 **Action (codification — meets threshold):**
 This recurrence meets the 3-occurrence threshold (TD-VSDD-097 codification rationale). Consider adding a story-local Dim-2 target list as a mandatory field in the story §Holdout section or as a checklist step in the state-burst protocol for stories that have holdout scenarios. The specific mapping (story ↔ HOLDOUT-INDEX group ↔ scenario files) is predictable at materialization time and should be recorded explicitly.
 
+---
+
+## Lesson (S-7.02 Cycle-Closing): BC-INDEX Parenthetical Version Format + ARCH-INDEX Inline-Changelog Currency Drift → Deferred to S-MAINT-INDEX-FORMAT-RATCHET-001
+
+**Date recorded:** 2026-09-16
+**D-NNN anchor:** D-2541 (Batch-0 spec-gate closure; S-7.02 cycle-closing checklist codification)
+**Tags:** [s-7.02] [bc-index] [arch-index] [format-ratchet] [deferred] [records-lint]
+**Classification:** DEFERRED — Human-directed deferral 2026-09-16; anchored to real story S-MAINT-INDEX-FORMAT-RATCHET-001 (draft v0.1, registered D-2541).
+
+**Description:**
+
+Two Batch-0 index-format findings were surfaced during the spec-gate cascade and accepted as non-fixable in-perimeter without expanding scope into a corpus-wide reformat pass:
+
+- **Batch-0 OBS-01**: BC-INDEX carries 9 rows with `(vX.Y current)` parenthetical inline version annotations in their description cells. The ratified format uses only the table row's version column; the parenthetical form is pre-existing convention on the oldest 9 rows and correcting only those 9 would produce inconsistency within the index while still leaving the remaining rows with the old parenthetical form elsewhere in the corpus. A corpus-wide pass is required to bring all rows to a consistent format.
+
+- **F-B0P14-LOW-001**: ARCH-INDEX §ADR rows carry inline changelog-chain text that drifts when the referenced ADR is amended without a corresponding ARCH-INDEX inline-changelog update. The currency drift accumulated across multiple passes because the ARCH-INDEX inline-changelog convention was not enforced by any automated gate.
+
+Both findings were judged un-fixable in-perimeter (fixing selectively would create intra-index inconsistency) and deferred to a dedicated corpus-wide cleanup story with an L11 records-lint gate.
+
+**Action (deferred — anchored):**
+Deferred to S-MAINT-INDEX-FORMAT-RATCHET-001 (registered 2026-09-16; AC-001/002/003/004). Story covers: (1) BC-INDEX parenthetical version-format normalization across all rows; (2) ARCH-INDEX inline-changelog collapse to canonical form; (3) records-lint L11 gate to prevent recurrence. Human-directed deferral per Canonical Principle Rule 3.
+
+**Source:** Batch-0 OBS-01 (consistency pass-16) + F-B0P14-LOW-001 (pass-14); D-2541 decision; human approval 2026-09-16.
+
+---
+
+## Lesson (S-7.02 Cycle-Closing): ADR Mandate-Anchor ↔ BC-EC RG-ID Drift — 3× Recurrence → S-MAINT-RG-ANCHOR-DRIFT-GATE-001
+
+**Date recorded:** 2026-09-16
+**D-NNN anchor:** D-2524 (F12 finding; mandate-anchor drift; 3-recurrence threshold met)
+**Tags:** [s-7.02] [mandate-anchor] [bc-ec] [rg-id-drift] [td-vsdd-097] [deferred] [s-maint-rg-anchor-drift-gate-001]
+**Classification:** DEFERRED — 3-recurrence threshold met (TD-VSDD-097 codification trigger); anchored to S-MAINT-RG-ANCHOR-DRIFT-GATE-001 (OPEN; target at story materialization).
+
+**Description:**
+
+During Batch-0 spec-gate cascade passes, mandate-anchor drift between ADR §D-section MUST statements and their corresponding BC-EC RG-IDs recurred 3 times (meeting the TD-VSDD-097 codification threshold). The pattern: an ADR §D-section MUST block names a specific Red Gate test ID (e.g., `RG-QTT-003`) that was later renumbered, split, or renamed in the story spec without a corresponding update to the ADR anchor. This produces a broken mandate anchor — the ADR MUST nominally claims traceability to a test that does not exist under the stated name.
+
+Finding classification: F12 (open carry-forward). The fix requires a cross-document sweep across all ADR §D-section MUST blocks, all BC EC tables, and all story RG-ID assignments — a scope that exceeds in-perimeter fix capability during the spec-gate phase.
+
+**Action (deferred — anchored):**
+Deferred to S-MAINT-RG-ANCHOR-DRIFT-GATE-001 (OPEN; tracked in STATE.md carry-forward F12). Story to implement: (1) cross-document mandate-anchor sweep at materialization time; (2) records-lint or story-materialization gate to validate ADR MUST → RG-ID→AC traceability bidirectionality. Per Canonical Principle Rule 3.
+
+**Source:** D-2524 (F12 finding; 3-recurrence codification trigger); Batch-0 spec-gate cascade; TD-VSDD-097 §Mandate-anchor dimension.
+
+---
+
+## Lesson (S-7.02 Cycle-Closing): Formula/Definition Consistency Propagation Sweep — Extends S-MAINT-RG-ANCHOR-DRIFT-GATE-001
+
+**Date recorded:** 2026-09-16
+**D-NNN anchor:** D-2528 (formula-propagation sweep finding; extends F12 scope)
+**Tags:** [s-7.02] [formula-consistency] [propagation-sweep] [definition-drift] [deferred] [s-maint-rg-anchor-drift-gate-001]
+**Classification:** DEFERRED — Scope extension of the mandate-anchor drift story; anchored to S-MAINT-RG-ANCHOR-DRIFT-GATE-001.
+
+**Description:**
+
+D-2528 surfaced a related but distinct defect class: mathematical formula and definition restatements in BC narrative prose drift from the authoritative formula definition in ADR §D-sections. Specifically, when a formula or normative definition is first introduced in an ADR and then restated in prose within BCs or VPs, subsequent amendments to the canonical ADR definition are not guaranteed to propagate to all downstream restatements. The propagation is a Dim-2 (downstream copy target) obligation under TD-VSDD-097, but the set of downstream restatement sites is large and not mechanically enumerated.
+
+This extends the scope of S-MAINT-RG-ANCHOR-DRIFT-GATE-001 beyond RG-ID mandate anchors to include formula/definition restatement sites. Both failures share the same root cause: a canonical source-of-truth definition is amended but the copy-target survey is not performed in the same burst.
+
+**Action (deferred — anchored):**
+Extends S-MAINT-RG-ANCHOR-DRIFT-GATE-001 scope (AC added at materialization time). Story to include: (1) enumerate formula/definition restatement sites across BC narrative sections; (2) validate consistency with ADR canonical definitions; (3) gate rule to sweep formula restatements when an ADR formula §D-section is amended.
+
+**Source:** D-2528 (formula-propagation finding; Batch-0 spec-gate); TD-VSDD-097 Dim-2; D-2541 carry-forward.
+
+---
+
+## Lesson (S-7.02 Cycle-Closing, Codified): Consistency-Validator Dispatch Brief MUST Specify "Read Table Row Cells, Not NOTE/Changelog Lines"
+
+**Date recorded:** 2026-09-16
+**D-NNN anchor:** D-2541 (Batch-0 spec-gate closure; single-occurrence codification adopted immediately)
+**Tags:** [s-7.02] [dispatch-brief] [consistency-validator] [index-table] [process-rule] [codified]
+**Classification:** CODIFIED — Single occurrence; mitigation adopted as standing rule immediately. No new story required.
+
+**Description:**
+
+During pass-12 of the Batch-0 spec-gate cascade, the consistency-validator missed finding F-B0P12-001 (ARCH-INDEX leading-parenthetical currency drift on ADR-060). Root cause analysis established that the validator read the NOTE/changelog ledger lines in ARCH-INDEX rather than the canonical table row cells. The NOTE lines are commentary; the table row cells are the authoritative state. Validating ledger commentary instead of table row content produces false-clean results for a class of currency drift that is only visible when the table row cell itself is compared to the target artifact's version.
+
+This is a dispatch-brief failure: the orchestrator's consistency-validator brief did not explicitly instruct the validator to read TABLE ROW CELLS for version and state assertions. The brief implicitly allowed reading any ARCH-INDEX content, and the validator chose the more accessible ledger lines.
+
+**Action (codified — standing rule):**
+Standing rule adopted 2026-09-16: **Orchestrator consistency-validator dispatch briefs MUST contain an explicit instruction: "For index file assertions (BC-INDEX, ARCH-INDEX, VP-INDEX), validate the TABLE ROW CELL values — not NOTE/changelog/ledger lines below the table. NOTE lines are commentary; table cells are authoritative."** This instruction must appear in every consistency-validator brief that covers an index file. No separate story; implemented as an orchestrator dispatch-brief discipline.
+
+**Source:** F-B0P12-001 (pass-12 consistency miss); D-2541 codification at Batch-0 closure.
+
+---
+
+## Lesson (S-7.02 Cycle-Closing, Codified): Fix-Brief Dispatch Rule — State the Constraint; Let the Specialist Derive the Text
+
+**Date recorded:** 2026-09-16
+**D-NNN anchor:** D-2541 (Batch-0 spec-gate closure; single-occurrence codification adopted immediately)
+**Tags:** [s-7.02] [dispatch-brief] [fix-brief] [suggested-prose] [sibling-sweep] [process-rule] [codified]
+**Classification:** CODIFIED — Single occurrence; mitigation adopted as standing rule immediately. No new story required.
+
+**Description:**
+
+During pass-13 of the Batch-0 spec-gate cascade, the orchestrator's fix-burst brief included suggested prose for the ADR §D2/§D3/§D4 sections as a convenience. The suggested phrasing included a specific §D3 claim that was substantively incorrect. The implementer transcribed the suggested prose without independent verification of its correctness. Pass-15 adversary then found the resulting §D3 contradiction as finding F-B0P15-001 (MED severity), requiring a further fix-burst.
+
+The root cause: a brief that supplies suggested prose trains the implementer to transcribe rather than derive. The correct dispatcher discipline is to state the CONSTRAINT (what the spec section must satisfy, per the BC postcondition or ADR rationale) and require the specialist to derive conforming text. Suggested prose is categorically different from "cite the relevant section/symbol" guidance — the former is a transcription prompt; the latter is a navigation instruction.
+
+The same brief also omitted a sibling-sweep requirement, allowing a fix to land without verifying that affected sibling artifacts (ARCH-INDEX, VP-INDEX) were consistent with the fix. This compounded the issue.
+
+**Action (codified — standing rule):**
+Standing rule adopted 2026-09-16: **Orchestrator fix-burst dispatch briefs MUST state the CONSTRAINT and require the owning specialist to derive text independently. Suggested prose is FORBIDDEN in fix-briefs except as a non-binding example clearly marked as illustrative only. Briefs MUST include an explicit sibling-sweep instruction naming the affected sibling artifacts.** Applies to all fix-burst dispatches where a spec section body must be rewritten.
+
+**Source:** F-B0P15-001 (pass-15 MED §D3 contradiction); D-2538 fix-burst; D-2541 codification at Batch-0 closure.
+
+---
+
+## Lesson (S-7.02 Cycle-Closing, Codified): Convergence-Economics — Strict 3-CLEAN May Be an Unreachable Asymptote on Mature Pre-Implementation Prose Corpora
+
+**Date recorded:** 2026-09-16
+**D-NNN anchor:** D-2541 (Batch-0 spec-gate closure; human-approved convergence-economics exit; standing decision (ak))
+**Tags:** [s-7.02] [convergence] [3-clean] [pr-merge-clean] [economics] [pre-implementation] [human-approved] [codified]
+**Classification:** CODIFIED — Human-approved ratified exit criterion for mature pre-implementation prose perimeters. Standing decision (ak) recorded in STATE.md D-2541.
+
+**Description:**
+
+Batch-0 spec-gate cascade ran 16 re-gate passes. Substance converged approximately at pass-6 (both adversary and consistency-validator: all 30 Red Gate mappings bidirectional, VP-162 Kani/NOT-Kani non-overlap established, mandate anchors present, cross-refs consistent, index parity verified). Despite substance convergence, the strict-3-CLEAN streak was never achieved. Every pass that a fresh reviewer ran on the mature corpus surfaced a different cosmetic or format nit from the large pre-existing surface (pre-existing 9-row BC-INDEX parenthetical annotations, ARCH-INDEX inline changelog currency). These nits were:
+
+1. Un-fixable in-perimeter without a corpus-wide reformat pass that would itself introduce new adversary surface.
+2. Genuinely cosmetic — not behavioral, not contractual, not traceability-affecting.
+3. Produced by reviewer variance (different fresh-context reviewers surface different subsets of the same large pre-existing surface each pass).
+
+The asymptote emerges because: (a) the pre-existing surface is large; (b) each cosmetic fix changes a small region that a subsequent fresh reviewer will not re-examine, but that same reviewer will surface a different cosmetic nit from the unchanged regions; (c) there is no finite pass count that guarantees a fresh reviewer will find zero cosmetic nits on a large pre-existing corpus.
+
+**Ratified Exit (human-approved 2026-09-16, D-2541):**
+On pre-implementation prose perimeters where:
+- Substance has converged (adversary confirms all behavioral/contractual/traceability dimensions CLEAN),
+- Remaining findings are cosmetic/format nits only (OBS severity or equivalent),
+- AND in-perimeter fixes would require a corpus-wide reformat that is out-of-scope for the current gate,
+
+the accepted exit criterion is **CLEAN(PR-merge)** (zero CRIT/HIGH/MED findings; OBS/LOW cosmetics accepted) plus human approval and a registered story anchor for the cosmetic cleanup. This exit DOES NOT set a precedent for perimeters with behavioral findings; it applies ONLY to the "all-substance-converged / residual-cosmetic" class.
+
+**Evidence:** Batch-0 spec-gate 16 passes; trajectory tail →8→0→1→2→0 (adversary) / →1→0→1→0→1 (consistency); strict-3-CLEAN never achieved; CLEAN(PR-merge) achieved at pass-16 (adversary CLEAN strict; consistency 1 OBS accepted).
+
+**Action (codified — standing decision):**
+Standing decision (ak) codified 2026-09-16 per D-2541. The convergence-economics exit is available to future perimeters meeting the criteria above, subject to explicit human approval per-application. Recorded in STATE.md decisions log D-2541 and SESSION-HANDOFF.md standing decisions as decision (ak).
+
+**Source:** D-2541 (Batch-0 closure decision); D-2522..D-2541 pass evidence; human approval 2026-09-16.
+
 **Source:** D-2473 cycle-closing checklist sweep, S-REL-AGENT-VERSION-001 LOCAL cascade (D-2466 through D-2472). ~4 Dim-2 miss occurrences within a single story's LOCAL phase. [codification-assess] — threshold MET; structural intervention warranted.
