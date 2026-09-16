@@ -5,7 +5,7 @@ title: "v1 Column Naming: OCSF Field-Path Routing with Underscore-Flattened Arro
 status: accepted
 date: "2026-08-11"
 modified: "2026-09-16"
-version: "2.40"
+version: "2.41"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-10, SS-16]
 supersedes: null
@@ -1479,7 +1479,7 @@ provenance. The detailed quoting convention analysis (four options evaluated) is
 - BC-2.01.013, BC-2.16.003, and BC-2.16.002 each require product-owner amendment after Stage 2
   ships (see §I3 for the full amendment obligation list).
 
-### Status as of v2.37 (2026-09-16)
+### Status as of v2.41 (2026-09-16)
 
 Decision accepted. Stage 1 (coercion fixes, `column_coercion_failure` emission) is implemented by
 `S-ADR058-OCSF-COERCION-001` (status: draft; mandate anchor discharged at §H). Stage 2
@@ -1560,6 +1560,7 @@ the `devices` table collision is resolved per §J3. `device_alert_relations` (fo
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 2.41 | 2026-09-16 | architect | Re-gate pass 6 records-only fix (TD-VSDD-096). F-1 (LOW): §Status heading currency-synced to frontmatter — was "Status as of v2.37" while frontmatter had reached v2.40; corrected to "Status as of v2.41" (new version produced by this fix). Sibling-consistency: ADR-066 §Status was kept current-versioned throughout this cascade; ADR-058 §Status now matches that discipline. No decision-content change — discharge tables, rationale text, and all §K5/§D2/§J mandate anchors are untouched. |
 | 2.40 | 2026-09-16 | architect | Re-gate pass 5 fix. F-A (MED): §K5 Divergence Adjudication Table `devices.is_online → device.is_online` row Anchor corrected from "RG-COS-001..007" to "RG-COS-001..008" — the §K5 mandate table immediately below enumerates 8 slots; the divergence-row summary anchor must match. Sibling-sweep: two co-resident references in §K5 verified — divergence-table Anchor cell now "RG-COS-001..008"; mandate table itself correctly shows all 8 slots (unchanged); no other §K5 text cites the range. TD-VSDD-097: (1) sibling pair — no ADR twin; CLEAR. (2) downstream copy target — §K5 divergence-table Anchor cell is terminal; the canonical mandate-table RG count is unchanged. (3) mandate anchor — no new MUST added. |
 | 2.39 | 2026-09-16 | architect | Re-gate pass 2 fix. OBS-2 (LOW): §K5 D-2522 Amendment Notes — POL-39 decision-history-exemption convention note added before the amendment block. Version references in §K5 prose ("The v2.35 coercion contract was rescinded at v2.36", "D-2522-CORRECTION (v2.36): status_id mapping rescinded") are intra-ADR decision-history prose documenting the is_online mapping's design evolution — POL-39-exempt, consistent with the §D8.7 convention in ADR-060. |
 | 2.38 | 2026-09-16 | architect | Adversarial gate fixes (F3/F5). F3 (HIGH, architect half): §J1 flattened-names list for `devices` table corrected — removed stale `status_code` (demoted by §K5 D-2522 `retired` demotion; no longer an Arrow column), added `device_is_online` (new Arrow column from §K5 D-2522 Option A); count unchanged at 8; note updated from "§J3 fix" to "§J3 and §K5 D-2522 fixes". F5 (HIGH, architect half): §K5 mandate table expanded from 7 to 8 canonical slots — inserted new RG-COS-006 (TOML spec-validity: `column_type = "boolean"` + `ocsf_field = "device.is_online"` → spec-engine without ValidationError); WHERE predicate gate shifted from RG-COS-006 → RG-COS-007; SAP-2 DTU parity shifted from RG-COS-007 → RG-COS-008. Canonical RG-COS-001..008 published for PO to mirror into BC-2.16.003 (previous BC assignment of 006=DTU wire emission / 007=TOML column_type reconciled: TOML spec-validity absorbed at new RG-COS-006; WHERE predicate at RG-COS-007; SAP-2 DTU parity at RG-COS-008). TD-VSDD-097: (1) sibling pair — ADR-058 has no twin ADR; CLEAR. (2) downstream copy — BC-2.16.003 PO must update RG-COS-006..008 to match canonical numbering in same burst. (3) mandate anchors — all 8 RG-COS MUST blocks anchored to S-CLAROTY-OCSF-STATUS-001. |
