@@ -5,7 +5,7 @@ title: "json_extract_string Scalar UDF — Synchronous serde_json Single-Key Ext
 status: ACCEPTED
 date: "2026-09-16"
 modified: "2026-09-16"
-version: "1.4"
+version: "1.5"
 producer: architect
 subsystems_affected: [SS-11]
 supersedes: []
@@ -33,7 +33,7 @@ input-hash: "pending"
 
 ## Status
 
-ACCEPTED v1.4 (2026-09-16) — Re-gate pass 3: §D1 `kani::assume` wording corrected to structural `any_vec::<u8, 256>()` mechanism; §C invariant 3 corrected to cite `vp162_json_extract_string_null_safety` (general harness) not the None-input specialization. v1.3 (2026-09-16) — Re-gate pass 2: §C Formal Correctness Contract section added; §K5 POL-39 convention applied. v1.2 (2026-09-16) — Re-gate pass 1: §D header renamed from §C; §F error messages verbatim per POL-24. v1.1 (2026-09-16) — Adversarial gate F2/F7/F10: §G RG-JEX-006/007 canonical swap; §G expanded to 11+VP entries; §F `E-QUERY-045:` prefix + `{max_len}` placeholder. v1.0 (2026-09-16) — D-2522 beta.3 spec-gate approved. Closes the latent dead-path defect: `ScalarFunc::JsonExtractString` existed in the AST, SQL parser, and pipe SQL emitter since an earlier wave, but no `ScalarUDF` named `json_extract_string` was registered with the DataFusion `SessionContext`. Any invocation caused a DataFusion-internal runtime error unstructured under the prism error taxonomy.
+ACCEPTED v1.5 (2026-09-16) — Re-gate pass 5: §D1 "exactly 256 bytes" corrected to "at most 256 bytes (models key.len() ≤ 256)"; §D1 cross-reference "VP-162 §Harnesses" corrected to "VP-162 §Kani Proof Harness". v1.4 (2026-09-16) — Re-gate pass 3: §D1 `kani::assume` wording corrected to structural `any_vec::<u8, 256>()` mechanism; §C invariant 3 corrected to cite `vp162_json_extract_string_null_safety` (general harness) not the None-input specialization. v1.3 (2026-09-16) — Re-gate pass 2: §C Formal Correctness Contract section added; §K5 POL-39 convention applied. v1.2 (2026-09-16) — Re-gate pass 1: §D header renamed from §C; §F error messages verbatim per POL-24. v1.1 (2026-09-16) — Adversarial gate F2/F7/F10: §G RG-JEX-006/007 canonical swap; §G expanded to 11+VP entries; §F `E-QUERY-045:` prefix + `{max_len}` placeholder. v1.0 (2026-09-16) — D-2522 beta.3 spec-gate approved. Closes the latent dead-path defect: `ScalarFunc::JsonExtractString` existed in the AST, SQL parser, and pipe SQL emitter since an earlier wave, but no `ScalarUDF` named `json_extract_string` was registered with the DataFusion `SessionContext`. Any invocation caused a DataFusion-internal runtime error unstructured under the prism error taxonomy.
 
 **ADR-066 POL-39 decision-history convention:** Version references in §Status history and §Changelog rows (e.g., "v1.0 — D-2522 spec-gate", "v1.1 — F2/F7/F10") are intentional intra-ADR decision-history prose — they are NOT normative version pins and are POL-39-exempt; do not re-mint findings against them.
 
@@ -219,9 +219,9 @@ unstructured internal error.
 The 256-byte key length precondition is enforced by the literal-key plan gate (§B3) at
 plan time; the pure function itself is called only with keys that have already passed the
 gate. The Kani harness (`vp162_json_extract_string_null_safety`) models the post-gate
-scenario structurally by bounding the key to exactly 256 bytes via
+scenario structurally by bounding the key to at most 256 bytes (models key.len() ≤ 256) via
 `kani::vec::any_vec::<u8, 256>()` + `std::str::from_utf8()` — not via a runtime
-`kani::assume` assertion. See VP-162 §Harnesses for the canonical harness definition.
+`kani::assume` assertion. See VP-162 §Kani Proof Harness for the canonical harness definition.
 
 ### §D2 — Literal-Key-Only Scope
 
@@ -447,6 +447,7 @@ key only, string return type only, no push-down.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.5 | 2026-09-16 | architect | Re-gate pass 5 fixes. F-B (LOW): §D1 "exactly 256 bytes" corrected to "at most 256 bytes (models key.len() ≤ 256)" — `kani::vec::any_vec::<u8, 256>()` yields a vector of length 0..=256 (models `key.len() ≤ 256`), not exactly 256. F-C (LOW): §D1 cross-reference "VP-162 §Harnesses" corrected to "VP-162 §Kani Proof Harness" — actual H2 heading in VP-162 is `## Kani Proof Harness`. TD-VSDD-097: (1) sibling pair — no ADR twin; CLEAR. (2) downstream copy target — §D1 is not independently copied; §C invariant 3 "256-byte hard bound" wording correct as-is and unchanged. (3) mandate anchor — no new MUST added. |
 | 1.4 | 2026-09-16 | architect | Re-gate pass 3 fixes. Finding-2 (LOW): §D1 stale `kani::assume(key.len() <= 256)` wording replaced with VP-162-accurate description: harness `vp162_json_extract_string_null_safety` bounds the key structurally via `kani::vec::any_vec::<u8, 256>()` + `std::str::from_utf8()` (no runtime assume); VP-162 §Harnesses cited as canonical definition. §C invariant 3 corrected — was incorrectly citing `vp162_b_none_input_is_none_output` (the None-input specialization, which proves invariant 2) as the harness for the bounded-key scenario; corrected to cite `vp162_json_extract_string_null_safety` (general harness that proves invariant 1 and 3). Finding-3 (LOW): §Status banner updated from stale v1.0 to current v1.4 with full version history (v1.0..v1.4); POL-39 decision-history-exemption convention note added to §Status banner. |
 | 1.3 | 2026-09-16 | architect | Re-gate pass 2 fixes. OBS-1 (LOW): `## §C Formal Correctness Contract` section added between `## §B Decision` and `## §D Scope Boundaries` to fill the lettering gap (A,B,C,D,E,F,G,H now complete); §C contains the three invariants VP-162 must prove (null-safety, None-in/None-out, bounded-key precondition) and clarifies that behavioral RG-JEX properties are covered by Red Gate tests not Kani. All §D1..§D6 cross-references remain valid — subsection names unchanged. |
 | 1.2 | 2026-09-16 | architect | Re-gate pass 1 fixes. OBS-3 (LOW): `## §C Scope Boundaries` header renamed to `## §D Scope Boundaries` — §D1..§D6 subsections already carried the §D prefix; the §C parent header was the discrepancy, not the subsections. F-6 (MED, POL-24): §F error message strings corrected to be VERBATIM with error-taxonomy v2.84 / BC-2.11.025: (a) now includes inline example `(e.g., json_extract_string(col, 'key_name'))` and uses "Dynamic key expressions are not supported." (b) now uses `{key_len} bytes, which exceeds the {max_len}-byte maximum (CWE-400).` with bytes-count placeholder and CWE reference. |
