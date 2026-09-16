@@ -4,8 +4,8 @@ adr_id: "ADR-060"
 title: "LIMIT-Aware Early-Stop Pagination for Offset/Limit and Cursor Sensor Tables"
 status: ACCEPTED
 date: "2026-08-26"
-modified: "2026-08-30"
-version: "1.18"
+modified: "2026-09-16"
+version: "1.19"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-11, SS-16]
 supersedes: []
@@ -13,6 +13,7 @@ superseded_by: null
 amends: null
 anchor_stories:
   - S-ENGINE-LIMIT-EARLY-STOP-001
+  - S-QUERY-TRUE-TOTAL-001
 related_adrs: [ADR-028, ADR-033, ADR-058]
 related_bcs: [BC-2.16.002, BC-2.16.015, BC-2.01.010]
 locked_decisions: []
@@ -23,7 +24,7 @@ wiring_deferred_to: null
 
 ## Status
 
-ACCEPTED v1.18 (2026-08-30) — F-B1V-002 (MEDIUM/spec-accuracy): §D8.3 worked example (d) corrected — arithmetically unreachable numbers (page_size=1000, LIMIT=5, partial-page=3) replaced with reachable scenario from `test_early_stop_multi_batch_partial_page_is_truncated` (page_size=10, LIMIT=5; batch-0 non-final is_last_batch=false returns partial page 5 records (5 < 10), accumulated=5 ≥ limit=5 → early-stop fires, discriminator `(5 >= 10) || !is_last_batch = false || true = true` → `early_stopped=true`; batch-1 abandoned by `break 'steps`); §D8.2/§D8.9 discriminator formula and disambiguation note unchanged; rows (a)/(b)/(c) unchanged. Closes F-B1V-002. v1.17 (2026-08-30) — F-B1-001 (MEDIUM): §D8.2 discriminator formula extended with intra-pipeline step fan-out term (`early_stopped = (page_record_count >= active_page_size) || !is_last_batch`); §D8.3 worked example (d) added (non-final batch → `early_stopped = true`); disambiguation note added (intra-pipeline step fan-out vs multi-sensor `FanOutResult.any_early_stopped` OR-aggregation, §D8.9/§D8.10) in §D8.2 and §D8.3; documents implemented+verified behavior (code @704aac24a; `test_early_stop_multi_batch_partial_page_is_truncated`, GREEN). Closes F-B1-001. v1.16 (2026-08-29) — F-P9-LENSA-001 DECISION (A): §D8.4 spec-reconcile — `PaginationConfig::None` moved from contradictory "does NOT apply to None" exclusion to explicit conservative-bucket documentation; `_ => 0` catch-all in `execute_impl` captures None same as CursorToken; exact-LIMIT corner (`row_count == LIMIT` → `is_truncated: true`) documented as accepted safe over-report; §D8.2 NOTE updated to cite None alongside CursorToken; zero v1 exposure; no code change; feature HEAD 62e50205b frozen unchanged. v1.15 (2026-08-29) — F-P2-LENSC2-001: §D8.4 Dim-3 discharge note stale version pin removed (STORY-INDEX reference now cites draft status without version number; POL-39 compliant); F-P2-LENSC2-002: §Status banner POL-39 sweep count corrected from ~14 to 20 (matches §Changelog enumeration of 20 items; banner and changelog now self-consistent). v1.14 (2026-08-29) — F-P1B-LENSC2-001/002: §D8.4 TD-VSDD-097 Dim-3 note updated (S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001 now registered in STORY-INDEX, deferral anchored to existing story, prohibitive MUST active); §D8.7 heading volatile version stamp removed; POL-39 sweep: 20 normative in-body version pins anchor-ized across §D8.7/§D8.9; ~6 decision-history version refs preserved as intentional with convention note added to §D8.7. v1.13 (2026-08-29) — F-FP1-LENSA-001 DECISION (B): cursor page-fill discriminator is unsound — revert + narrow + anchor. §D8.2 code comment: CursorToken collapsed to `_ => 0` catch-all (removes `CursorToken { page_size: Some(ps) } => ps as usize` arm added v1.12); comment variable renamed `active_page_size` (was `page_size`) throughout to match §D8.4 + ratified impl naming (F-FP1-LENSC2-002). §D8.4: CursorToken narrowed to conservative-only across ALL sub-cases; rationale: page-fill is NOT a valid cursor exhaustion signal (partial cursor page + non-empty next cursor = more data exists — under-report is the DANGEROUS direction); all CursorToken → `active_page_size = 0` → `early_stopped = true` (safe over-report); precise next-cursor-presence-based detection deferred to S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001 (post-v1, blocked on S-OCSF-FIDELITY-CYBERINT-001). v1.12 (2026-08-29) — F-P1-LENSC2-001/002/003: §D8.2 `page_size` derivation comment extended to all early-stop-eligible modes (OffsetLimit + CursorToken); §D8.3 forward-reference anchor discharged; in-body version-pin sweep: 0 found. v1.11 (2026-08-28) — F-P31-LENSA-OBS-001: partial-final-page discriminator for early-stop signal (§D8.2, §D8.3, §D8.9); exact-limit/partial-final-page LIMIT query no longer emits self-contradictory `is_truncated: true` with `total_available == returned_results`. v1.10 (2026-08-28) — §D8.9 FetchOutput 3-field reconciliation + DI-019 propagation arm, F-P20-LENSC-MED-001. v1.9 (2026-08-28) — F-R16-P18-LENSA-MED-001 (DI-019 truncation-signal propagation gap): `PipelineResult.truncated` (DI-019 cap) was dropped at the adapter boundary; new §D8.10 threads `pipeline_truncated` through `FetchOutput → FanOutResult.any_pipeline_truncated → MaterializationOutput.any_pipeline_truncated`; cache-completeness gate updated to `errors.is_empty() && !any_early_stopped && !any_pipeline_truncated`; engine Step 6 formula updated to `(total_rows > limit) || any_early_stopped || any_pipeline_truncated`; scheduled path `is_truncated: false` hardcode replaced by `any_early_stopped || any_pipeline_truncated` (F-R16-P18-LENSA-OBS-001 sibling-sweep); RG-PSG-035/036 required. v1.8 (2026-08-28) — F-R16-P16-LENSA-HIGH-001: source-scoped `datetime_index_cols` via `resolved_col_map` (§D8.9); F-R16-P16-LENSA-LOW-001: reversed-operand prohibition explicit in `is_pushed_temporal_predicate` (§D8.7); F-R16-P16-LENSB-LOW-001: Condition K multi-INDEX-datetime conservative suppression (§D8.7); structural-reuse `collect_datetime_index_cols` helper; RG-PSG-032/033/030b required. v1.7 (2026-08-28) — AND-arm direction-count constraint (§D8.7) + OCSF-name gap in `datetime_index_cols` (§D8.9). v1.6: ADR-059 citation reframe. v1.5 (2026-08-27) — Temporal-exemption soundness redesign (§D8.9): `is_pushed_temporal_predicate` replaces `is_purely_temporal_predicate`; `Ast::Filter` + `PipeStage::Where` unconditionally SUPPRESS in `has_client_side_where`; `expr_contains_aggregate_or_window` catch-all `_ => false` → `_ => true`; `any_early_stopped` truncation-signal chain added (§D8.9). v1.4: Subsystem-anchoring correction: SS-11 + SS-07 added. v1.3: Comprehensive plan-shape surface audit. §D8.7 closes F-R12-CRIT-001
+ACCEPTED v1.19 (2026-09-16) — D-2522 beta.3 remediation: §D8.11 upstream-total propagation chain (S-QUERY-TRUE-TOTAL-001). New optional TOML `total_count_path: Option<String>` per table; threads `PaginationCursor.total_count → FetchOutput.upstream_total → FanOutResult.upstream_total (max() fan-out) → MaterializationOutput.upstream_total → engine Step 6 total_available = upstream_total.unwrap_or(total_rows)`; `is_truncated` formula unchanged. Top-level key only; nested path deferred to S-JSON-EXTRACT-NESTED-001. Re-freeze pending under BC-5.39.001 3-CLEAN. v1.18 (2026-08-30) — F-B1V-002 (MEDIUM/spec-accuracy): §D8.3 worked example (d) corrected — arithmetically unreachable numbers (page_size=1000, LIMIT=5, partial-page=3) replaced with reachable scenario from `test_early_stop_multi_batch_partial_page_is_truncated` (page_size=10, LIMIT=5; batch-0 non-final is_last_batch=false returns partial page 5 records (5 < 10), accumulated=5 ≥ limit=5 → early-stop fires, discriminator `(5 >= 10) || !is_last_batch = false || true = true` → `early_stopped=true`; batch-1 abandoned by `break 'steps`); §D8.2/§D8.9 discriminator formula and disambiguation note unchanged; rows (a)/(b)/(c) unchanged. Closes F-B1V-002. v1.17 (2026-08-30) — F-B1-001 (MEDIUM): §D8.2 discriminator formula extended with intra-pipeline step fan-out term (`early_stopped = (page_record_count >= active_page_size) || !is_last_batch`); §D8.3 worked example (d) added (non-final batch → `early_stopped = true`); disambiguation note added (intra-pipeline step fan-out vs multi-sensor `FanOutResult.any_early_stopped` OR-aggregation, §D8.9/§D8.10) in §D8.2 and §D8.3; documents implemented+verified behavior (code @704aac24a; `test_early_stop_multi_batch_partial_page_is_truncated`, GREEN). Closes F-B1-001. v1.16 (2026-08-29) — F-P9-LENSA-001 DECISION (A): §D8.4 spec-reconcile — `PaginationConfig::None` moved from contradictory "does NOT apply to None" exclusion to explicit conservative-bucket documentation; `_ => 0` catch-all in `execute_impl` captures None same as CursorToken; exact-LIMIT corner (`row_count == LIMIT` → `is_truncated: true`) documented as accepted safe over-report; §D8.2 NOTE updated to cite None alongside CursorToken; zero v1 exposure; no code change; feature HEAD 62e50205b frozen unchanged. v1.15 (2026-08-29) — F-P2-LENSC2-001: §D8.4 Dim-3 discharge note stale version pin removed (STORY-INDEX reference now cites draft status without version number; POL-39 compliant); F-P2-LENSC2-002: §Status banner POL-39 sweep count corrected from ~14 to 20 (matches §Changelog enumeration of 20 items; banner and changelog now self-consistent). v1.14 (2026-08-29) — F-P1B-LENSC2-001/002: §D8.4 TD-VSDD-097 Dim-3 note updated (S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001 now registered in STORY-INDEX, deferral anchored to existing story, prohibitive MUST active); §D8.7 heading volatile version stamp removed; POL-39 sweep: 20 normative in-body version pins anchor-ized across §D8.7/§D8.9; ~6 decision-history version refs preserved as intentional with convention note added to §D8.7. v1.13 (2026-08-29) — F-FP1-LENSA-001 DECISION (B): cursor page-fill discriminator is unsound — revert + narrow + anchor. §D8.2 code comment: CursorToken collapsed to `_ => 0` catch-all (removes `CursorToken { page_size: Some(ps) } => ps as usize` arm added v1.12); comment variable renamed `active_page_size` (was `page_size`) throughout to match §D8.4 + ratified impl naming (F-FP1-LENSC2-002). §D8.4: CursorToken narrowed to conservative-only across ALL sub-cases; rationale: page-fill is NOT a valid cursor exhaustion signal (partial cursor page + non-empty next cursor = more data exists — under-report is the DANGEROUS direction); all CursorToken → `active_page_size = 0` → `early_stopped = true` (safe over-report); precise next-cursor-presence-based detection deferred to S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001 (post-v1, blocked on S-OCSF-FIDELITY-CYBERINT-001). v1.12 (2026-08-29) — F-P1-LENSC2-001/002/003: §D8.2 `page_size` derivation comment extended to all early-stop-eligible modes (OffsetLimit + CursorToken); §D8.3 forward-reference anchor discharged; in-body version-pin sweep: 0 found. v1.11 (2026-08-28) — F-P31-LENSA-OBS-001: partial-final-page discriminator for early-stop signal (§D8.2, §D8.3, §D8.9); exact-limit/partial-final-page LIMIT query no longer emits self-contradictory `is_truncated: true` with `total_available == returned_results`. v1.10 (2026-08-28) — §D8.9 FetchOutput 3-field reconciliation + DI-019 propagation arm, F-P20-LENSC-MED-001. v1.9 (2026-08-28) — F-R16-P18-LENSA-MED-001 (DI-019 truncation-signal propagation gap): `PipelineResult.truncated` (DI-019 cap) was dropped at the adapter boundary; new §D8.10 threads `pipeline_truncated` through `FetchOutput → FanOutResult.any_pipeline_truncated → MaterializationOutput.any_pipeline_truncated`; cache-completeness gate updated to `errors.is_empty() && !any_early_stopped && !any_pipeline_truncated`; engine Step 6 formula updated to `(total_rows > limit) || any_early_stopped || any_pipeline_truncated`; scheduled path `is_truncated: false` hardcode replaced by `any_early_stopped || any_pipeline_truncated` (F-R16-P18-LENSA-OBS-001 sibling-sweep); RG-PSG-035/036 required. v1.8 (2026-08-28) — F-R16-P16-LENSA-HIGH-001: source-scoped `datetime_index_cols` via `resolved_col_map` (§D8.9); F-R16-P16-LENSA-LOW-001: reversed-operand prohibition explicit in `is_pushed_temporal_predicate` (§D8.7); F-R16-P16-LENSB-LOW-001: Condition K multi-INDEX-datetime conservative suppression (§D8.7); structural-reuse `collect_datetime_index_cols` helper; RG-PSG-032/033/030b required. v1.7 (2026-08-28) — AND-arm direction-count constraint (§D8.7) + OCSF-name gap in `datetime_index_cols` (§D8.9). v1.6: ADR-059 citation reframe. v1.5 (2026-08-27) — Temporal-exemption soundness redesign (§D8.9): `is_pushed_temporal_predicate` replaces `is_purely_temporal_predicate`; `Ast::Filter` + `PipeStage::Where` unconditionally SUPPRESS in `has_client_side_where`; `expr_contains_aggregate_or_window` catch-all `_ => false` → `_ => true`; `any_early_stopped` truncation-signal chain added (§D8.9). v1.4: Subsystem-anchoring correction: SS-11 + SS-07 added. v1.3: Comprehensive plan-shape surface audit. §D8.7 closes F-R12-CRIT-001
 (aggregate recursion gap) and F-R12-HIGH-001 (JOIN not suppressed), plus six additional gaps
 discovered by exhaustive grammar enumeration: ORDER BY aggregate escapes Condition A; Condition G
 was based on `where_filters` (equality push-down map) which is always empty for `Ast::Filter` mode
@@ -977,6 +978,183 @@ The `|| any_early_stopped` term is included for future robustness; it is always 
 
 **Classification:** This finding is MED (latent — currently the scheduled path has `effective_options.limit = None` so DI-019 is the only truncation source; the hardcode produces `is_truncated: false` even when the detection engine sees a truncated dataset). The production-grade fix is to consume the new flag in the same burst as the analyst path.
 
+### D8.11 — Upstream-Total Propagation Chain (S-QUERY-TRUE-TOTAL-001)
+
+**Motivation:** When a sensor API returns a total-item-count in its response
+(e.g., `{"total": 4500, "items": [...], "page": 1}`), the engine discards that number
+today. `total_available` in the MCP response is a LOWER BOUND — it equals `total_rows`
+(the DataFusion row count after LIMIT is applied), never the true upstream total.
+An analyst querying `SELECT * FROM claroty_devices LIMIT 25` sees
+`total_available = 25`, `is_truncated = true`, but has no way to know whether there are
+26 or 4,000 upstream records. This issue was first observed in the beta.2 Monroe live-test
+(jea-readapi, D-2520 Issue 6) and authorized for beta.3 remediation by D-2522.
+
+#### §D8.11.1 — New TOML Field: `total_count_path`
+
+Sensor TOML tables gain an OPTIONAL field:
+
+```toml
+[[tables]]
+name = "devices"
+total_count_path = "total"   # top-level key in the API JSON response body
+```
+
+| Property | Value |
+|----------|-------|
+| TOML key | `total_count_path` |
+| Type | `Option<String>` |
+| Scope | Per-table within a sensor spec |
+| Meaning | JSON path (top-level key only, same literal-key rule as `json_extract_string`) to an integer field in the API response body that carries the total upstream item count |
+| Default | `None` — no upstream total is captured |
+| Validation | Key must be ≤ 256 bytes; value at runtime must be a non-negative integer |
+
+**Key-depth constraint:** `total_count_path` is a TOP-LEVEL key in the response JSON
+object, not a JSONPath expression. The same literal/bounded-key discipline from ADR-066
+§D2/§D3 applies: values like `meta.total` or `pagination.count` are NOT supported in
+beta.3 and are deferred to S-JSON-EXTRACT-NESTED-001's nested-path mechanism. Sensors
+with nested total paths must wait for that story or restructure their TOML wrapper.
+
+#### §D8.11.2 — PaginationCursor.total_count (Existing Field, New Consumer)
+
+`PaginationCursor` already carries `total_count: Option<usize>` (at
+`crates/prism-sensors/src/pagination.rs`). This field is populated by the sensor adapter
+from the parsed response when `total_count_path` is set. It was previously captured but
+never read after the pagination step.
+
+**This section makes `PaginationCursor.total_count` a load-bearing field.** Spec-engine
+callers that return `PaginationCursor` must NOT discard this value; they must forward it
+via the `FetchOutput.upstream_total` field (§D8.11.3).
+
+#### §D8.11.3 — Struct Changes: Four New Fields
+
+Four structs gain one new field each to thread the upstream total from the adapter
+boundary to the engine:
+
+**`FetchOutput` (crates/prism-sensors/src/…):**
+
+```rust
+pub struct FetchOutput {
+    pub batches: Vec<RecordBatch>,
+    pub any_early_stopped: bool,
+    pub pipeline_truncated: bool,
+    pub upstream_total: Option<usize>,   // NEW — from PaginationCursor.total_count
+}
+```
+
+- `upstream_total` is populated from the LAST page's `PaginationCursor.total_count`.
+  For OffsetLimit pagination, all pages typically carry the same total; using the last-page
+  value is correct. For CursorToken pagination where the total is only present on the
+  first page, the adapter accumulates the first-page total across pages.
+- When `total_count_path` is absent from the TOML, `upstream_total = None`.
+
+**`FanOutResult` (crates/prism-sensors/src/…):**
+
+```rust
+pub struct FanOutResult {
+    pub batches: Vec<RecordBatch>,
+    pub any_early_stopped: bool,
+    pub any_pipeline_truncated: bool,
+    pub upstream_total: Option<usize>,   // NEW — max() of sensor upstream totals
+}
+```
+
+**`MaterializationOutput` (crates/prism-query/src/…):**
+
+```rust
+pub struct MaterializationOutput {
+    pub record_batches: Vec<RecordBatch>,
+    pub total_rows: usize,
+    pub any_early_stopped: bool,
+    pub any_pipeline_truncated: bool,
+    pub upstream_total: Option<usize>,   // NEW — from FanOutResult
+}
+```
+
+**`PipelineResult` (crates/prism-sensors/src/…) — if applicable:**
+
+If `PipelineResult` is an intermediate struct between `PaginationCursor` and `FetchOutput`,
+it gains `upstream_total: Option<usize>` at the same location in the propagation chain.
+The implementer confirms or adjusts based on the actual struct hierarchy in
+`crates/prism-sensors/src/`.
+
+#### §D8.11.4 — Multi-Sensor Fan-Out Aggregation
+
+When multiple sensors are queried in a single fan-out (e.g.,
+`SELECT * FROM claroty_devices, armis_devices LIMIT 50`):
+
+```rust
+// FanOutResult.upstream_total aggregation
+let upstream_total: Option<usize> = fetch_outputs
+    .iter()
+    .filter_map(|fo| fo.upstream_total)
+    .max();     // max() of available sensor totals, or None if no sensor reported a total
+```
+
+**Rationale for `max()`:** In a multi-sensor fan-out that returns mixed results, the
+dataset total is at least as large as the largest individual sensor total. Using `max()`
+is the least-surprising signal: it tells the analyst "the largest source has at least N
+records." Using `sum()` would overstate for a single-source case where both sensors happen
+to cover the same logical dataset. `max()` is the safe, conservative, correct choice.
+
+When only ONE sensor reports an upstream total (`Some`), that total is used directly
+(vacuous `max()` of a single element).
+
+When NO sensor reports an upstream total, `upstream_total = None`.
+
+#### §D8.11.5 — Engine Step 6: `total_available` Computation
+
+The existing formula at engine Step 6 is updated:
+
+```rust
+// Before (beta.2):
+let total_available = total_rows;   // always a lower bound, never true upstream total
+
+// After (beta.3, §D8.11):
+let total_available = output.upstream_total.unwrap_or(total_rows);
+```
+
+**Semantics:**
+- When `upstream_total = Some(N)`: `total_available = N` (the true upstream total as
+  reported by the sensor API). This is now an EXACT count (not a lower bound) when
+  `is_truncated = true` AND `upstream_total` is available.
+- When `upstream_total = None`: `total_available = total_rows` (the existing lower-bound
+  semantics, unchanged from beta.2). `is_truncated = true` still signals incompleteness.
+
+**`is_truncated` formula:** UNCHANGED from §D8.10. The upstream total does not affect
+whether the result is truncated — only what `total_available` reports.
+
+#### §D8.11.6 — Mandate Anchors (TD-VSDD-097 Dim-3)
+
+| MUST | Story AC / Red Gate |
+|------|---------------------|
+| `FetchOutput.upstream_total` populated from `PaginationCursor.total_count` | S-QUERY-TRUE-TOTAL-001 RG-QTT-001 |
+| `FanOutResult.upstream_total = max()` of sensor totals | S-QUERY-TRUE-TOTAL-001 RG-QTT-002 |
+| `total_available = upstream_total.unwrap_or(total_rows)` at Step 6 | S-QUERY-TRUE-TOTAL-001 RG-QTT-003 |
+| Single-sensor: `upstream_total = Some(N)` present in MCP response when TOML has `total_count_path` | S-QUERY-TRUE-TOTAL-001 RG-QTT-004 |
+| Multi-sensor: `upstream_total = max()` of reported sensor totals | S-QUERY-TRUE-TOTAL-001 RG-QTT-005 |
+| When `total_count_path` absent from TOML: `upstream_total = None`, `total_available = total_rows` | S-QUERY-TRUE-TOTAL-001 RG-QTT-006 |
+
+#### §D8.11.7 — Backward Compatibility
+
+- Sensors without `total_count_path` in their TOML: no change in behavior.
+  `upstream_total = None` throughout; `total_available = total_rows` as before.
+- The four struct changes (`FetchOutput`, `FanOutResult`, `MaterializationOutput`,
+  `PipelineResult`) add fields. Struct literal construction sites must be updated.
+  `#[non_exhaustive]` on `FetchOutput` means external crates cannot break; internal
+  construction sites in `prism-sensors/` and `prism-query/` must be updated by the
+  implementer.
+- The `FetchOutput::new()` constructor (§D8.10 precedent) gains a `upstream_total:
+  Option<usize>` parameter. All 21+ construction sites updated by the implementer
+  (as precedented by the §D8.10 `pipeline_truncated` field addition in v1.9).
+
+#### §D8.11.8 — Scope Boundary
+
+`total_count_path` is a TOP-LEVEL key only (§D8.11.1). Nested path support (e.g.,
+`pagination.total`) is deferred to S-JSON-EXTRACT-NESTED-001 via the JSONPath mechanism
+that story introduces. Until then, sensors with nested total fields should either:
+(a) Leave `total_count_path` unset (preserving lower-bound behavior), OR
+(b) Work with the sensor API vendor to include the total at the top level.
+
 ---
 
 ## Rationale
@@ -1140,6 +1318,7 @@ Closed by v1.8 Condition K: conservative suppression when `collect_datetime_inde
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.19 | 2026-09-16 | architect | D-2522 beta.3 spec-gate authorized. §D8.11 upstream-total propagation chain added: §D8.11.1 new optional TOML `total_count_path: Option<String>` per-table field (top-level key ≤256 bytes; nested paths deferred to S-JSON-EXTRACT-NESTED-001); §D8.11.2 `PaginationCursor.total_count` elevated from captured-but-ignored to load-bearing; §D8.11.3 four struct changes (`FetchOutput`, `FanOutResult`, `MaterializationOutput`, plus `PipelineResult` if applicable) each gain `upstream_total: Option<usize>`; §D8.11.4 multi-sensor fan-out aggregation via `max()` over `Some` values; §D8.11.5 engine Step 6 updated: `total_available = upstream_total.unwrap_or(total_rows)` — `is_truncated` formula unchanged; §D8.11.6 mandate anchors table (6 MUST → RG-QTT-001..006); §D8.11.7 backward compatibility: sensors without `total_count_path` are behaviorally unchanged; §D8.11.8 scope boundary (top-level-key only). Anchor story: S-QUERY-TRUE-TOTAL-001. Re-freeze pending under BC-5.39.001 3-CLEAN (D-2522 authorized). |
 | 1.18 | 2026-08-30 | architect | F-B1V-002 (MEDIUM/spec-accuracy): §D8.3 worked example (d) corrected — arithmetically unreachable numbers (page_size=1000, LIMIT=5, partial-page=3) replaced with reachable scenario matching `test_early_stop_multi_batch_partial_page_is_truncated` (RG-PSG-044): page_size=10, LIMIT=5; 4 IDs at fan_out_batch_size=2 → 2 intra-pipeline batches; batch-0 (batch_idx=0, non-final, is_last_batch=false) returns partial page 5 records (5 < page_size 10), accumulated=5 ≥ limit=5 → early-stop fires; discriminator `(page_record_count 5 >= active_page_size 10) \|\| !is_last_batch = false \|\| true = true` → `early_stopped=true` → `is_truncated=true`; batch-1 abandoned by `break 'steps` (proven by test's 2-HTTP-request assertion). §D8.2 discriminator formula and disambiguation note unchanged. Rows (a)/(b)/(c) unchanged. Closes F-B1V-002. |
 | 1.17 | 2026-08-30 | architect | F-B1-001 (MEDIUM): §D8.2 discriminator formula extended — `early_stopped = (page_record_count >= active_page_size) \|\| !is_last_batch`; `is_last_batch = (batch_idx + 1 == batch_count)` refers to intra-pipeline step fan-out batches within `execute_impl` batch-loop (over `fan_out_batches`/`fan_out_batch_size`), DISTINCT from multi-sensor fan-out at the `FanOutResult` layer (§D8.9/§D8.10). Non-final batch (`!is_last_batch = true`): `break 'steps` abandons remaining step-fan-out batches → data genuinely incomplete → `early_stopped = true` regardless of page fill. Final batch: falls back to page-fill discriminator. Common no-fan-out case (`batch_count == 1`): reduces exactly to `page_record_count >= active_page_size`. §D8.3 updated: description cites full discriminator formula; bullet list extended (non-final-batch case added); worked example (d) added (batch 1 of 2, partial page → `early_stopped = true`); disambiguation note added (intra-pipeline step fan-out vs multi-sensor `FanOutResult.any_early_stopped` OR-aggregation). Documents implemented+verified behavior (code @704aac24a; `test_early_stop_multi_batch_partial_page_is_truncated`, GREEN). Closes F-B1-001. |
 | 1.16 | 2026-08-29 | architect | F-P9-LENSA-001 DECISION (A): §D8.4 spec-reconcile — `PaginationConfig::None` moved from contradictory "does NOT apply to None" exclusion to explicit conservative-bucket documentation; `active_page_size = 0` (via `_ => 0` catch-all) → `early_stopped = true` at exact-LIMIT corner (safe over-report, narrow, latent for v1); accepted conservative corner consistent with CursorToken treatment; §D8.2 comment updated to note `_` captures None; §D8.2 NOTE updated to cite None alongside CursorToken. No code change; feature HEAD 62e50205b frozen unchanged. |

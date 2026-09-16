@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.48"
+version: "1.49"
 status: draft
 producer: architect
 timestamp: 2026-06-12T00:00:00
@@ -26,7 +26,7 @@ Verification property (VP) priority tiers (P0/P1) reflect the formal-verificatio
 
 ```mermaid
 graph TB
-    subgraph TIER1["Tier 1: Kani — Formal Proofs (32 properties — VP-001..VP-012, VP-014, VP-015, VP-020, VP-025, VP-026, VP-029, VP-030, VP-039, VP-040, VP-044, VP-048, VP-051, VP-053, VP-057, VP-065, VP-070, VP-071, VP-108, VP-160, VP-161)"]
+    subgraph TIER1["Tier 1: Kani — Formal Proofs (33 properties — VP-001..VP-012, VP-014, VP-015, VP-020, VP-025, VP-026, VP-029, VP-030, VP-039, VP-040, VP-044, VP-048, VP-051, VP-053, VP-057, VP-065, VP-070, VP-071, VP-108, VP-160, VP-161, VP-162)"]
         K1["OrgSlug validation (VP-001)"]
         K2["Feature flag resolution (VP-002/003/004/020)"]
         K3["Case state machine (VP-005/006)"]
@@ -48,6 +48,7 @@ graph TB
         K19["Generator idempotent (VP-108)"]
         K20["Rule 9 cookie-name charset totality and injection rejection (VP-160)"]
         K21["Rule 9 error message echo cap and CTL escaping — CWE-400/CWE-117 (VP-161)"]
+        K22["json_extract_string_impl null safety and panic freedom (VP-162)"]
     end
 
     subgraph TIER2["Tier 2: Proptest — Property-Based Testing (88 registered; 8 retired per ADR-037) + Unit Tests (4 — VP-095..VP-098, all retired per ADR-037)"]
@@ -111,7 +112,7 @@ graph TB
         U3["BC-2.06.019 E-DEMO-006 org_id-equality guard (VP-158 / VP-019-I alias — P1)"]
     end
 
-    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["161 Registered Properties — 148 active, 13 retired per ADR-037"]
+    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["162 Registered Properties — 149 active, 13 retired per ADR-037"]
     TIER2 -->|"Explores complex<br/>input spaces"| SAFE
     TIER3 -->|"Finds crashes in<br/>untrusted input paths"| SAFE
     INTEG -->|"Verifies I/O ordering<br/>and lifecycle"| SAFE
@@ -303,10 +304,11 @@ Properties are organized by the domain invariant or BC postcondition they verify
 | VP-159 | DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry: zero network at construction; cold get_token → one HTTP POST + cache; warm get_token within TTL → zero HTTP POSTs; stale get_token → one HTTP POST re-acquisition; acquire_token → one HTTP POST cache bypass (BC-2.16.014 P1–P5); TTL arithmetic for both ExpiryMode variants; CachedAuthToken never stores credential values (BC-2.16.014 P7, AD-017, INV-014-003) | prism-spec-engine | integration_test | feasible | P1 | BC-2.16.014 |
 | VP-160 | Rule 9 cookie-name charset totality and injection rejection: `is_valid_cookie_name_tchar` returns true iff every byte is in the 77-character RFC 9110 §5.6.2 tchar set; semicolons, bare equals, spaces, TAB, CTL bytes, non-ASCII, and RFC 9110 delimiters are rejected (SEC-001 / ADR-053 §D2) | prism-spec-engine | kani | feasible | P0 | BC-2.16.009 |
 | VP-161 | Rule 9 error message echo cap and CTL escaping: `truncate_at_char_boundary` always returns ≤64 codepoints (CWE-400 / EC-009-047); CTL-escape function never emits raw CTL bytes (0x00–0x1F, 0x7F) in E-SPEC-027(a) message (CWE-117 / EC-009-048) | prism-spec-engine | kani | feasible | P0 | BC-2.16.009 |
+| VP-162 | `json_extract_string_impl` null safety and panic freedom: for any `(column_value: Option<&str>, key: &str)` with `key.len() ≤ 256` (post-literal-key-plan-gate precondition per ADR-066 §B3/§D3), the function returns `Some(String)` or `None`, never panics, never propagates an unstructured internal error (ADR-066 §D1) | prism-query | kani | feasible | P0 | BC-2.11.025 / ADR-066 §D1 |
 
 ## Verification Priority
 
-**P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031, VP-033, VP-034, VP-036, VP-038, VP-039, VP-044, VP-045, VP-046, VP-047, VP-050, VP-051, VP-052, VP-053, VP-057, VP-058, VP-060 (Phase 1-2 baseline, 43); plus Wave 3 P0: VP-063, VP-064, VP-066, VP-067, VP-068, VP-069, VP-070, VP-071, VP-072, VP-073, VP-074, VP-075, VP-076, VP-077, VP-078, VP-079, VP-080, VP-081, VP-082, VP-083, VP-084, VP-085, VP-086, VP-087, VP-088, VP-089, VP-090, VP-091, VP-092, VP-093, VP-094, VP-108, VP-109, VP-110, VP-111, VP-112, VP-113, VP-114, VP-115, VP-116, VP-117, VP-118, VP-119, VP-120, VP-121, VP-122, VP-123, VP-124, VP-125, VP-126, VP-127, VP-128, VP-129, VP-130, VP-131, VP-132, VP-133 (57); plus Wave 4 Phase 4.A pass-4 P0 elevation: VP-138 (1); plus ADR-023 plugin migration P0: VP-146, VP-147, VP-148, VP-149, VP-150, VP-152 (6); plus PREREQ-E ADR-026/ADR-027 P0: VP-153, VP-155 (2); plus Wave-A Rule 9 cookie-name charset P0: VP-160 (1); plus Wave-A Rule 9 error message echo cap and CTL escaping P0: VP-161 (1) — all safety-critical invariants and security properties. (**111 active P0**; additionally 13 P0 rows — VP-095..VP-107 — are retired per ADR-037 (2026-06-10) and excluded from the release gate while remaining registered rows, for 124 P0 rows total per VP-INDEX Summary row-count basis)
+**P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031, VP-033, VP-034, VP-036, VP-038, VP-039, VP-044, VP-045, VP-046, VP-047, VP-050, VP-051, VP-052, VP-053, VP-057, VP-058, VP-060 (Phase 1-2 baseline, 43); plus Wave 3 P0: VP-063, VP-064, VP-066, VP-067, VP-068, VP-069, VP-070, VP-071, VP-072, VP-073, VP-074, VP-075, VP-076, VP-077, VP-078, VP-079, VP-080, VP-081, VP-082, VP-083, VP-084, VP-085, VP-086, VP-087, VP-088, VP-089, VP-090, VP-091, VP-092, VP-093, VP-094, VP-108, VP-109, VP-110, VP-111, VP-112, VP-113, VP-114, VP-115, VP-116, VP-117, VP-118, VP-119, VP-120, VP-121, VP-122, VP-123, VP-124, VP-125, VP-126, VP-127, VP-128, VP-129, VP-130, VP-131, VP-132, VP-133 (57); plus Wave 4 Phase 4.A pass-4 P0 elevation: VP-138 (1); plus ADR-023 plugin migration P0: VP-146, VP-147, VP-148, VP-149, VP-150, VP-152 (6); plus PREREQ-E ADR-026/ADR-027 P0: VP-153, VP-155 (2); plus Wave-A Rule 9 cookie-name charset P0: VP-160 (1); plus Wave-A Rule 9 error message echo cap and CTL escaping P0: VP-161 (1); plus Batch-0 json_extract_string_impl null safety P0: VP-162 (1) — all safety-critical invariants and security properties. (**112 active P0**; additionally 13 P0 rows — VP-095..VP-107 — are retired per ADR-037 (2026-06-10) and excluded from the release gate while remaining registered rows, for 125 P0 rows total per VP-INDEX Summary row-count basis)
 
 **P1 (verify during hardening):** VP-025, VP-026, VP-029, VP-030, VP-032, VP-035, VP-037, VP-040, VP-041, VP-042, VP-043, VP-048, VP-049, VP-054, VP-055, VP-056, VP-059, VP-061, VP-062 (Phase 1-2 baseline, 19); plus Wave 3 P1: VP-065, VP-134, VP-135, VP-136 (4); plus Wave 4 Phase 1 ADR P1: VP-137 (1); plus Wave 4 ADR P1: VP-139, VP-140, VP-141, VP-142, VP-143, VP-144, VP-145 (7); plus ADR-023 plugin migration P1: VP-151 (1); plus PREREQ-E ADR-027 P1: VP-154 (1); plus PREREQ-E fix-burst-1 P1: VP-156 (1); plus D-1099 BC-3.6.001 P1: VP-157 (1); plus BC-2.06.019 E-DEMO-006 guard P1: VP-158 (1); plus ADR-054 §D9 Wave-A declarative-auth P1: VP-159 (1) — correctness properties that are important but not safety-critical. (**37 total P1**)
 
@@ -331,6 +333,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.49 | D-2523-batch0-f2 | 2026-09-16 | state-manager | POL-9 same-burst obligation: VP-162 added to Provable Properties Catalog (prism-query, kani, P0, BC-2.11.025 / ADR-066 §D1 — json_extract_string_impl null safety and panic freedom; for any key.len() ≤ 256, function returns Some(String) or None, never panics); TIER1 K22 node added; TIER1 header 32→33 properties + VP-162 appended to list; SAFE node 161→162 / 148→149; P0 enumeration updated 111→112 (added Batch-0 json_extract null safety P0: VP-162; total P0 rows 124→125). POL-9 same-burst with VP-INDEX v2.22→v2.23 + verification-coverage-matrix v1.49→v1.50. |
 | 1.48 | FB64 | 2026-07-27 | architect | F-WASE-P65-HIGH-001: VP-161 row in Provable Properties Catalog corrected — CTL-escape byte domain updated from `0x00–0x08, 0x0A–0x1F, 0x7F` to `0x00–0x1F, 0x7F` (full inclusive range per BC-2.16.009 §Validation Rule 9 §CTL-character escaping). No count changes; no module/method/priority/status changes. Same-burst with VP-161 v1.1→v1.2 and VP-INDEX v2.16→v2.17. |
 | 1.47 | FB62 | 2026-07-26 | architect | (F-WASE-P64-OBS-002) VP-161 added to Provable Properties Catalog (prism-spec-engine, kani, P0, BC-2.16.009 Rule 9 — error message echo cap and CTL escaping; CWE-400 `truncate_at_char_boundary` ≤64 codepoints / CWE-117 no-raw-CTL in E-SPEC-027(a); successor to VP-160 scope note deferral; anchor S-WAVE-A-ENGINE-001 §Tasks T-B02); TIER1 K21 node added; TIER1 header 31→32 properties + VP-161 appended to list; SAFE node 160→161 / 147→148; P0 enumeration updated 110→111 (added Wave-A Rule 9 error message echo cap and CTL escaping P0: VP-161). POL-9 same-burst with VP-INDEX v2.14→v2.15 + verification-coverage-matrix v1.48→v1.49. |
 | 1.46 | fix-burst-46 | 2026-07-25 | architect | (F-WASE-P62-MED-004) VP-160 added to Provable Properties Catalog (prism-spec-engine, kani, P0, BC-2.16.009 Rule 9 — cookie-name charset totality and injection rejection; SEC-001 / ADR-053 §D2); TIER1 K20 node added; TIER1 header 30→31 properties + VP-160 appended to list; SAFE node 159→160 / 146→147; P0 enumeration updated 109→110 (added Wave-A Rule 9 charset P0: VP-160). POL-9 same-burst with VP-INDEX v2.12→v2.13 + verification-coverage-matrix v1.47→v1.48. |

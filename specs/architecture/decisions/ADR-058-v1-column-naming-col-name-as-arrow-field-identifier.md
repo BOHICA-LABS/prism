@@ -4,8 +4,8 @@ adr_id: "ADR-058"
 title: "v1 Column Naming: OCSF Field-Path Routing with Underscore-Flattened Arrow Names; DTU Migration Deferred"
 status: accepted
 date: "2026-08-11"
-modified: "2026-08-25"
-version: "2.34"
+modified: "2026-09-16"
+version: "2.37"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-10, SS-16]
 supersedes: null
@@ -19,6 +19,7 @@ anchor_stories:
   - S-OCSF-FIDELITY-CYBERINT-001
   - S-OCSF-FIDELITY-ARMIS-001
   - S-CLAROTY-VULNS-001  # SAC-2 verified: §Authority cites ADR-058 §B2 (Tier-2 raw_extensions aggregation), §C (underscore-flattened Arrow names), §D (ocsf_column_naming flag)
+  - S-CLAROTY-OCSF-STATUS-001  # SAC-2 verified: §Authority cites ADR-058 §K5 retired demotion to raw_extensions; is_online → vendor-extended device.is_online → Arrow device_is_online: Boolean (§K5 D-2522 Option A, ratified 2026-09-16)
 related_adrs: [ADR-023, ADR-028, ADR-052, ADR-055]
 related_bcs: [BC-2.01.013, BC-2.16.002, BC-2.16.003]
 inputs:
@@ -352,10 +353,11 @@ TOML correction (remove `category_name` for `category`), `category` moves to `ra
 | `device_category` | `device.type_category` | `device_type_category` | §J3 fix (current TOML: `device.type` → Arrow: `device_type`, Stage 2 pending); `device.type_category` is vendor-extended (not in OCSF schema, consistent with §J3 rationale — Claroty values "OT Device"/"IT Device" fall outside OCSF device.type vocabulary); **SHADOW** resolved: flag-transition collision with `device_type` col.name eliminated |
 | `device_type` | `device.type_label` | `device_type_label` | KF-06: `device.type_name` absent from OCSF v1.7.0 device object; settled fix: `device.type_label` (vendor-extended path for OT subcategory); Arrow name `device_type_label` |
 | `risk_score` | `risk_score` | `risk_score` | single segment; self-match (legal); `inventory_info.risk_score` confirmed at class level |
-| `retired` | `status_code` | `status_code` | single segment, unchanged; `inventory_info.status_code` confirmed at class level |
+| `retired` | (none) | — | §K5 D-2522: DEMOTED-TO-RAW-EXTENSIONS. Beta.2 live-test evidence: `status_code` is a free-text string field (`string_t` in OCSF v1.7.0); writing `"true"/"false"` caused type-mismatch confusing downstream consumers. No superior OCSF boolean-retirement field exists in `inventory_info`; raw_extensions preserves the value without type confusion. `ocsf_field = "status_code"` removed from TOML in S-CLAROTY-OCSF-STATUS-001 |
+| `is_online` | `device.is_online` (vendor-extended, §K5 D-2522 Option A) | `device_is_online` | §K5 D-2522 Option A (ratified 2026-09-16): vendor-extended path — not in OCSF v1.7.0 schema; produces `ValidationWarning` at spec-load (non-blocking), consistent with `device.type_category`/`device.type_label` precedent. Add `ocsf_field = "device.is_online"` to existing `column_type = "boolean"` entry in `claroty.sensor.toml`. Arrow: `device_is_online: Boolean (nullable)`. Direct boolean passthrough via `ColumnType::Boolean` arm in `build_column_array`; no coercion step. Shadow check: `device_is_online` ≠ any of the 20 devices col.names — CLEAN (verified 2026-09-16). |
 | `device_name` | `device.name` | `device_name` | self-match: `device.name` flattens to `device_name` = col.name; A = B excluded by §J2 rule |
 | `os_category` | `device.os.name` | `device_os_name` | three-segment path; device has `os` attr (os object), os object has `name` confirmed |
-| 12 columns without ocsf_field | (none) | — | → `raw_extensions` blob |
+| 12 columns without ocsf_field | (none) | — | → `raw_extensions` blob (including `retired` which moved here in §K5 D-2522 amendment) |
 
 **Claroty `device_alert_relations` table (6 ocsf_field declarations; ocsf_class = `detection_finding` — VALID, class_uid 2004):**
 
@@ -908,20 +910,21 @@ are:
 | `device_category` | `device.type_category` | `device_type_category` |
 | `device_type` | `device.type_label` (KF-06: settled; vendor-extended path for OT subcategory) | `device_type_label` |
 | `risk_score` | `risk_score` | `risk_score` |
-| `retired` | `status_code` | `status_code` |
+| `retired` | (none — demoted to raw_extensions, §K5 D-2522) | — |
+| `is_online` | `device.is_online` (§K5 D-2522 Option A, vendor-ext) | `device_is_online` |
 | `device_name` | `device.name` | `device_name` |
 | `os_category` | `device.os.name` | `device_os_name` |
 
-Shadow check after fix (all 20 devices col.names, 8 ocsf_field columns, A ≠ B rule):
+Shadow check after fix plus §K5 D-2522 and §K5 D-2522 Option A (all 20 devices col.names, 8 resolved ocsf_field columns, A ≠ B rule):
 `device_type_category` vs all 19 other col.names — no match. `device_type_label` vs all other
 col.names — no match. `device_uid` vs all other col.names — no match. `device_instance_uid`
 vs all other col.names — no match. `risk_score` vs all other col.names — self-match only
-(`risk_score.col_name = risk_score`; A = B, excluded). `status_code` vs all other col.names
-— no match. `device_name` vs all other col.names — self-match only (`device_name.col_name
-= device_name`; A = B, excluded; `device.name` flattens to `device_name` = col.name).
-`device_os_name` vs all other col.names — no match. No flag-transition shadow remains.
-RG-009 passes (all eight flattened names are distinct). RG-010 (see §J2) passes (no flattened
-name equals another column's col.name).
+(`risk_score.col_name = risk_score`; A = B, excluded). `device_name` vs all other
+col.names — self-match only (`device_name.col_name = device_name`; A = B, excluded; `device.name`
+flattens to `device_name` = col.name). `device_os_name` vs all other col.names — no match.
+`retired` no longer emits an Arrow field (demoted to raw_extensions); removed from shadow scope.
+`device_is_online` (from `device.is_online` vendor-extension, §K5 D-2522 Option A) vs all other col.names — no match (20-name list verified 2026-09-16). CLEAN.
+No flag-transition shadow in the 8 resolved ocsf_field mappings. RG-009 and RG-010 (see §J2) pass for all 8 resolved mappings.
 
 **Why this option over the alternatives:**
 
@@ -1206,7 +1209,10 @@ requires BOTH a TOML change AND a `class_selector.rs` code change; see §I5.
 class for device inventory data is `inventory_info` (5001, "Device Inventory Info"), which declares
 `device` as a required primary attribute. Under `inventory_info`, all `device.*` field paths
 resolve via the `device` object. `inventory_info` also has `risk_score` and `status_code` at the
-class level, satisfying the `retired → status_code` and `risk_score → risk_score` column mappings.
+class level. `risk_score → risk_score` mapping remains valid. Note: `retired → status_code`
+was originally valid at the schema level but was demoted to `raw_extensions` in §K5 D-2522 (beta.3)
+due to type-mismatch evidence from the beta.2 live-test (boolean written to `string_t` caused
+confusion at the MCP consumer layer). `is_online` maps to vendor-extended `device.is_online` → Arrow `device_is_online: Boolean` (§K5 D-2522 Option A, ratified 2026-09-16): OCSF v1.7.0 has no native device online/offline field; original beta.3 `status_id` mapping rescinded (event-outcome field, not device state); vendor-extension path consistent with `device.type_category`/`device.type_label` precedent; direct boolean passthrough.
 
 ### §K3 ocsf_field Path Verdicts
 
@@ -1250,7 +1256,8 @@ Under `inventory_info`, `device.*` paths resolve via the required `device` objec
 | `device_category` | `device.type` (current) / `device.type_category` (§J3 fix) | VALID path / vendor-extended | `device.type` is a valid OCSF path; §J3 fix to `device.type_category` is vendor-extended (not in OCSF schema) — consistent with §J3's explicit vendor-extension characterization; Claroty's "OT Device"/"IT Device" values fall outside OCSF's controlled vocabulary for `device.type`, confirming the vendor-extension rationale |
 | `device_type` | `device.type_name` | WRONG (KF-06) | `device` object has no `type_name` attr; only `type` (string) and `type_id` (integer) exist; no standard OCSF equivalent for Claroty OT subcategory ("PLC", "HMI"); recommend vendor-extended path or remove |
 | `risk_score` | `risk_score` | VALID | `inventory_info.risk_score` confirmed at class level |
-| `retired` | `status_code` | VALID | `inventory_info.status_code` confirmed at class level |
+| `retired` | (none — demoted) | DEMOTED-TO-RAW-EXTENSIONS (§K5 D-2522) | `inventory_info.status_code` is `string_t` in OCSF v1.7.0; writing boolean `"true"/"false"` caused type-mismatch (beta.2 live-test D-2520 Issue 9); no superior OCSF boolean-retirement field; demoted to `raw_extensions` per D-2522 |
+| `is_online` | `device.is_online` | NEW-MAPPING (§K5 D-2522 Option A, ratified) | Vendor-extended path (not in OCSF v1.7.0 `device` object or `inventory_info` class; produces `ValidationWarning` at spec-load via `validate_ocsf_field_path`, non-blocking). `ocsf_field_to_arrow_name("device.is_online")` → `device_is_online`. Arrow: `Boolean (nullable)`. Direct boolean passthrough via `ColumnType::Boolean` arm in `build_column_array`; no coercion. Consistent with `device.type_category`/`device.type_label` vendor-extension precedent. TOML: add `ocsf_field = "device.is_online"` to existing `is_online` column (`column_type = "boolean"`). |
 | `device_name` | `device.name` | VALID | `device.name` confirmed |
 | `os_category` | `device.os.name` | VALID | `device.os` resolves to `os` object; `os.name` confirmed |
 
@@ -1377,7 +1384,47 @@ Five cases evaluated against committed schema and normalizer code:
 | `devices.asset_id → device.instance_uid` | NOT-A-DEFECT | `device.instance_uid` confirmed in schema; valid target for vendor-specific asset identifier; `device.uid` already taken by `uid` column |
 | `devices.device_category → device.type` | NOT-A-DEFECT | `device.type` confirmed as free-text field in schema; Claroty "OT Device"/"IT Device" category values are valid device type descriptors (§J3 fix changes this to `device.type_category` vendor extension to resolve flag-transition shadow — §J3 rationale unchanged) |
 | `devices.os_category → device.os.name` | NOT-A-DEFECT | `device.os.name` confirmed in schema (`device.os` object has `name`); semantically correct — xDome `os_category` values ("Windows", "Linux") are OS names |
-| `devices.retired → status_code` | NOTE-ONLY | Boolean `true/false` written to free-text `status_code` is schema-valid; `inventory_info.status_code` confirmed at class level; no clearly superior standard OCSF field for a boolean retirement flag; no KF assigned |
+| `devices.retired → status_code` | DEMOTED-TO-RAW-EXTENSIONS (D-2522) | Beta.2 Monroe live-test (D-2520 Issue 9) confirmed type-mismatch: `inventory_info.status_code` is `string_t` in OCSF v1.7.0; writing boolean `"true"/"false"` caused confusion at MCP consumer layer. No superior OCSF boolean-retirement field exists in `inventory_info`. Decision (D-2522): remove `ocsf_field = "status_code"` from TOML; `retired` demoted to `raw_extensions` blob; value preserved there without type conflict. Anchor: S-CLAROTY-OCSF-STATUS-001. |
+| `devices.is_online → device.is_online` | NEW-MAPPING (FULL FIX, §K5 D-2522 Option A, ratified 2026-09-16) | Beta.2 live-test (D-2520 Issue 10) found `is_online` had no OCSF mapping. D-2522 authorized full beta.3 fix. D-2522-CORRECTION (v2.36): original beta.3 `status_id` mapping rescinded — `inventory_info.status_id` (enum 0=Unknown/1=Success/2=Failure/99=Other) is an EVENT outcome field, NOT device operational state; confirmed from committed schema `crates/prism-ocsf/ocsf-schema/1.7.0/schema.json`; OCSF v1.7.0 `device` object has NO `is_online`, `state_id`, or operational connectivity field. Human decision (§K5 D-2522 Option A, v2.37): vendor-extended `device.is_online: boolean_t` → Arrow `device_is_online: Boolean (nullable)`. Direct boolean passthrough; no coercion; consistent with `device.type_category`/`device.type_label` vendor-extension precedent (§J3). Shadow check: `device_is_online` CLEAN against all 20 devices col.names (§J3 shadow analysis, verified 2026-09-16). TOML: add `ocsf_field = "device.is_online"` to existing `is_online` column. Anchor: S-CLAROTY-OCSF-STATUS-001 RG-COS-001..007. |
+
+**§K5 D-2522 Amendment Notes (beta.3):**
+
+**`retired` Demotion to raw_extensions — Confirmed:**
+
+`ocsf_field = "status_code"` removed from `claroty.sensor.toml` `devices` table. `retired` value preserved in `raw_extensions` blob. Anchor: S-CLAROTY-OCSF-STATUS-001 RG-COS-004.
+
+---
+
+**§K5 D-2522 Option A (ratified 2026-09-16): `is_online` Vendor-Extension Tier-1 Boolean Column:**
+
+The v2.35 coercion contract (boolean→enum, dual-emit `status`/`status_id`) was rescinded at v2.36 (D-2522-CORRECTION). Human decision (D-2522 Option A, ratified 2026-09-16): `devices.is_online` maps to vendor-extended path `device.is_online`.
+
+**Rationale:** `inventory_info.status_id` is an EVENT outcome field (collection Success/Failure), NOT device operational state — confirmed from committed schema at `crates/prism-ocsf/ocsf-schema/1.7.0/schema.json`. OCSF v1.7.0 `device` object has NO `is_online`, `state_id`, or operational connectivity field. Vendor extension is the production-grade approach, consistent with OCSF's extension model and the `device.type_category`/`device.type_label` precedent at §J3 (both absent from KNOWN_OCSF_FIELDS, both live in production via warning-only path).
+
+**TOML change (pure-spec, no code delta):**
+
+```toml
+[[tables.columns]]
+name = "is_online"
+column_type = "boolean"
+ocsf_field = "device.is_online"   # vendor-extended; not in OCSF v1.7.0 schema; ValidationWarning non-blocking
+```
+
+`ocsf_field_to_arrow_name("device.is_online")` → `"device_is_online"`. The existing `ColumnType::Boolean` arm in `build_column_array` (`spec_driven_adapter.rs`) handles boolean extraction unchanged. ONE Arrow column emitted: `device_is_online: Boolean (nullable)`. No coercion normalizer step. No `ocsf_status_id_field` TOML key.
+
+**Shadow check (§J3 — DISCHARGED CLEAN):** `device_is_online` does not match any of the 20 devices col.names (verified 2026-09-16). §J2: not a reserved synthesized name. §J7: no intra-table duplicate. CLEAN.
+
+**Mandate Anchors (TD-VSDD-097 Dim-3):**
+
+| MUST | Story AC / Red Gate |
+|------|---------------------|
+| `is_online=true` → `device_is_online=true` in Arrow RecordBatch | S-CLAROTY-OCSF-STATUS-001 RG-COS-001 |
+| `is_online=false` → `device_is_online=false` in Arrow RecordBatch | S-CLAROTY-OCSF-STATUS-001 RG-COS-002 |
+| `is_online=null/absent` → `device_is_online=null` in Arrow RecordBatch | S-CLAROTY-OCSF-STATUS-001 RG-COS-003 |
+| `retired` removed from `ocsf_field` in claroty.sensor.toml; value in `raw_extensions` | S-CLAROTY-OCSF-STATUS-001 RG-COS-004 |
+| `prism_describe` reports `device_is_online: Boolean` for Claroty devices | S-CLAROTY-OCSF-STATUS-001 RG-COS-005 |
+| `WHERE device_is_online = true` / `= false` filters correctly at query layer (PrismQL Boolean predicate) | S-CLAROTY-OCSF-STATUS-001 RG-COS-006 |
+| SAP-2 DTU parity: `ClarotyDevice.is_online: bool` on DTU wire → `device_is_online` Boolean column matches | S-CLAROTY-OCSF-STATUS-001 RG-COS-007 |
 
 ---
 
@@ -1429,7 +1476,7 @@ provenance. The detailed quoting convention analysis (four options evaluated) is
 - BC-2.01.013, BC-2.16.003, and BC-2.16.002 each require product-owner amendment after Stage 2
   ships (see §I3 for the full amendment obligation list).
 
-### Status as of v2.33 (2026-08-23)
+### Status as of v2.37 (2026-09-16)
 
 Decision accepted. Stage 1 (coercion fixes, `column_coercion_failure` emission) is implemented by
 `S-ADR058-OCSF-COERCION-001` (status: draft; mandate anchor discharged at §H). Stage 2
@@ -1510,6 +1557,9 @@ the `devices` table collision is resolved per §J3. `device_alert_relations` (fo
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 2.37 | 2026-09-16 | architect | §K5 D-2522 Option A ratified (human decision 2026-09-16). All PENDING HUMAN DECISION blocks resolved to vendor-extension `device.is_online` → Arrow `device_is_online: Boolean (nullable)`. Changes: (1) §K5 D-2522-CORRECTION block replaced with §K5 D-2522 Option A ratified-decision block — TOML snippet, mechanism (`ColumnType::Boolean` arm, no coercion, no `ocsf_status_id_field` key), shadow-check discharge, mandate anchor table (RG-COS-001..007). (2) §K5 Divergence 4 `is_online` row: SEMANTICALLY-INCORRECT/PENDING → NEW-MAPPING (§K5 D-2522 Option A, ratified). (3) §E2 devices `is_online` row: PENDING → `device.is_online` / `device_is_online`, Option A rationale inline. (4) §K3 devices `is_online` row: PENDING → NEW-MAPPING, vendor-extension mechanism inline. (5) §J3 shadow-check table `is_online` row: PENDING → `device.is_online` / `device_is_online`. (6) §J3 shadow-check narrative: 7 resolved + 1 pending → 8 resolved, `device_is_online` CLEAN recorded. (7) §K2 KF-02 rationale: PENDING sentence → ratified vendor-extension sentence. (8) Status heading: v2.35 → v2.37. (9) Frontmatter SAC-2 comment updated. TD-VSDD-097: (1) sibling pair — ADR-058 has no twin ADR; CLEAR. (2) downstream copy targets — BC-2.16.003 PO must add ECs for `device_is_online` Boolean column (Tier-1, SAP-2 wire parity, WHERE filter, prism_describe shape); MUST NOT retain any reference to `BooleanToOcsfStatusCoercion` normalizer or `ocsf_status_id_field` TOML key (both withdrawn); story S-CLAROTY-OCSF-STATUS-001 story-writer must add RG-COS-001..007. (3) mandate anchors — all 7 MUST blocks (RG-COS-001..007) anchored to S-CLAROTY-OCSF-STATUS-001. |
+| 2.36 | 2026-09-16 | architect | D-2522-CORRECTION: `is_online → status/status_id` mapping rescinded before product-owner transcription. OCSF schema investigation confirmed `inventory_info.status_id` is an EVENT outcome field (collection Success/Failure), NOT device operational online/offline state; `device` object has no native `is_online` or operational connectivity field in OCSF v1.7.0 (verified: `crates/prism-ocsf/ocsf-schema/1.7.0/schema.json`). All swept sites updated: §K5 Divergence 4 table (`is_online` row changed NEW-MAPPING → SEMANTICALLY-INCORRECT/PENDING HUMAN DECISION); §K5 D-2522 Amendment Notes (coercion contract and TOML syntax blocks replaced with §K5 D-2522-CORRECTION block presenting Option A vendor-extended `device.is_online: boolean_t` → Arrow `device_is_online: Boolean` and Option B raw_extensions demotion; architect recommends Option A); mandate table (RG-COS-001..003/005 deferred pending decision; RG-COS-004 `retired` demotion confirmed); §E2 devices table (`is_online` ocsf_field updated to PENDING); §K3 devices table (`is_online` verdict updated to PENDING HUMAN DECISION); §J3 shadow-check table (`status`/`status_id` entries replaced with PENDING; shadow-check narrative updated — 7 resolved mappings, `is_online` deferred); §K2 KF-02 rationale sentence corrected. Frontmatter SAC-2 comment updated. TD-VSDD-097: (1) sibling pair — ADR-058 has no twin ADR; CLEAR. (2) downstream copy targets — BC-2.16.003 MUST NOT transcribe RG-COS-001..003/005 or `BooleanToOcsfStatusCoercion` normalizer until human decision on Option A/B; story S-CLAROTY-OCSF-STATUS-001 scope remains `retired` demotion only until decision. (3) mandate anchor — RG-COS-004 `retired` demotion fully anchored; RG-COS-001..003/005 explicitly deferred pending decision. |
+| 2.35 | 2026-09-16 | architect | D-2522 beta.3 spec-gate authorized. §K5 Divergence 4 amended (2 changes): (A) `devices.retired → status_code` verdict changed NOTE-ONLY → DEMOTED-TO-RAW-EXTENSIONS; beta.2 Monroe live-test (D-2520 Issue 9) confirmed `inventory_info.status_code` is `string_t`; writing boolean `"true"/"false"` caused type-mismatch at MCP consumer layer; `retired` demoted to `raw_extensions`, `ocsf_field = "status_code"` removed from TOML (S-CLAROTY-OCSF-STATUS-001 anchor). (B) `devices.is_online → status/status_id` NEW-MAPPING added; D-2522 authorized full beta.3 fix (overrides architect's earlier deferral); boolean→enum coercion contract: `is_online=true → status_id=1 (status="Success")`, `is_online=false → status_id=2 (status="Failure")`, null → both null; OCSF v1.7.0 `inventory_info` (5001) `status_id` enum from committed schema (`crates/prism-ocsf/ocsf-schema/1.7.0/schema.json`); coercion is spec-engine responsibility; TWO Arrow columns emitted (`status: Utf8`, `status_id: Int32`); 5-MUST mandate anchor table (RG-COS-001..005) in §K5 D-2522 amendment. §E2 devices table: `retired` row demoted (ocsf_field removed, → raw_extensions); `is_online` row added (dual emit); `raw_extensions` footnote updated to include `retired`. §K3 devices table: `retired` row updated VALID→DEMOTED; `is_online` row added NEW-MAPPING. §J3 shadow-check table: `retired` removed, `is_online` dual-emit added, shadow-check text updated (status/status_id not in known col.names; full verification deferred to S-CLAROTY-OCSF-STATUS-001 shadow test). §K2 KF-02 rationale updated to reflect demotion and new mapping. Frontmatter: `modified`, `version`, `anchor_stories` (S-CLAROTY-OCSF-STATUS-001 added). Re-freeze pending under BC-5.39.001 3-CLEAN (D-2522 authorized). TD-VSDD-097: (1) sibling pair — ADR-058 has no twin ADR; CLEAR. (2) downstream copy targets — BC-2.16.003 carries copy-text of §E2 devices mapping; PO must update EC rows for `retired` (demotion to raw_extensions) and add ECs for `is_online` boolean→enum coercion (status/status_id columns), `BooleanToOcsfStatusCoercion` normalizer step, and TOML `ocsf_status_id_field` key; BC-2.11.025 (new BC for json_extract: not affected); error-taxonomy.md: no new error code for coercion (uses existing column_coercion_failure path). (3) mandate anchor — 5 MUSTs in §K5 D-2522 mandate table, all anchored to S-CLAROTY-OCSF-STATUS-001 RG-COS-001..005. |
 | 2.34 | 2026-08-25 | architect | F-VULNS-R4C-DEF-001 (SAC-2): `S-CLAROTY-VULNS-001` added to `anchor_stories` — §Authority cites ADR-058 §B2 (Tier-2 raw_extensions aggregation), §C (underscore-flattened Arrow names), §D (ocsf_column_naming flag). Materialization-time convention confirmed: `S-ADR058-DTU-PARITY-MIGRATION-001` (PARKED/unmerged) is already listed, proving non-merged stories are included at materialization time. Pre-existing input-hash drift corrected (`7514455` → `1fe1b9c`; inputs changed by prior story waves). No body-content changes. TD-VSDD-097: (1) sibling pair — ADR-058 has no twin ADR from the same split; CLEAR. (2) downstream copy target — `anchor_stories` frontmatter is terminal metadata; no verbatim copy into another artifact; CLEAR. (3) mandate anchor — no new MUST statements; frontmatter-only metadata change; CLEAR. |
 | 2.33 | 2026-08-23 | product-owner | **F-SEC-PR242-002 (CWE-20) closure — §J8 safe-character validation rule.** New §J8 section added to §J family: charset pre-pass in `validate_ocsf_column_collisions` rejects Tier-1 `ocsf_field` values containing characters outside `^[A-Za-z0-9_.]+$` (null bytes, control characters, spaces, non-ASCII) with discriminator E-SPEC-030 [§J5]. Pre-pass runs as the FIRST inner loop BEFORE `ocsf_field_to_arrow_name` is called, preventing unsafe characters from reaching Arrow field name construction. Character set rationale: covers all 31 Claroty `ocsf_field` values in §E2 plus all OCSF v1.7.0 field paths in §K3; vendor-extended paths (`device.type_category`, `device.type_label` per §J3/KF-06) conform; `+` quantifier rejects empty string. Boundary: `KNOWN_OCSF_FIELDS` membership check remains WARNING (intentionally preserved). Error string: `"E-SPEC-030 [§J5] sensor=<sensor_id> table=<table_name>: ocsf_field \"<ocsf_field>\" contains characters outside the allowed set [A-Za-z0-9_.]+"`. Enforcement: §J8 errors accumulate alongside §J1/§J2/§J4 errors in same `Vec<String>` return from `validate_ocsf_column_collisions`; `parse_and_validate_spec_toml` folds into `ValidationError { errors: Vec<String> }` → `Err(Vec<ValidationError>)`; boot path: `ConfigInvalid` → exit 2; hot-reload keeps prior spec. No belt-and-suspenders runtime guard for §J8 (spec-load pre-pass is authoritative). §Status heading retitled v2.32 → v2.33. BC-2.16.003 v1.27 and error-taxonomy.md v2.82 amended in same burst (EC-016-013-032 sub-case d + EC-016-013-033; E-SPEC-030 sub-case d). TD-VSDD-097: (1) Sibling pair — ADR-058 has no twin ADR; CLEAR. (2) Downstream copy target — BC-2.16.003 EC-016-013-032 is the PO-transcribed copy target of §J (EC traces to §J7); swept in same burst (BC v1.27 adds sub-case d + EC-016-013-033); error-taxonomy.md E-SPEC-030 row swept in same burst (v2.82 adds sub-case d description); CLEAR. (3) Mandate anchor — §J8 MUST anchored to S-ADR058-OCSF-ROUTING-001 RG-Q-018 (`test_BC_2_16_003_ocsf_field_invalid_charset_rejected_at_spec_load` in `crates/prism-spec-engine`); story-writer Leg 2 adds AC + Red Gate test; anchor INTENT recorded per POL-38; CLEAR. |
 | 2.32 | 2026-08-23 | architect | `ocsf.zero_tier1_table` warning emission SITE corrected `add_sensor_spec` → `register_sensor` (`prism-query::table_registry`) — the common load chokepoint covering both boot (direct) and dynamic-add (via config_manager→hot-reload) paths; verified by implementer load-path topology at commit 510d1299e; behavioral contract unchanged (warn once per zero-Tier-1 OCSF table at registration); RG-Q-017 anchor unchanged. §J6 `Emission site` bullet updated; §I7 references the warning only as "fires once at spec-load" without naming a function (no edit required; consistent with `register_sensor` being the spec-load chokepoint). §J7 `add_sensor_spec` references cover collision-detection (`validate_ocsf_column_collisions` Validation Rule 8), not the `zero_tier1_table` warn — unchanged. §Status heading retitled v2.31 → v2.32. TD-VSDD-097: (1) sibling pair — §J6 emission-site bullet corrected; §I7 carries no function name, consistent post-fix; no ADR twin. (2) downstream copy target — BC-2.16.002 §Canonical Structured Event Catalog `ocsf.zero_tier1_table` row emission-site field being reconciled by product-owner in same burst; no other spec artifact names `add_sensor_spec` as the `zero_tier1_table` emission site. (3) mandate anchor — RG-Q-017 anchor unchanged (asserts both A+W projection and warning emission; behavioral contract not affected by site correction). |

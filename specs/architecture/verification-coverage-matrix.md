@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.49"
+version: "1.50"
 status: draft
 producer: architect
 timestamp: 2026-06-12T00:00:00
@@ -24,7 +24,7 @@ See detailed tables below.
 |--------|------------|-------------|----------|------------|-------------|-------------------|----------------|-----|
 | prism-core | CRITICAL | 12 | 8 | 0 | 0 | 0 | 95% | VP-001, VP-002, VP-003, VP-004, VP-005, VP-006, VP-011, VP-029, VP-051, VP-065, VP-070, VP-071 (kani); VP-063, VP-064, VP-069, VP-072, VP-073, VP-074, VP-075, VP-076 (proptest) |
 | prism-security | CRITICAL | 5 | 1 | 0 | 1 | 0 | 90% | VP-007, VP-008, VP-009, VP-010, VP-020 (kani); VP-024 (proptest); VP-038 (fuzz) |
-| prism-query | CRITICAL | 4 | 3 | 0 | 2 | 0 | 90% | VP-012, VP-014, VP-015, VP-025 (kani); VP-013, VP-031, VP-156 (proptest); VP-021, VP-037 (fuzz) |
+| prism-query | CRITICAL | 5 | 3 | 0 | 2 | 0 | 90% | VP-012, VP-014, VP-015, VP-025, VP-162 (kani); VP-013, VP-031, VP-156 (proptest); VP-021, VP-037 (fuzz) |
 | prism-ocsf | CRITICAL | 0 | 2 | 0 | 1 | 0 | 90% | VP-016, VP-017 (proptest); VP-022 (fuzz) |
 | prism-operations | HIGH | 4 | 17 | 0 | 1 | 0 | 85% | VP-026, VP-030, VP-044, VP-053 (kani); VP-018, VP-019, VP-027, VP-045, VP-046, VP-047, VP-052, VP-054, VP-060, VP-137, VP-138, VP-139, VP-140, VP-141, VP-142, VP-143, VP-145 (proptest); VP-028 (fuzz) |
 | prism-spec-engine | HIGH | 4 | 15 | 4 | 1 | 11 | 85% | VP-040, VP-048, VP-160, VP-161 (kani); VP-032, VP-041, VP-042, VP-043, VP-049, VP-059, VP-153 (proptest); VP-099, VP-100, VP-101, VP-102, VP-103, VP-104, VP-105, VP-106 (proptest — retired, ADR-037); VP-095, VP-096, VP-097, VP-098 (unit_test — retired, ADR-037); VP-023 (fuzz); VP-146, VP-147, VP-148, VP-149, VP-150, VP-151, VP-152, VP-154, VP-155, VP-159 (integration_test); VP-107 (integration_test — retired, ADR-037) |
@@ -39,20 +39,20 @@ See detailed tables below.
 | prism-bin | LOW | 0 | 1 | 0 | 0 | 2 | 60% | VP-135 (proptest); VP-134, VP-136 (integration_test) |
 | prism-siem-formats | HIGH | 0 | 1 | 0 | 0 | 0 | 80% | VP-144 (proptest) *(new in Wave 4 per ADR-019)* |
 | prism-dtu-demo-server | HIGH | 0 | 0 | 1 | 0 | 0 | 75% | VP-158 (unit_test) |
-| **Totals** | | **32** | **88** | **6** | **6** | **29** | | **161** |
+| **Totals** | | **33** | **88** | **6** | **6** | **29** | | **162** |
 
 ## Totals
 
 | Method | Planned Count | P0 | P1 | Retired (ADR-037) | Active |
 |--------|--------------|----|----|-------------------|--------|
-| Kani proofs | 32 | 25 | 7 | 0 | 32 |
+| Kani proofs | 33 | 26 | 7 | 0 | 33 |
 | Proptest properties | 88 | 66 | 22 | 8 | 80 |
 | Unit test VPs | 6 | 4 | 2 | 4 | 2 |
 | Fuzz targets | 6 | 5 | 1 | 0 | 6 |
 | Integration test VPs | 29 | 24 | 5 | 1 | 28 |
-| **Total VPs** | **161** | **124** | **37** | **13** | **148** |
+| **Total VPs** | **162** | **125** | **37** | **13** | **149** |
 
-> **Count basis (POL-1):** Planned Count / P0 / P1 columns are row-count basis — retired rows are never deleted and remain counted (preserves Coverage-by-Module column-sum symmetry with VP-INDEX Summary). The 13 ADR-037-retired VPs (VP-095..VP-107, all P0, all prism-spec-engine) are excluded from the release verification gate: **active P0 = 111** (Kani 25, Proptest 58, Unit test 0, Fuzz 5, Integration test 23); active P1 = 37 (VP-157 unit_test P1 added D-1099; VP-158 unit_test P1 added 2026-06-12; VP-159 integration_test P1 added D-1947 2026-07-22). Active basis: 148/111P0/37P1. Per-VP disposition: VP-INDEX §ADR-037 Retirement.
+> **Count basis (POL-1):** Planned Count / P0 / P1 columns are row-count basis — retired rows are never deleted and remain counted (preserves Coverage-by-Module column-sum symmetry with VP-INDEX Summary). The 13 ADR-037-retired VPs (VP-095..VP-107, all P0, all prism-spec-engine) are excluded from the release verification gate: **active P0 = 112** (Kani 26, Proptest 58, Unit test 0, Fuzz 5, Integration test 23); active P1 = 37 (VP-157 unit_test P1 added D-1099; VP-158 unit_test P1 added 2026-06-12; VP-159 integration_test P1 added D-1947 2026-07-22). Active basis: 149/112P0/37P1. Per-VP disposition: VP-INDEX §ADR-037 Retirement.
 
 <!-- P0/P1 per-method breakdown from VP-INDEX v1.22 recount (Wave 4 Phase 3 ADR burst):
      Kani: 23 P0 / 7 P1; Proptest: 64 P0 / 21 P1; Unit test: 4 P0 / 0 P1;
@@ -70,7 +70,8 @@ See detailed tables below.
      VP-158 added 2026-06-12 (unit_test P1, prism-dtu-demo-server, BC-2.06.019 PRE-6 / VP-019-I alias): Unit test 5→6, Total 157→158, P1 35→36; active basis 145/109P0/36P1.
      VP-159 added D-1947 2026-07-22 (integration_test P1, prism-spec-engine, BC-2.16.014 — DeclarativeHttpAuthProvider lazy acquisition + refresh-on-expiry; folds DRIFT-D849-002): Integration test 28→29, Total 158→159, P1 36→37; active basis 146/109P0/37P1.
      VP-160 added fix-burst-46 2026-07-25 (kani P0, prism-spec-engine, BC-2.16.009 Rule 9 — cookie-name charset totality and injection rejection; SEC-001/ADR-053 §D2): Kani 30→31, P0 23→24, Total 159→160, P0 total 122→123; active basis 147/110P0/37P1.
-     VP-161 added FB62 2026-07-26 (kani P0, prism-spec-engine, BC-2.16.009 Rule 9 — error message echo cap and CTL escaping; CWE-400/CWE-117; successor to VP-160 scope note deferral): Kani 31→32, P0 24→25, Total 160→161, P0 total 123→124; active basis 148/111P0/37P1. -->
+     VP-161 added FB62 2026-07-26 (kani P0, prism-spec-engine, BC-2.16.009 Rule 9 — error message echo cap and CTL escaping; CWE-400/CWE-117; successor to VP-160 scope note deferral): Kani 31→32, P0 24→25, Total 160→161, P0 total 123→124; active basis 148/111P0/37P1.
+     VP-162 added D-2523-batch0-f2 2026-09-16 (kani P0, prism-query, BC-2.11.025 / ADR-066 §D1 — json_extract_string_impl null safety and panic freedom; POL-9 same-burst obligation): Kani 32→33, P0 25→26, Total 161→162, P0 total 124→125; active basis 149/112P0/37P1. -->
 
 
 ## Coverage Gaps and Mitigations
@@ -148,11 +149,13 @@ See detailed tables below.
 | BC-2.20.002 (Log forwarder min-level filter) | Per-destination enqueue/discard matches level-rank ordering for all 5×5 level pairs | VP-061 (module: prism-mcp, proptest) | P1 |
 | BC-2.20.003 (Log forwarder queue cap) | queue.len() never exceeds 10 × batch_size; drop_count +1 per overflow enqueue | VP-062 (module: prism-mcp, proptest) | P1 |
 | BC-2.14.xxx (Case reopen_count monotonic — INV-CASE-006) | INV-CASE-006 | VP-145 (module: prism-operations, proptest) | P1 |
+| BC-2.11.025 (json_extract_string ScalarUDF null safety) | `json_extract_string_impl` returns `Some(String)` or `None` for any input with `key.len() ≤ 256`; never panics; never propagates unstructured error (ADR-066 §D1) | VP-162 (module: prism-query, kani) | P0 |
 
 ## Changelog
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
+| 1.50 | D-2523-batch0-f2 | 2026-09-16 | state-manager | POL-9 same-burst obligation: VP-162 added (kani, P0, prism-query, BC-2.11.025 / ADR-066 §D1 — json_extract_string_impl null safety and panic freedom). prism-query row: Kani 4→5 (VP-162 appended to kani list). Totals row: Kani 32→33, Total VPs 161→162. Totals method table: Kani proofs 32→33 / P0 25→26 / Active 32→33; Total VPs 161→162 / P0 124→125 / Active 148→149. Count-basis note: active P0 111→112 (Kani 25→26); active basis 149/112P0/37P1. BC-level invariant table: BC-2.11.025 row added. HTML audit-trail comment appended. POL-9 same-burst with VP-INDEX v2.22→v2.23 + verification-architecture v1.48→v1.49. |
 | 1.49 | FB62 | 2026-07-26 | architect | (F-WASE-P64-OBS-002) VP-161 added (kani, P0, prism-spec-engine, BC-2.16.009 Rule 9 — error message echo cap and CTL escaping; CWE-400/CWE-117; successor to VP-160 scope note deferral). prism-spec-engine row: Kani 3→4 (VP-161 appended to kani list). Totals row: Kani 31→32, Total 160→161. Totals method table: Kani proofs 31→32 / P0 24→25 / Active 31→32; Total VPs 160→161 / P0 123→124 / Active 147→148. Count-basis note: active P0 110→111 (Kani 24→25); active basis 148/111P0/37P1; HTML audit-trail comment appended. POL-9 same-burst with VP-INDEX v2.14→v2.15 + verification-architecture v1.46→v1.47. |
 | 1.48 | fix-burst-46 | 2026-07-25 | architect | (F-WASE-P62-MED-004) VP-160 added (kani, P0, prism-spec-engine, BC-2.16.009 Rule 9 — cookie-name charset totality and injection rejection; SEC-001 / ADR-053 §D2). prism-spec-engine row: Kani 2→3 (VP-160 appended to kani list). Totals row: Kani 30→31, Total 159→160. Totals method table: Kani proofs 30→31 / P0 23→24 / Active 30→31; Total VPs 159→160 / P0 122→123 / Active 146→147. Count-basis note: active P0 109→110 (Kani 23→24); active basis 147/110P0/37P1; HTML audit-trail comment appended. POL-9 same-burst with VP-INDEX v2.12→v2.13 + verification-architecture v1.45→v1.46. |
 | 1.47 | architect | 2026-07-22 | F-WASE-P3-HIGH-001: VP-159 burst attribution corrected D-1946→D-1947 at two live-body sites: (1) count-basis blockquote (active P1 inline, line 55); (2) HTML audit-trail comment (line 71). Forward-correction note: v1.46 changelog row incorrectly cited D-1946 for VP-159 addition — VP-159 was registered in D-1947 (burst 2); BC-2.16.014 was authored in D-1946 (burst 1); v1.46 row is immutable per POL-1. |
