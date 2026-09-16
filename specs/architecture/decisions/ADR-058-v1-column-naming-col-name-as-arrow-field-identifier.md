@@ -5,7 +5,7 @@ title: "v1 Column Naming: OCSF Field-Path Routing with Underscore-Flattened Arro
 status: accepted
 date: "2026-08-11"
 modified: "2026-09-16"
-version: "2.42"
+version: "2.43"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-10, SS-16]
 supersedes: null
@@ -608,7 +608,7 @@ behavior at the `raw_extensions` wire level.)
 - **BC-2.01.013 EC-01-025**: update the NON-CONFORMANT annotation to reference the Stage 2
   story once it is created. After the Stage 2 story merges, update to CONFORMANT.
 - **BC-2.16.003 §Story Anchor**: [DISCHARGED] S-ADR058-OCSF-ROUTING-001 (Stage 2) is already listed in BC-2.16.003 §Story Anchor.
-- **BC-2.16.003 EC-016-013-012**: [DISCHARGED] EC already reads "both queryable as `device_ip`" (BC-2.16.003 §Postconditions; updated per this obligation in BC v1.5 §Changelog item I).
+- **BC-2.16.003 EC-016-013-012**: [DISCHARGED] EC already reads "both queryable as `device_ip`" (BC-2.16.003 §Postconditions; updated per this obligation at BC-2.16.003 §Changelog item I).
 - **BC-2.16.002**: add `column_coercion_failure` catalog row (Stage 1 obligation).
 
 ### §I4 Non-Interference with ADR-055 and ADR-028
@@ -1479,7 +1479,7 @@ provenance. The detailed quoting convention analysis (four options evaluated) is
 - BC-2.01.013, BC-2.16.003, and BC-2.16.002 each require product-owner amendment after Stage 2
   ships (see §I3 for the full amendment obligation list).
 
-### Status as of v2.42 (2026-09-16)
+### Status as of v2.43 (2026-09-16)
 
 Decision accepted. Stage 1 (coercion fixes, `column_coercion_failure` emission) is implemented by
 `S-ADR058-OCSF-COERCION-001` (status: draft; mandate anchor discharged at §H). Stage 2
@@ -1560,6 +1560,7 @@ the `devices` table collision is resolved per §J3. `device_alert_relations` (fo
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 2.43 | 2026-09-16 | architect | Re-gate pass 9 fix. F-4 (OBS, POL-39): §I3 BC amendment obligations — one cross-artifact version pin depinned. "BC v1.5 §Changelog item I" → "BC-2.16.003 §Changelog item I". This is in the [DISCHARGED] row for BC-2.16.003 EC-016-013-012; the "BC v1.5" was a volatile cross-artifact version pin not covered by the §K5 POL-39 convention (which covers only intra-ADR decision-history references). D-924 burst provenance context preserved. Comprehensive non-changelog body sweep: no other cross-artifact version pins found. All other vX.Y occurrences in non-changelog narrative are intra-ADR references covered by §K5 POL-39 convention note or provenance-exempt §A/§B decision-history prose. §Status heading currency-synced v2.42→v2.43. |
 | 2.42 | 2026-09-16 | architect | Re-gate pass 8 fix. F-2 (LOW, POL-39): two cross-artifact version pins "BC-2.01.013 v1.8" depinned to section anchors. Site 1 (§A2 design-rationale body): "BC-2.01.013 v1.8 EC-01-025 (added D-924 burst, 2026-05-31)" → "BC-2.01.013 §EC-01-025 (added D-924 burst, 2026-05-31)". Site 2 (§Source/Origin block): "**BC-2.01.013 EC-01-025** (v1.8, added D-924 burst 2026-05-31)" → "**BC-2.01.013 §EC-01-025** (added D-924 burst 2026-05-31)". No other BC-2.01.013 version pin present in non-changelog body. D-924 burst date and provenance context preserved at both sites. §Status heading currency-synced: v2.41→v2.42. TD-VSDD-097: (1) sibling pair — no ADR twin; CLEAR. (2) downstream copy target — §A2 body text and §Source block are not independently copied; intra-ADR only. (3) mandate anchor — no new MUST added. |
 | 2.41 | 2026-09-16 | architect | Re-gate pass 6 records-only fix (TD-VSDD-096). F-1 (LOW): §Status heading currency-synced to frontmatter — was "Status as of v2.37" while frontmatter had reached v2.40; corrected to "Status as of v2.41" (new version produced by this fix). Sibling-consistency: ADR-066 §Status was kept current-versioned throughout this cascade; ADR-058 §Status now matches that discipline. No decision-content change — discharge tables, rationale text, and all §K5/§D2/§J mandate anchors are untouched. |
 | 2.40 | 2026-09-16 | architect | Re-gate pass 5 fix. F-A (MED): §K5 Divergence Adjudication Table `devices.is_online → device.is_online` row Anchor corrected from "RG-COS-001..007" to "RG-COS-001..008" — the §K5 mandate table immediately below enumerates 8 slots; the divergence-row summary anchor must match. Sibling-sweep: two co-resident references in §K5 verified — divergence-table Anchor cell now "RG-COS-001..008"; mandate table itself correctly shows all 8 slots (unchanged); no other §K5 text cites the range. TD-VSDD-097: (1) sibling pair — no ADR twin; CLEAR. (2) downstream copy target — §K5 divergence-table Anchor cell is terminal; the canonical mandate-table RG count is unchanged. (3) mandate anchor — no new MUST added. |

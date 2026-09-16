@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.6"
 status: draft
 producer: product-owner
 timestamp: 2026-09-16T00:00:00Z
@@ -10,7 +10,7 @@ origin: greenfield
 subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: draft
-introduced: beta3-remediation-f2
+introduced: 2026-09-16
 modified: "2026-09-16"
 deprecated: null
 deprecated_by: null
@@ -105,7 +105,7 @@ extracted_from: ".factory/specs/prd.md"
 
 | VP ID | Property | Proof Method |
 |-------|----------|-------------|
-| VP-162 | `json_extract_string_impl` is a pure function: null/missing/parse-failure/non-object/JSON-null → `None`; string → `Some(s)`; non-string → `Some(value.to_string())`; formal bounds via structural `any_vec::<u8,256>()` key bound (ADR-066 §D1; VP-162 §Kani Proof Harness) | kani |
+| VP-162 | **Kani-proven:** (1) null-safety and panic-freedom — `json_extract_string_impl` never panics on any input; (2) None-in→None-out — `Value::Null` and `Value::Object` with a missing key each produce `None`; (3) structural key-length bound — any key ≤ 256 bytes accepted without overflow (ADR-066 §D1; VP-162 §Kani Proof Harness). **NOT Kani-proven — covered by RG-JEX Red Gate tests (ADR-066 §G):** behavioral routing (null/missing/parse-failure/non-object/JSON-null → `None`; string → `Some(s)`; non-string → `Some(value.to_string())`). | kani |
 
 ## Traceability
 
@@ -144,6 +144,7 @@ VP-162 — `json_extract_string_impl` pure function bounds proof (Kani; ADR-066 
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | beta3-f12-regate9-spec | 2026-09-16 | product-owner | **F-1 (MED — POL-20 violation) + F-2 (MED — VP-scope overstatement).** **F-1:** `introduced: beta3-remediation-f2` violated POL-20 (`bc_introduced_field_canonical_format`); the opaque burst-ID notation is prohibited; corrected to `introduced: 2026-09-16`. `origin: greenfield` retained — json_extract_string is a new feature (S-JSON-EXTRACT-UDF-001), not retroactively extracted from existing code; `brownfield` is reserved for pre-existing behavioral extraction; `greenfield` is correct. **F-2:** §Verification Properties VP-162 row's Property column described the full behavioral routing ("null/missing/parse-failure/non-object/JSON-null → None; string → Some(s); non-string → Some(value.to_string())") as though Kani-proven. VP-162 (authoritative) and ADR-066 §C prove only: (1) null-safety and panic-freedom; (2) None-in→None-out; (3) structural key-length bound ≤ 256 bytes. Behavioral routing is covered by RG-JEX Red Gate tests (ADR-066 §G), NOT by VP-162. **Fix:** VP-162 row rewritten with explicit "Kani-proven:" and "NOT Kani-proven — covered by RG-JEX Red Gate tests (ADR-066 §G):" sections; a reader can no longer misread the full routing as Kani-proven. **TD-VSDD-097 three-dimension discharge:** (1) Dim-1 sibling — no named split-event twin; CLEAR. (2) Dim-2 downstream copy target — VP-162 §Property Statement is the upstream source for the Kani-proven scope; this BC is the downstream copy; this burst IS the Dim-2 discharge for F-2. (3) Dim-3 mandate anchor — no new MUSTs; CLEAR. BC-INDEX updated same burst: pin bumped v1.5→v1.6. |
 | 1.5 | beta3-fc-regate5-spec | 2026-09-16 | product-owner | **F-C (LOW) — VP-162 section anchor corrected: `§Harnesses` → `§Kani Proof Harness`.** Re-gate pass-5 found that the §Verification Properties VP-162 row cross-reference cited `VP-162 §Harnesses`, but VP-162's actual section heading is `## Kani Proof Harness` (no `§Harnesses` heading exists). The architect had already made the identical correction in ADR-066 §D1. **Fix:** `(ADR-066 §D1; VP-162 §Harnesses)` → `(ADR-066 §D1; VP-162 §Kani Proof Harness)`. Full grep of non-changelog body confirms no other `§Harnesses` references to VP-162 remain. The v1.4 changelog row's mention of `VP-162 §Harnesses` is inside a changelog entry (exempt per POL-39) and not updated. **TD-VSDD-097 three-dimension discharge:** (1) Dim-1 sibling — no named split-event twin; CLEAR. (2) Dim-2 downstream copy target — this is the downstream copy of ADR-066 §D1; ADR-066 already corrected its own cite; this burst closes the copy-target leg. (3) Dim-3 mandate anchor — no new MUSTs; CLEAR. BC-INDEX updated same burst: pin bumped v1.4→v1.5. |
 | 1.4 | beta3-f1-regate4-spec | 2026-09-16 | product-owner | **F1 (MED — downstream copy miss) — VP-162 Kani mechanism corrected: `kani::assume` → `any_vec` structural bound.** Re-gate pass-4 adversary found that §Verification Properties VP-162 row still read "formal bounds under `kani::assume(key.len() <= 256)` (ADR-066 §D1)". ADR-066 v1.4 + VP-162 removed the `kani::assume` mechanism; the proof now uses a structural `any_vec::<u8,256>()` key bound (per ADR-066 §D1 and VP-162 §Harnesses). **Fix:** VP-162 row updated to "formal bounds via structural `any_vec::<u8,256>()` key bound (ADR-066 §D1; VP-162 §Harnesses)". No other `kani::assume(key.len)` occurrences found in this file. **TD-VSDD-097 three-dimension discharge:** (1) Dim-1 sibling — no named split-event twin; CLEAR. (2) Dim-2 downstream copy target — VP-162 §Harnesses is the upstream source; this BC is the downstream copy — this burst IS the Dim-2 discharge. (3) Dim-3 mandate anchor — no new MUSTs; CLEAR. BC-INDEX updated same burst: pin bumped v1.3→v1.4. |
 | 1.3 | beta3-f2-regate3-spec | 2026-09-16 | product-owner | **OBS — §Invariants DI-019 gloss corrected: memory budget is NFR-015, not DI-019.** The DI-019 invariant gloss read "subject to the same 30s timeout, 10K record cap, and **memory limits** as all query execution". Memory budget is governed by NFR-015, not DI-019. DI-019 label = "Query Security Limits" covers the 30s timeout and 10K record cap only. Fixed to: `DI-019 ("Query Security Limits"): subject to the same 30s timeout and 10K record cap; memory budget governed by NFR-015, not DI-019`. **TD-VSDD-097 three-dimension discharge:** (1) Dim-1 sibling — no named split-event twin; CLEAR. (2) Dim-2 downstream copy target — §Invariants DI-019 gloss is not verbatim-copied into any downstream artifact; CLEAR. (3) Dim-3 mandate anchor — no new MUSTs; CLEAR. BC-INDEX updated same burst: pin bumped v1.2→v1.3. |
