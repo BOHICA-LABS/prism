@@ -861,3 +861,33 @@ Prism Phase-3, v1 = live Claroty xDome. S-ENGINE-LIMIT-EARLY-STOP-001 round-16 L
 **HEADS (D-2516 2026-09-10):** develop: `85f30ea7f` (origin; PR #283 org-rename merged 2026-09-10; nightly LIVE); factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053); main: `bdf24cec8` (stub). Open PRs: PR #255 (OBSOLETE — verify/close). Dependabot: #265–#274 (UNTRIAGED). WORKTREES REMOVABLE-POST-MERGE: S-REL-NIGHTLY-NOTES-001, E-REL-NOTES (#264), S-CLAROTY-VULNS-001 (#245), S-ENGINE-LIMIT-EARLY-STOP-001 (#243), S-REL-NIGHTLY-001 (#276), S-REL-SPECS-TARBALL-001 (#279). PARKED: S-3.09, W3-FIX-S307-001 (DIRTY), S-ENGINE-H2-LARGE-RESPONSE-001. Releases: v1.0.0-beta.1 + v1.0.0-beta.2 + v1.0.0-nightly.* (multiple) + edge-nightly.
 
 **NOTE: Superseded by D-2517 — SESSION WRAP: this session shipped S-REL-CHANGELOG-CHANNEL-SCOPE-001 PR #281 + org rename PR #283/D-2516. RECONCILIATION: develop advanced +2 out-of-session (#284 ci nightly+fuzz-nightly; #287 fix dtu-claroty embed fixtures) to 561d8bac + tag v1.0.0-nightly.20260910. develop_head 85f30ea7f→561d8baccc. STATE v10.022→v10.023. SESSION-HANDOFF v9.014→v9.015.**
+
+---
+
+## D-2517 Checkpoint — SESSION WRAP; S-REL-CHANGELOG-CHANNEL-SCOPE-001 + ORG RENAME SHIPPED; RECONCILIATION-PENDING — 2026-09-14 (superseded by D-2518)
+
+**RESUME IN ONE BREATH:** Prism at develop@561d8bac (RECONCILIATION-PENDING: +2 out-of-session) — this session shipped PR #281 (S-REL-CHANGELOG-CHANNEL-SCOPE-001) + PR #283 (org rename drbothen→BOHICA-LABS). plugin rc.25 active. Nothing in flight. FIRST NEXT ACTION: intake live-test feedback on beta.2 Monroe demo.
+
+**HEADS (D-2517 2026-09-14):** develop: `561d8baccc` (RECONCILIATION-PENDING: +2 out-of-session; #284 ci nightly+fuzz-nightly @daac70dc7; #287 fix dtu-claroty @561d8bacc; tag v1.0.0-nightly.20260910); factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053); main: `bdf24cec8` (stub). Open PRs: #292 (ci clippy all-targets), #291 (dev-setup protoc), #288 (dtu embed fixtures), #282 (dependabot taiki-e); PR #255 (OBSOLETE — verify/close); Dependabot: #266–#274 (UNTRIAGED). WORKTREES: REMOVABLE-POST-MERGE: E-REL-NOTES (#264), S-CLAROTY-VULNS-001 (#245), S-ENGINE-LIMIT-EARLY-STOP-001 (#243), S-REL-NIGHTLY-001 (#276), S-REL-NIGHTLY-NOTES-001. PARKED: S-3.09, W3-FIX-S307-001 (DIRTY do-NOT-touch), S-ENGINE-H2-LARGE-RESPONSE-001.
+
+**NOTE: Superseded by D-2518 — RECORDS-ONLY MICRO-BURST: vsdd-factory plugin rc.23→rc.25 installed + re-activated. No pipeline change. develop_head 561d8baccc UNCHANGED. STATE v10.023→v10.024. SESSION-HANDOFF v9.015→v9.016. (D-2517 checkpoint archived retroactively in D-2520 burst — past omission.)**
+
+---
+
+## D-2518 Checkpoint — RECORDS-ONLY MICRO-BURST; vsdd-factory rc.25 active; develop@561d8baccc UNCHANGED — 2026-09-14 (superseded by D-2519)
+
+**RESUME IN ONE BREATH:** Prism at develop@561d8baccc — vsdd-factory plugin rc.23→rc.25 installed + re-activated (darwin-arm64; default agent orchestrator). No pipeline change. FIRST NEXT ACTION: review incoming live-test feedback on beta.2 Monroe demo.
+
+**HEADS (D-2518 2026-09-14):** develop: `561d8baccc` (UNCHANGED; RECONCILIATION-PENDING: +2 out-of-session; #284 ci nightly+fuzz-nightly @daac70dc7; #287 fix dtu-claroty @561d8bacc; tag v1.0.0-nightly.20260910); factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053); main: `bdf24cec8` (stub). bc_index v10.06 / vp_index v2.22 / arch_index v2.381 / story_index v3.036 UNCHANGED.
+
+**NOTE: Superseded by D-2519 — SESSION WRAP: durable §RESUME SNAPSHOT D-2519 written; demo assets inventoried; beta.1 boot-log non-bug conclusion recorded. develop_head 561d8baccc UNCHANGED. STATE v10.024→v10.025. SESSION-HANDOFF v9.016→v9.017. (D-2518 checkpoint archived retroactively in D-2520 burst — past omission.)**
+
+---
+
+## D-2519 Checkpoint — SESSION WRAP; demo assets inventoried; beta.1 boot-log non-bug conclusion — 2026-09-15 (superseded by D-2520)
+
+**RESUME IN ONE BREATH:** Prism at develop@561d8bac — org BOHICA-LABS/prism; plugin rc.25 active; nothing in flight. FIRST NEXT ACTION: review the human's incoming live-test feedback on the beta.2 Monroe demo before starting any other backlog. Beta.2 demo assets staged in test-soc/live-soc/ (external to repo). Beta.1 boot-log on prior provisioning run was a stale-artifact non-bug (compile-time source is single, not persisted state).
+
+**HEADS (D-2519 2026-09-15):** develop: `561d8baccc` (UNCHANGED; RECONCILIATION-PENDING: +2 out-of-session; #284 ci nightly+fuzz-nightly @daac70dc7; #287 fix dtu-claroty @561d8bacc; tag v1.0.0-nightly.20260910). `main`: `bdf24cec8` (stub). factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053). Open PRs: #292 (ci clippy all-targets), #291 (dev-setup protoc), #288 (dtu embed armis/cyberint/nvd fixtures), #282 (dependabot taiki-e); PR #255 (OBSOLETE — verify/close); Dependabot: #266–#274 (UNTRIAGED). WORKTREES: REMOVABLE-POST-MERGE: E-REL-NOTES (#264), S-CLAROTY-VULNS-001 (#245), S-ENGINE-LIMIT-EARLY-STOP-001 (#243), S-REL-NIGHTLY-001 (#276), S-REL-NIGHTLY-NOTES-001. PARKED: S-3.09, W3-FIX-S307-001 (DIRTY do-NOT-touch), S-ENGINE-H2-LARGE-RESPONSE-001. Releases: v1.0.0-beta.1 + v1.0.0-beta.2 + v1.0.0-nightly.* (multiple) + edge-nightly. DEMO ASSETS (external): bin/prism beta.2 (SHA-256 5108c6a60fbf32dd249c1cf28fb74658275fb9873f6ab6e151482065b8b31a2f); claroty.sensor.toml; monroe-demo-script.md v1.1.
+
+**NOTE: Superseded by D-2520 — LIVE-TEST FEEDBACK TRIAGE: beta.2 Monroe demo log parsed (jea-readapi; 20 issues in 7 groups); beta.3 remediation cycle scoped with 5 waves; human decisions recorded; no repo changes. develop_head 561d8baccc UNCHANGED. STATE v10.025→v10.026. SESSION-HANDOFF v9.017→v9.018.**
