@@ -1,27 +1,27 @@
 ---
 document_type: session-handoff
 level: ops
-version: "9.018"
+version: "9.019"
 status: current
 timestamp: 2026-09-15T00:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2520 (2026-09-15): LIVE-TEST FEEDBACK TRIAGE (TD-VSDD-053) — beta.2 Monroe demo log (jea-readapi) parsed; 20 issues triaged; beta.3 remediation cycle scoped into 5 waves; human decisions recorded; no repo changes. develop_head 561d8baccc UNCHANGED. records-lint L1/L7/L9/L10 PASS. STATE v10.025→v10.026; SESSION-HANDOFF v9.017→v9.018. §RESUME SNAPSHOT D-2519 SUPERSEDED by D-2520.**
+> **D-2521 (2026-09-15): FAST-FOLLOW STUBS RECORDED (human-directed, TD-VSDD-053) — 3 draft post-beta.3 stories added to STORY-INDEX v3.037 (total_stories 344): S-JSON-EXTRACT-TYPED-001, S-JSON-EXTRACT-NESTED-001, S-SPEC-OVERLAY-RELOCATION-001. No BC/ADR/VP changes; develop_head 561d8baccc UNCHANGED. records-lint L1/L7/L9/L10 PASS. STATE v10.026→v10.027; SESSION-HANDOFF v9.018→v9.019. §RESUME SNAPSHOT D-2520 SUPERSEDED by D-2521.**
 
-_D-2321..D-2491 delta entries and superseded snapshots archived to cycles/wave-5-e-demo-fidelity/session-handoff-archive.md (D-2494 compaction 2026-09-08). D-2505 snapshot superseded by D-2509. D-2509 snapshot superseded by D-2510. D-2510 snapshot superseded by D-2511. D-2511 snapshot superseded by D-2512. D-2512 snapshot superseded by D-2513. D-2513 snapshot superseded by D-2514. D-2514 snapshot superseded by D-2515. D-2515 snapshot superseded by D-2516. D-2516 snapshot superseded by D-2517. D-2517 snapshot superseded by D-2518. D-2518 snapshot superseded by D-2519. D-2519 snapshot superseded by D-2520._
+_D-2321..D-2491 delta entries and superseded snapshots archived to cycles/wave-5-e-demo-fidelity/session-handoff-archive.md (D-2494 compaction 2026-09-08). D-2505 snapshot superseded by D-2509. D-2509 snapshot superseded by D-2510. D-2510 snapshot superseded by D-2511. D-2511 snapshot superseded by D-2512. D-2512 snapshot superseded by D-2513. D-2513 snapshot superseded by D-2514. D-2514 snapshot superseded by D-2515. D-2515 snapshot superseded by D-2516. D-2516 snapshot superseded by D-2517. D-2517 snapshot superseded by D-2518. D-2518 snapshot superseded by D-2519. D-2519 snapshot superseded by D-2520. D-2520 snapshot superseded by D-2521._
 
 ---
 
-## §RESUME SNAPSHOT — D-2520 (2026-09-15 — LIVE-TEST FEEDBACK TRIAGE; STATE v10.026) [supersedes D-2519]
+## §RESUME SNAPSHOT — D-2521 (2026-09-15 — FAST-FOLLOW STUBS RECORDED; STATE v10.027) [supersedes D-2520]
 
 ### RESUME IN ONE BREATH
-Prism at develop@561d8bac — beta.2 Monroe demo live-test triage COMPLETE (20 issues identified; no repo changes). Beta.3 remediation cycle scoped with 5 waves. FIRST NEXT ACTION: run F1 delta-analysis (architect) + story decomposition (story-writer); present full story set at spec gate review.
+Prism at develop@561d8bac — beta.2 live-test triage COMPLETE (D-2520). 3 post-beta.3 fast-follow stubs RECORDED per human direction (D-2521; don't lose: S-JSON-EXTRACT-TYPED-001, S-JSON-EXTRACT-NESTED-001, S-SPEC-OVERLAY-RELOCATION-001). story_index v3.037 / total_stories 344. FIRST NEXT ACTION: run F1 delta-analysis (architect) + story decomposition (story-writer) for beta.3 remediation cycle; present full story set at spec gate review.
 
 **RESUME STEP 0:** `CronList` → re-arm heartbeat cron b98bd9dc (8,23,38,53 * * * *) if absent/expired (.factory/ops/vsdd-heartbeat-autorecovery.md).
 
-**RESUME NEXT-ACTION:** Run F1 delta-analysis + story decomposition for the beta.3 remediation cycle; then present story set at spec gate review. (Prior action = review beta.2 live-test feedback — DONE D-2520.)
+**RESUME NEXT-ACTION:** Run F1 delta-analysis + story decomposition for the beta.3 remediation cycle; present full story set at spec gate review. NOTE: fast-follow stubs (D-2521) already recorded in STORY-INDEX v3.037; reconcile depends_on S-JSON-EXTRACT-UDF-001 at decomposition time.
 
 **HEADS (backup boundary):**
 - develop HEAD `561d8baccc` (UNCHANGED; RECONCILIATION-PENDING: +2 out-of-session; #284 ci nightly+fuzz-nightly @daac70dc7; #287 fix dtu-claroty @561d8bacc; tag v1.0.0-nightly.20260910). `main`: `bdf24cec8` (stub).
@@ -38,6 +38,7 @@ Prism at develop@561d8bac — beta.2 Monroe demo live-test triage COMPLETE (20 i
 - W3: OCSF + JSON accessor (issues 8-13,20) — claroty.sensor.toml: finding_info_uid type, status_code type+field, time column, join keys, severity; json_extract_string UDF; new BC+ADR+VP
 - W4: Release (issues 14,15) — new BOHICA-LABS beta.3; install.sh drbothen→BOHICA-LABS URL fix
 - W5: Docs (issues 16,17,18,19) — gh attestation verify runbook; SETUP.md §9 my-client+base_url fix
+- POST-BETA.3 FAST-FOLLOWS (D-2521; recorded in STORY-INDEX v3.037): S-JSON-EXTRACT-TYPED-001 (P2/5pts), S-JSON-EXTRACT-NESTED-001 (P2/8pts), S-SPEC-OVERLAY-RELOCATION-001 (P3/2pts)
 
 **PENDING / OPEN ITEMS:**
 - **(a) FIRST NEXT ACTION:** F1 delta-analysis (architect) + story decomposition (story-writer) → human spec gate review of full beta.3 story set + architect OCSF status(9/10) proposal + JSON-accessor design.
@@ -46,12 +47,13 @@ Prism at develop@561d8bac — beta.2 Monroe demo live-test triage COMPLETE (20 i
 - **(d) PROCESS-GAP D-2503 (JUSTIFIED DEFERRAL D-2515):** combined candidates (a) adjust branch-protection; (b) pr-manager-completion-guard honor orchestrator-scoped partial dispatch — target cycle-close/human.
 - **(e) FLAG: RELEASE_PROMOTE_TOKEN** PAT may need re-scope for BOHICA-LABS owner before beta.3 release-tag dispatch.
 - **(f) beta.2 redacted log external only:** test_prism-20260915.redacted.log stays external per D-2410 (DO NOT SAVE LIVE-TEST OUTPUT INTO REPO).
+- **(g) fast-follow depends_on S-JSON-EXTRACT-UDF-001:** reconcile at F1/story-decomposition (either create S-JSON-EXTRACT-UDF-001 or re-point to the actual minimal-accessor story ID).
 
 **HEARTBEAT:** durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json. CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule.
 
-**DECISION-LOG DELTA THIS BURST:** D-2520 (LIVE-TEST FEEDBACK TRIAGE — beta.2 Monroe demo log parsed; 20 issues triaged in 7 groups; beta.3 5-wave remediation cycle scoped; human decisions recorded; no repo changes; develop_head 561d8baccc UNCHANGED; STATE v10.025→v10.026; SESSION-HANDOFF v9.017→v9.018). All recorded.
+**DECISION-LOG DELTA THIS BURST:** D-2521 (FAST-FOLLOW STUBS RECORDED — human-directed; 3 draft post-beta.3 stories added to STORY-INDEX v3.037; total_stories 341→344; depends_on S-JSON-EXTRACT-UDF-001 flagged; develop_head 561d8baccc UNCHANGED; STATE v10.026→v10.027; SESSION-HANDOFF v9.018→v9.019). All recorded.
 
-**STANDING DECISIONS (carry forward):** (a) No pragmatic convergence / fix all issues (production-grade default). (b) D-989 + D-2445 autonomy grant in force (merge+tag on green gates; force-push any branch still needs human). (c) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO. (d) Live xDome validation: canonical runbook .factory/ops/live-tenant-validation-runbook.md. (e) AUTONOMOUS MERGE + TAG (D-2445): all PRs autonomous on green gates; force-push STILL requires explicit human approval. (f) DEFECT-1 RESOLVED by PR #237. (g) POST-v1: TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001. (h) Sensor scope v1: Claroty xDome ONLY (D-2440/D-2443). (i) RELEASING.md at repo root; release-config quality_gates vsdd-partial. (j) No registry publish in v1. (k) Demo bundle + DTU parity DEFERRED post-beta.1. (l) BETA channel; v1.0.0-rc.1 = immutable never-published ghost (D-2452). (m) ADR-063 v1.14 git-cliff hybrid model + §D7 per-channel scoping SHIPPED PR #281; cargo-release 1.1.5 (ADR-064 §D3); PRISM_VERSION COMPLETE; docs VERSION-AGNOSTIC. (n) DEMO-SCOPE.md v2.1; live-monroe-capstone-runbook.md v1.0. (o) S-REL-DOCS-CI-WIRE-001 v0.1. (p) S-REL-HOLDOUT-HARNESS-001 v0.1. (q) Nightly lane LIVE; S-REL-NIGHTLY-NOTES-001 COMPLETE. (r) S-REL-SPECS-TARBALL-001 COMPLETE: PR #279 @54523dccd; all 9 ACs. (s) PROCESS-GAP D-2503 (4th recurrence D-2515): JUSTIFIED DEFERRAL; cycle-close target. (t) S-REL-CHANGELOG-CHANNEL-SCOPE-001 MERGED develop@09e9b28d2 (PR #281 2026-09-10). (u) v1.0.0-beta.2 PRE-RELEASE PUBLISHED. (v) ORG RENAME COMPLETE: BOHICA-LABS/prism (D-2516; PR #283 develop@85f30ea7f); .factory swept exhaustively. (w) RECONCILIATION-PENDING: develop +2 out-of-session (#284, #287) to 561d8bac + tag v1.0.0-nightly.20260910. (x) vsdd-factory plugin rc.25 INSTALLED + RE-ACTIVATED (darwin-arm64; D-2518 records-only micro-burst). (y) BETA.1 BOOT-LOG CONFIRMED NON-BUG: stale artifact from rc.1 provisioning run (D-2519). (z) LIVE-TEST TRIAGE COMPLETE (D-2520): beta.2 Monroe demo 20-issue inventory; beta.3 remediation cycle scoped into 5 waves; no repo changes in triage burst.
+**STANDING DECISIONS (carry forward):** (a) No pragmatic convergence / fix all issues (production-grade default). (b) D-989 + D-2445 autonomy grant in force (merge+tag on green gates; force-push any branch still needs human). (c) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO. (d) Live xDome validation: canonical runbook .factory/ops/live-tenant-validation-runbook.md. (e) AUTONOMOUS MERGE + TAG (D-2445): all PRs autonomous on green gates; force-push STILL requires explicit human approval. (f) DEFECT-1 RESOLVED by PR #237. (g) POST-v1: TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001. (h) Sensor scope v1: Claroty xDome ONLY (D-2440/D-2443). (i) RELEASING.md at repo root; release-config quality_gates vsdd-partial. (j) No registry publish in v1. (k) Demo bundle + DTU parity DEFERRED post-beta.1. (l) BETA channel; v1.0.0-rc.1 = immutable never-published ghost (D-2452). (m) ADR-063 v1.14 git-cliff hybrid model + §D7 per-channel scoping SHIPPED PR #281; cargo-release 1.1.5 (ADR-064 §D3); PRISM_VERSION COMPLETE; docs VERSION-AGNOSTIC. (n) DEMO-SCOPE.md v2.1; live-monroe-capstone-runbook.md v1.0. (o) S-REL-DOCS-CI-WIRE-001 v0.1. (p) S-REL-HOLDOUT-HARNESS-001 v0.1. (q) Nightly lane LIVE; S-REL-NIGHTLY-NOTES-001 COMPLETE. (r) S-REL-SPECS-TARBALL-001 COMPLETE: PR #279 @54523dccd; all 9 ACs. (s) PROCESS-GAP D-2503 (4th recurrence D-2515): JUSTIFIED DEFERRAL; cycle-close target. (t) S-REL-CHANGELOG-CHANNEL-SCOPE-001 MERGED develop@09e9b28d2 (PR #281 2026-09-10). (u) v1.0.0-beta.2 PRE-RELEASE PUBLISHED. (v) ORG RENAME COMPLETE: BOHICA-LABS/prism (D-2516; PR #283 develop@85f30ea7f); .factory swept exhaustively. (w) RECONCILIATION-PENDING: develop +2 out-of-session (#284, #287) to 561d8bac + tag v1.0.0-nightly.20260910. (x) vsdd-factory plugin rc.25 INSTALLED + RE-ACTIVATED (darwin-arm64; D-2518 records-only micro-burst). (y) BETA.1 BOOT-LOG CONFIRMED NON-BUG: stale artifact from rc.1 provisioning run (D-2519). (z) LIVE-TEST TRIAGE COMPLETE (D-2520): beta.2 Monroe demo 20-issue inventory; beta.3 remediation cycle scoped into 5 waves; no repo changes in triage burst. (aa) FAST-FOLLOW STUBS RECORDED (D-2521, human-directed): 3 draft post-beta.3 stories committed to STORY-INDEX v3.037 (total_stories 344); depends_on S-JSON-EXTRACT-UDF-001 flagged for reconciliation at F1/story-decomposition.
 
 ---
 

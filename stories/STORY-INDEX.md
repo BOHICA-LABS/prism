@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "3.036"
+version: "3.037"
 status: draft
 producer: state-manager
 timestamp: 2026-09-10T05:00:00Z
 phase: 3
-total_stories: 341
+total_stories: 344
+# D-2521 — STORY-INDEX v3.036→v3.037: 3 post-beta.3 fast-follow draft stubs REGISTERED (human-directed deferral 2026-09-15; concrete dependency = minimal json_extract_string accessor S-JSON-EXTRACT-UDF-001 beta.3 W3; source D-2520 beta.3 live-test triage): S-JSON-EXTRACT-TYPED-001 (json_extract_int/float/bool typed variants; P2; draft v0.1; depends_on S-JSON-EXTRACT-UDF-001; 5 pts; SS-01; strict), S-JSON-EXTRACT-NESTED-001 (bounded JSONPath nested-path access; P2; draft v0.1; HIGH risk security surface; depends_on S-JSON-EXTRACT-UDF-001; 8 pts; SS-01; strict), S-SPEC-OVERLAY-RELOCATION-001 (Armis example overlay relocation out of spec tree; P3; draft v0.1; depends_on []; 2 pts; SS-22; facade). total_stories 341→344.
 # D-2515 — STORY-INDEX v3.035→v3.036: S-REL-CHANGELOG-CHANNEL-SCOPE-001 row ready→done/merged (PR #281 @develop 09e9b28d2 2026-09-10T04:48:43Z; POL-14 N/A behavioral_contracts []). total_stories 341 UNCHANGED.
 # D-2514 — STORY-INDEX v3.034→v3.035: S-REL-CHANGELOG-CHANNEL-SCOPE-001 story v1.2→v1.3 (AC-007 precise grep-c check; Task 9/AC-009 RELEASING.md dual-path doc; LOCAL 3-CLEAN CONVERGED @0583581ce 17 passes/9 fix-bursts). status stays ready — merges via PR next.
 # D-2513 — STORY-INDEX v3.033→v3.034: S-REL-CHANGELOG-CHANNEL-SCOPE-001 [draft v1.0]→[ready v1.2]; ADR-063 §D7 v1.14 authored + corrected via D-1110 remove-uncertainty pass (3 spec-accuracy defects fixed); DEP D-2509 RESOLVED.
@@ -1235,6 +1236,22 @@ These 3 stories are post-v1.0.0 deferrals (S-REL-010 and S-REL-011 registered 20
 | S-REL-010 | Binary self-sufficiency — embed built-in sensor+infusion specs as BASE layer, make spec_dir optional; disk overrides by sensor_id; per-org overlay compatibility; single-source-of-truth embed via existing BUNDLED_SPEC_SCHEMAS static; ADR required [draft stub v0.1] | prism-bin, prism-spec-engine, prism-query | 0 (pending PO authorship) | -- | 13 | -- |
 | S-REL-011 | Operator setup and installation documentation for v1.0.0 archive-bundled model — docs/SETUP.md covering download, checksum+attestation verify, bundle extraction, spec placement, prism.toml, UUID-v7 org_id, credential set, first boot [merged v0.1; PR #257 @68a64ad0b] | docs | 0 (N/A docs) | -- | 3 | S-REL-003, S-REL-005 |
 | S-REL-CHANNELS-001 | Release-channel maturity ladder implementation — nightly/dev/alpha/beta/rc/stable continuous-release channel workflows; pre-release tags develop ONLY; stable promotes to main (release-main gated); per-channel retention policies; moving edge pointer; channel-transition rubric; spec: docs/RELEASE-CHANNELS.md (PR pending); fuller story authoring required before status: ready (PO authorship needed) [draft stub v0.1; D-2450 2026-09-04; operator-approved strategy D-2449] | devops | 0 (pending PO authorship) | -- | 21 | S-REL-001, S-REL-002 |
+
+## Post-beta.3 Fast-Follow Stubs (W3 Remediation Follow-Ups)
+
+These 3 stories are post-beta.3 fast-follows registered 2026-09-15 (D-2521; human-directed
+deferral). Concrete dependency: the minimal `json_extract_string` ScalarUDF (S-JSON-EXTRACT-UDF-001)
+must ship in beta.3 W3 before the two JSON accessor stories are dispatched. Source:
+D-2520 beta.3 live-test triage / W3 remediation cycle.
+
+All three have `behavioral_contracts: []` pending PO authorship or waiver before
+status: ready (Spec-First Gate S-7.01).
+
+| Story ID | Title | Crate | BCs | VPs | pts | Depends On |
+|----------|-------|-------|-----|-----|-----|------------|
+| S-JSON-EXTRACT-TYPED-001 | PrismQL JSON typed extract accessors — `json_extract_int` / `json_extract_float` / `json_extract_bool` typed ScalarUDFs so numeric/boolean `raw_extensions` fields (e.g., `cvss_v3_score`, `devices_count`, `is_online`) are comparable with correct numeric/boolean semantics; closes lexicographic-ordering gap from beta.3 string-only accessor; plan-gate + 256-byte key cap inherited from S-JSON-EXTRACT-UDF-001; BC extension + VP extension pending PO authorship [draft stub v0.1; D-2521 2026-09-15; post-beta.3 fast-follow] | prism-query | 0 (pending PO authorship) | -- | 5 | S-JSON-EXTRACT-UDF-001 |
+| S-JSON-EXTRACT-NESTED-001 | PrismQL JSON nested-path access — extend `json_extract_*` to bounded dot-path syntax (e.g., `$.a.b.c`); requires bounded JSONPath parser in plan-gate with max depth + 256-byte path cap; literal-path-only (non-literal paths rejected); HIGH risk: agent-facing query language injection surface (CLAUDE.md §agent-harness); security-reviewer pass required; no array indexing, no wildcards, no filter expressions in this story [draft stub v0.1; D-2521 2026-09-15; post-beta.3 fast-follow] | prism-query | 0 (pending PO authorship) | -- | 8 | S-JSON-EXTRACT-UDF-001 |
+| S-SPEC-OVERLAY-RELOCATION-001 | Relocate Armis example org overlays (`crates/prism-sensors/specs/customers/acme/` + `.../contoso/`) out of shipped spec tree to test-only fixture path so source-build `validate-config` does not fail with E-SPEC-022 for unregistered orgs; `overlay.rs::make_e_spec_022_unknown_org_slug` UNCHANGED (correct-by-design); packaged-release tarball unaffected (already excludes `customers/`); Armis POST-v1 de-scoped — genuine deferral; anchors BC-2.06.015/BC-2.06.016 + ADR-029 [draft stub v0.1; D-2521 2026-09-15; post-beta.3 fast-follow] | prism-sensors | 0 (pending PO authorship or waiver) | -- | 2 | -- |
 
 [*] S-5.10 is in the `prism-audit` crate — note that all other Wave 5 stories are in `prism-mcp`. This is intentional: audit trail forwarding belongs to the audit subsystem by BC-2.05.011, but the Wave 5 slot reflects its topological dependency on S-2.04 (Wave 2 anchor).
 
