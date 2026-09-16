@@ -5,7 +5,7 @@ title: "LIMIT-Aware Early-Stop Pagination for Offset/Limit and Cursor Sensor Tab
 status: ACCEPTED
 date: "2026-08-26"
 modified: "2026-09-16"
-version: "1.19"
+version: "1.20"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-11, SS-16]
 supersedes: []
@@ -1109,16 +1109,50 @@ The existing formula at engine Step 6 is updated:
 // Before (beta.2):
 let total_available = total_rows;   // always a lower bound, never true upstream total
 
-// After (beta.3, §D8.11):
-let total_available = output.upstream_total.unwrap_or(total_rows);
+// After (beta.3, §D8.11) — gated to early-stopped (non-reducing) plans:
+let total_available = if output.any_early_stopped {
+    // Straight projection hit the fetch/LIMIT cap.
+    // upstream_total, if available, gives the true upstream count as reported by the
+    // sensor API. Hard invariant: total_available >= total_rows via max(), which prevents
+    // a multi-sensor max() aggregate from falling below the actual fetched row count
+    // in anomalous cases (sensor under-reports its own total).
+    output.upstream_total
+        .map(|n| n.max(total_rows))
+        .unwrap_or(total_rows)
+} else {
+    // No early-stop: DataFusion produced exact results (§D8.10 exactness invariant).
+    // upstream_total reflects the raw pre-aggregation sensor universe; applying it here
+    // would overstate total_available for GROUP BY / HAVING queries where DataFusion
+    // reduces the row count below the sensor's raw item total.
+    total_rows
+};
 ```
 
 **Semantics:**
-- When `upstream_total = Some(N)`: `total_available = N` (the true upstream total as
-  reported by the sensor API). This is now an EXACT count (not a lower bound) when
-  `is_truncated = true` AND `upstream_total` is available.
-- When `upstream_total = None`: `total_available = total_rows` (the existing lower-bound
-  semantics, unchanged from beta.2). `is_truncated = true` still signals incompleteness.
+- When `any_early_stopped = true` AND `upstream_total = Some(N)`:
+  `total_available = max(N, total_rows)` — the true upstream count, lower-bounded by
+  `total_rows` to guarantee the `total_available >= total_rows` hard invariant.
+  Normal case: `N >= total_rows`, so `total_available = N` (exact upstream count).
+  Anomalous case: `N < total_rows` (sensor under-reported); `total_available = total_rows`
+  (safe lower-bound fallback).
+- When `any_early_stopped = true` AND `upstream_total = None`:
+  `total_available = total_rows` (lower-bound semantics, unchanged from beta.2).
+- When `any_early_stopped = false`:
+  `total_available = total_rows` always (§D8.10 exactness invariant preserved; upstream
+  total not applied regardless of whether it is present).
+
+**Hard invariant:** `total_available >= total_rows` in ALL cases. The `n.max(total_rows)`
+call in the early-stop branch enforces this structurally; the `else` branch sets
+`total_available = total_rows` directly.
+
+**Why gate on `any_early_stopped`:** Early-stop fires only when the sensor hit the fetch
+page cap while fetching for a LIMIT clause — i.e., a straight projection, not an
+aggregation. An aggregating plan (GROUP BY, HAVING, DISTINCT) must see ALL sensor rows
+before DataFusion can compute the groups; early-stop never fires for such plans. The
+`any_early_stopped = true` flag is therefore a sound proxy for "non-reducing plan that
+hit the cap." Applying `upstream_total` unconditionally (the pre-fix form) would set
+`total_available` to the sensor's raw row count even for a GROUP BY query that reduces
+4500 raw records to 12 group rows — a 375× overstatement.
 
 **`is_truncated` formula:** UNCHANGED from §D8.10. The upstream total does not affect
 whether the result is truncated — only what `total_available` reports.
@@ -1129,10 +1163,13 @@ whether the result is truncated — only what `total_available` reports.
 |------|---------------------|
 | `FetchOutput.upstream_total` populated from `PaginationCursor.total_count` | S-QUERY-TRUE-TOTAL-001 RG-QTT-001 |
 | `FanOutResult.upstream_total = max()` of sensor totals | S-QUERY-TRUE-TOTAL-001 RG-QTT-002 |
-| `total_available = upstream_total.unwrap_or(total_rows)` at Step 6 | S-QUERY-TRUE-TOTAL-001 RG-QTT-003 |
-| Single-sensor: `upstream_total = Some(N)` present in MCP response when TOML has `total_count_path` | S-QUERY-TRUE-TOTAL-001 RG-QTT-004 |
+| `total_available = upstream_total.map(\|n\| n.max(total_rows)).unwrap_or(total_rows)` when `any_early_stopped = true`; `total_available = total_rows` when `any_early_stopped = false` | S-QUERY-TRUE-TOTAL-001 RG-QTT-003 |
+| Single-sensor: `upstream_total = Some(N)` present in MCP response when TOML has `total_count_path` and query early-stopped | S-QUERY-TRUE-TOTAL-001 RG-QTT-004 |
 | Multi-sensor: `upstream_total = max()` of reported sensor totals | S-QUERY-TRUE-TOTAL-001 RG-QTT-005 |
 | When `total_count_path` absent from TOML: `upstream_total = None`, `total_available = total_rows` | S-QUERY-TRUE-TOTAL-001 RG-QTT-006 |
+| Early-stop gate: `upstream_total` override only fires when `any_early_stopped = true`; non-truncated exact-result queries unaffected | S-QUERY-TRUE-TOTAL-001 RG-QTT-007 |
+| `total_available >= total_rows` hard invariant holds for all plan/early-stop/upstream_total combinations | S-QUERY-TRUE-TOTAL-001 RG-QTT-008 |
+| Aggregating plan (GROUP BY / HAVING): `total_available = total_rows` even when TOML has `total_count_path` and sensor reports a total | S-QUERY-TRUE-TOTAL-001 RG-QTT-009 |
 
 #### §D8.11.7 — Backward Compatibility
 
@@ -1318,6 +1355,7 @@ Closed by v1.8 Condition K: conservative suppression when `collect_datetime_inde
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.20 | 2026-09-16 | architect | F1 adversarial gate (CRITICAL): §D8.11.5 `total_available` formula corrected — unconditional `upstream_total.unwrap_or(total_rows)` replaced with gated formula: override fires only when `any_early_stopped = true` (straight projection hit cap); non-reducing plans use `total_available = total_rows` (§D8.10 exactness invariant preserved). Hard invariant added: `total_available >= total_rows` enforced via `.map(\|n\| n.max(total_rows))`; prevents multi-sensor max() from understating below fetched row count. Rationale: aggregating plans (GROUP BY/HAVING) must see ALL sensor rows before reducing; early-stop never fires for such plans, so `any_early_stopped = true` is a sound proxy for non-reducing plan. §D8.11.6 mandate table extended: RG-QTT-003 formula updated; RG-QTT-007 (early-stop gate), RG-QTT-008 (total_available >= total_rows invariant), RG-QTT-009 (aggregating plan non-interference) added. Reconciled F1 contract: `total_available = max(N, total_rows)` when `any_early_stopped = true` and `upstream_total = Some(N)`; `total_available = total_rows` otherwise. |
 | 1.19 | 2026-09-16 | architect | D-2522 beta.3 spec-gate authorized. §D8.11 upstream-total propagation chain added: §D8.11.1 new optional TOML `total_count_path: Option<String>` per-table field (top-level key ≤256 bytes; nested paths deferred to S-JSON-EXTRACT-NESTED-001); §D8.11.2 `PaginationCursor.total_count` elevated from captured-but-ignored to load-bearing; §D8.11.3 four struct changes (`FetchOutput`, `FanOutResult`, `MaterializationOutput`, plus `PipelineResult` if applicable) each gain `upstream_total: Option<usize>`; §D8.11.4 multi-sensor fan-out aggregation via `max()` over `Some` values; §D8.11.5 engine Step 6 updated: `total_available = upstream_total.unwrap_or(total_rows)` — `is_truncated` formula unchanged; §D8.11.6 mandate anchors table (6 MUST → RG-QTT-001..006); §D8.11.7 backward compatibility: sensors without `total_count_path` are behaviorally unchanged; §D8.11.8 scope boundary (top-level-key only). Anchor story: S-QUERY-TRUE-TOTAL-001. Re-freeze pending under BC-5.39.001 3-CLEAN (D-2522 authorized). |
 | 1.18 | 2026-08-30 | architect | F-B1V-002 (MEDIUM/spec-accuracy): §D8.3 worked example (d) corrected — arithmetically unreachable numbers (page_size=1000, LIMIT=5, partial-page=3) replaced with reachable scenario matching `test_early_stop_multi_batch_partial_page_is_truncated` (RG-PSG-044): page_size=10, LIMIT=5; 4 IDs at fan_out_batch_size=2 → 2 intra-pipeline batches; batch-0 (batch_idx=0, non-final, is_last_batch=false) returns partial page 5 records (5 < page_size 10), accumulated=5 ≥ limit=5 → early-stop fires; discriminator `(page_record_count 5 >= active_page_size 10) \|\| !is_last_batch = false \|\| true = true` → `early_stopped=true` → `is_truncated=true`; batch-1 abandoned by `break 'steps` (proven by test's 2-HTTP-request assertion). §D8.2 discriminator formula and disambiguation note unchanged. Rows (a)/(b)/(c) unchanged. Closes F-B1V-002. |
 | 1.17 | 2026-08-30 | architect | F-B1-001 (MEDIUM): §D8.2 discriminator formula extended — `early_stopped = (page_record_count >= active_page_size) \|\| !is_last_batch`; `is_last_batch = (batch_idx + 1 == batch_count)` refers to intra-pipeline step fan-out batches within `execute_impl` batch-loop (over `fan_out_batches`/`fan_out_batch_size`), DISTINCT from multi-sensor fan-out at the `FanOutResult` layer (§D8.9/§D8.10). Non-final batch (`!is_last_batch = true`): `break 'steps` abandons remaining step-fan-out batches → data genuinely incomplete → `early_stopped = true` regardless of page fill. Final batch: falls back to page-fill discriminator. Common no-fan-out case (`batch_count == 1`): reduces exactly to `page_record_count >= active_page_size`. §D8.3 updated: description cites full discriminator formula; bullet list extended (non-final-batch case added); worked example (d) added (batch 1 of 2, partial page → `early_stopped = true`); disambiguation note added (intra-pipeline step fan-out vs multi-sensor `FanOutResult.any_early_stopped` OR-aggregation). Documents implemented+verified behavior (code @704aac24a; `test_early_stop_multi_batch_partial_page_is_truncated`, GREEN). Closes F-B1-001. |

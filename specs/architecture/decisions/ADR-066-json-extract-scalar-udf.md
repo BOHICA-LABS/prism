@@ -5,7 +5,7 @@ title: "json_extract_string Scalar UDF — Synchronous serde_json Single-Key Ext
 status: ACCEPTED
 date: "2026-09-16"
 modified: "2026-09-16"
-version: "1.0"
+version: "1.1"
 producer: architect
 subsystems_affected: [SS-11]
 supersedes: []
@@ -181,7 +181,7 @@ DataFusion `analyze` hook; it is a pre-planning validation in `engine.rs` after 
 parsing but before `ctx.sql(...)` is called.
 
 **SAP-3 reachability requirement:** The gate MUST be reachable from the public PrismQL
-surface (a real PQL query string), not only from a synthetic AST injection. RG-JEX-007
+surface (a real PQL query string), not only from a synthetic AST injection. RG-JEX-006
 tests this from the `prism_query` public API.
 
 ---
@@ -313,8 +313,8 @@ DataFusion version pinned in `Cargo.toml` before authoring the final implementat
 
 | Sub-case | Trigger | Message |
 |----------|---------|---------|
-| E-QUERY-045(a) | Non-literal key argument | `"json_extract_string requires a literal string key; dynamic key expressions are not permitted"` |
-| E-QUERY-045(b) | Key exceeds 256 bytes | `"json_extract_string key exceeds the 256-byte limit"` |
+| E-QUERY-045(a) | Non-literal key argument | `"E-QUERY-045: json_extract_string requires a literal string key; dynamic key expressions are not permitted"` |
+| E-QUERY-045(b) | Key exceeds `{max_len}` bytes | `"E-QUERY-045: json_extract_string key exceeds the {max_len}-byte limit"` |
 
 Both sub-cases are rejected at plan time, before DataFusion planning. They are surfaced
 through the standard prism `E-QUERY-NNN` error response path (structured, not
@@ -330,13 +330,16 @@ S-JSON-EXTRACT-UDF-001:
 | MUST | Story AC / Red Gate |
 |------|---------------------|
 | UDF registered at engine construction | S-JSON-EXTRACT-UDF-001 RG-JEX-001 (happy path executes) |
-| Null column → SQL NULL | S-JSON-EXTRACT-UDF-001 RG-JEX-004 |
-| Missing key → SQL NULL | S-JSON-EXTRACT-UDF-001 RG-JEX-003 |
-| Non-object JSON → SQL NULL | S-JSON-EXTRACT-UDF-001 RG-JEX-005 |
-| JSON null value → SQL NULL | S-JSON-EXTRACT-UDF-001 RG-JEX-002 |
-| Non-literal key rejected with E-QUERY-045 | S-JSON-EXTRACT-UDF-001 RG-JEX-007 |
-| Key > 256 bytes rejected with E-QUERY-045 | S-JSON-EXTRACT-UDF-001 RG-JEX-006 |
-| Pipe mode executes end-to-end | S-JSON-EXTRACT-UDF-001 RG-JEX-008 |
+| JSON null value → SQL NULL (§B1 step 5) | S-JSON-EXTRACT-UDF-001 RG-JEX-002 |
+| Missing key → SQL NULL (§B1 step 4) | S-JSON-EXTRACT-UDF-001 RG-JEX-003 |
+| Null column → SQL NULL (§B1 step 1) | S-JSON-EXTRACT-UDF-001 RG-JEX-004 |
+| Non-object JSON → SQL NULL (§B1 step 3) | S-JSON-EXTRACT-UDF-001 RG-JEX-005 |
+| Non-literal key rejected with E-QUERY-045(a) — reachable from `prism_query` public API (SAP-3) | S-JSON-EXTRACT-UDF-001 RG-JEX-006 |
+| Key > 256 bytes rejected with E-QUERY-045(b) | S-JSON-EXTRACT-UDF-001 RG-JEX-007 |
+| Non-string value (Number, Bool, Array, Object) → JSON re-serialized string, NOT NULL (§B1 step 7) | S-JSON-EXTRACT-UDF-001 RG-JEX-008 |
+| Parse failure — non-JSON column value → SQL NULL (§B1 step 2) | S-JSON-EXTRACT-UDF-001 RG-JEX-009 |
+| Dot-in-key treated as literal top-level key (§D4): `'a.b'` matches exact object key `"a.b"`, NOT nested path | S-JSON-EXTRACT-UDF-001 RG-JEX-010 |
+| Pipe mode end-to-end: `json_extract_string` in PQL pipe expression executes correctly (SAP-3 public-surface reachability) | S-JSON-EXTRACT-UDF-001 RG-JEX-011 |
 | VP-162 Kani proof covers pure function | VP-162 (Phase 5 formal-verify) |
 
 ---
@@ -421,4 +424,5 @@ key only, string return type only, no push-down.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.1 | 2026-09-16 | architect | Adversarial gate fixes (F2/F7/F10). F2 (HIGH): §G mandate table — RG-JEX-006/007 swap corrected to canonical (RG-JEX-006 = non-literal-key gate; RG-JEX-007 = key>256 gate); §B3 "RG-JEX-007 tests this" → "RG-JEX-006 tests this". F7 (MED): §G expanded from 8 to 12 entries — all distinct MUSTs now have dedicated gates: RG-JEX-008 = non-string-coercion (§B1 step 7, NOT NULL); RG-JEX-009 = parse-failure→NULL (§B1 step 2); RG-JEX-010 = dot-in-key literal treatment (§D4 top-level-key-only, injection boundary); RG-JEX-011 = pipe-mode e2e SAP-3 public-surface reachability. Canonical RG-JEX-001..011 list published for PO to mirror into BC-2.11.025. F10 (LOW): §F error message table — `E-QUERY-045:` prefix added to both message strings; hardcoded `256` replaced with `{max_len}` in E-QUERY-045(b) message and trigger cell. |
 | 1.0 | 2026-09-16 | architect | Initial. D-2522 beta.3 spec-gate approved. Closes latent dead-path defect: `ScalarFunc::JsonExtractString` existed in ast.rs/sql_parser.rs/pipe_sql_emitter.rs but no ScalarUDF registered. Defines: §B1 synchronous serde_json extraction; §B2 serde_json over arrow-rs rationale; §B3 literal-key plan gate (E-QUERY-045); §D1 VP-162 proof target; §D2–§D6 scope constraints (literal-key, top-level, string-only, no push-down); §E DataFusion registration contract; §F error taxonomy (E-QUERY-045 sub-cases a/b); §G mandate anchors (TD-VSDD-097 Dim-3: 9 MUST→RG mappings); §H latent defect closure rationale. Deferrals anchored: S-JSON-EXTRACT-TYPED-001 (typed variants) + S-JSON-EXTRACT-NESTED-001 (nested JSONPath). |
