@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "3.038"
+version: "3.039"
 status: draft
 producer: state-manager
-timestamp: 2026-09-10T05:00:00Z
+timestamp: 2026-09-16T10:00:00Z
 phase: 3
-total_stories: 345
+total_stories: 346
+# D-2542 — STORY-INDEX v3.038→v3.039: S-MCP-TOOL-GATE-001 REGISTERED (draft v1.0; epic E-BETA3-REMEDIATION; P0; 3 pts; prism-mcp; W1 strict; BCs BC-2.10.017 v1.2 + BC-2.10.011 v1.7 amended; RG-GATE-001..004; density 0.80; issues 1,2; spec-gap resolved via BC amendments — absent operations feature → NOT_YET_AVAILABLE_TOOLS empty slice, -32601 not -32003, 14 LIVE_TOOLS unconditionally registered). total_stories 345→346.
 # D-2541 — STORY-INDEX v3.037→v3.038: S-MAINT-INDEX-FORMAT-RATCHET-001 REGISTERED (draft v0.1; epic maintenance; P3; 5 pts; BC-INDEX parenthetical version-format cleanup + ARCH-INDEX ADR inline-changelog collapse + records-lint L11 gate; human-directed deferral 2026-09-16 from Batch-0 OBS-01 + F-B0P14-LOW-001). total_stories 344→345.
 # D-2521 — STORY-INDEX v3.036→v3.037: 3 post-beta.3 fast-follow draft stubs REGISTERED (human-directed deferral 2026-09-15; concrete dependency = minimal json_extract_string accessor S-JSON-EXTRACT-UDF-001 beta.3 W3; source D-2520 beta.3 live-test triage): S-JSON-EXTRACT-TYPED-001 (json_extract_int/float/bool typed variants; P2; draft v0.1; depends_on S-JSON-EXTRACT-UDF-001; 5 pts; SS-01; strict), S-JSON-EXTRACT-NESTED-001 (bounded JSONPath nested-path access; P2; draft v0.1; HIGH risk security surface; depends_on S-JSON-EXTRACT-UDF-001; 8 pts; SS-01; strict), S-SPEC-OVERLAY-RELOCATION-001 (Armis example overlay relocation out of spec tree; P3; draft v0.1; depends_on []; 2 pts; SS-22; facade). total_stories 341→344.
 # D-2515 — STORY-INDEX v3.035→v3.036: S-REL-CHANGELOG-CHANNEL-SCOPE-001 row ready→done/merged (PR #281 @develop 09e9b28d2 2026-09-10T04:48:43Z; POL-14 N/A behavioral_contracts []). total_stories 341 UNCHANGED.
@@ -1072,6 +1073,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-MAINT-CONTENT-VERSION-GATE-001 | records-lint Content-Change-Without-Version-Bump Check [draft v1.0] | scripts/records-lint.sh | 0 (pending PO) | -- | 8 | S-MAINT-CHANGELOG-BACKFILL-001 |
 | S-MAINT-BURST-COMMIT-COUNT-GATE-001 | Factory Gate — Replace Trigger-Word Heuristic with Count-Based Single-Commit-Per-Burst Enforcement [draft v1.0] | .factory/hooks, drbothen/vsdd-factory | 0 (pending PO) | -- | 5 | -- |
 | S-MAINT-INDEX-FORMAT-RATCHET-001 | Corpus-Wide Records-Lint Cleanup — BC-INDEX Parenthetical Version Format + ARCH-INDEX ADR Inline-Changelog Collapse + records-lint L11 Gate [draft v0.1] | .factory/specs/behavioral-contracts/BC-INDEX.md, .factory/specs/architecture/ARCH-INDEX.md, scripts/records-lint.sh, .factory/policies.yaml | 0 (pending PO) | -- | 5 | -- |
+| S-MCP-TOOL-GATE-001 | Gate operations stubs behind default-off Cargo feature — eliminate -32003 catalog pollution; absent `operations` feature → NOT_YET_AVAILABLE_TOOLS empty slice, -32601 not -32003; LIVE_TOOLS unconditionally registered [draft v1.0] | prism-mcp | 2 (BC-2.10.017 v1.2, BC-2.10.011 v1.7) | -- | 3 | -- |
 | DEFECT-PQL-SUBQUERY-FANOUT-001 | cross-sensor WHERE IN(SELECT) silently returns 0 rows — recursive source extraction missing at materialization stage [draft v0.1] | prism-query | 0 (pending PO) | -- | TBD | -- |
 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 | xDome transport hardening: http2 feature + User-Agent + error source-chain + error mapping (F10 + F9 bundled) [draft v0.1] [ready v1.1] [corrected v1.2] [corrected v1.3] [corrected v1.4] [corrected v1.5] [corrected v1.6] [corrected v1.7] [corrected v1.8] [corrected v1.9] [corrected v1.10] [corrected v1.11] [corrected v1.12] [corrected v1.13] [corrected v1.14] [corrected v1.15] [corrected v1.16] [corrected v1.17] [corrected v1.18] [corrected v1.19] [corrected v1.20] [corrected v1.21] [corrected v1.22] [corrected v1.23] [corrected v1.24] [corrected v1.25] [corrected v1.26] [corrected v1.27] [corrected v1.28] [corrected v1.29] [corrected v1.30] [corrected v1.31] [corrected v1.32] [corrected v1.33] [corrected v1.34] [merged v1.34] | prism-spec-engine, prism-sensors, prism-bin, prism-core, prism-mcp, prism-query | 7 (BC-2.16.002 v2.20, BC-2.08.002 v1.8, BC-2.01.010 v1.7, BC-2.01.013 v1.19, BC-2.16.014 v1.22, BC-2.19.001 v2.4, BC-2.11.001 v1.25) | -- | 5 | -- |
 | DEFECT-QUERY-TIMEOUT-ORPHAN-SWEEP-001 | query timeout drops parent future while detached fan-out continues [draft v0.1] | prism-query, prism-sensors | 0 (pending PO) | -- | TBD | -- |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.6"
+version: "1.7"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -15,7 +15,7 @@ subsystem: "SS-10"
 capability: "CAP-005"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-06-17"  # v1.6 POL-14 status sync: status draft→active at S-5.02 anchor-story merge PR #191 develop@bec894a2; lifecycle_status was already active
+modified: "2026-09-16"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -90,7 +90,7 @@ The story spec's `{effective_capabilities: Map<String, bool>}` and the merged co
 
 **`client_registered`:** `true` if `client_id` exists in the runtime capability registry; `false` if the `client_id` is well-formed but not present in the registry. In both cases the full capability matrix is returned — `list_capabilities` NEVER errors for an unknown-but-well-formed `client_id`. The `false` state signals to the caller that no client-specific runtime grants exist; the matrix reflects global defaults only. (E-CFG-100/ClientNotFound is NOT raised by this tool for an unknown client — that error applies to other tools such as `query`.)
 
-**`not_registered_tools`:** Array of tool names that are registered in the MCP catalog but return `-32003 NOT_IMPLEMENTED` because their underlying module (e.g., prism-operations) is not yet wired. These are distinct from capability-gated tools — they are unavailable regardless of feature flags. (Replaces merged code's `not_implemented` field; renamed for clarity.)
+**`not_registered_tools`:** Array of tool names that would return `-32003 NOT_IMPLEMENTED` if registered, because their underlying module (e.g., prism-operations) is not yet wired. When the `operations` Cargo feature is absent (the production default), this field is the empty slice `[]` — the stub tools are not registered in the catalog at all and do not appear here. The field is populated with stub tool names only when the `operations` feature is explicitly enabled. These tools are distinct from capability-gated tools. (Replaces merged code's `not_implemented` field; renamed for clarity.) (S-MCP-TOOL-GATE-001 AC-002 — RG-GATE-002)
 
 **When `client_id` is null (cross-client summary mode):**
 
@@ -140,6 +140,7 @@ The merged `list_capabilities` handler in `crates/prism-mcp/src/server.rs` (line
 | EC-10-020 | Well-formed `client_id` not present in runtime registry | Returns full capability matrix with `client_registered: false`; reflects global-default resolution (no client-specific runtime grants); NO `E-CFG-100` error raised. Verified by `test_MCP_01_list_capabilities_unregistered_client_not_registered`. |
 | EC-10-021 | Client with zero capabilities enabled | Returns full matrix with all capabilities showing `runtime_disabled` or `compile_time_disabled` |
 | EC-10-022 | All sensor TOML specs declare `[[write_endpoints]]` but all capabilities runtime-disabled | Matrix shows all write capabilities as `runtime_disabled` with TOML paths for enabling |
+| EC-10-023 | `list_capabilities` called when `operations` Cargo feature is absent (default) | `not_registered_tools` is `[]` in both single-client and cross-client response modes — no stub tool names appear; stub tools were never registered |
 
 ## Canonical Test Vectors
 
@@ -152,6 +153,7 @@ The merged `list_capabilities` handler in `crates/prism-mcp/src/server.rs` (line
 | `list_capabilities("unknown-client")` where `"unknown-client"` passes `[a-zA-Z0-9_-]{1,64}` validation but is not in the runtime registry | `{client_id: "unknown-client", client_registered: false, capabilities: {...global-default matrix...}, not_registered_tools: [...]}` — NO error raised | unknown-client-no-error |
 | Invalid `client_id` format (e.g., `"acme/../../etc"`) | `E-MCP-001` structured validation error; `original_params_valid: false` | error |
 | `client_id: ""` (empty string) | `E-MCP-001` structured validation error; `original_params_valid: false` | error |
+| `list_capabilities("acme")` compiled without `operations` feature (default) | `not_registered_tools: []` in response JSON — wire-shape assertion: serialized JSON contains `"not_registered_tools":[]` | feature-gate-empty (S-MCP-TOOL-GATE-001 AC-002 RG-GATE-002) |
 
 See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
 
@@ -174,6 +176,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | beta3-remediation-BC-amendments | 2026-09-16 | product-owner | Operations feature gate: amended `not_registered_tools` field description — empty slice `[]` when `operations` Cargo feature is absent (default); populated with stub tool names only when `operations` is enabled. Added EC-10-023 (feature-absent empty-slice edge case). Added test vector `feature-gate-empty`. Anchor: S-MCP-TOOL-GATE-001 AC-002 (RG-GATE-002). Resolves beta.3 issue 2 (beta3-remediation-delta-analysis.md §Issue 2). |
 | 1.6 | S-5.02-BC-self-contradiction-fix | 2026-06-15 | product-owner | Self-contradiction fix: removed E-CFG-100/ClientNotFound error row from Error Cases — `list_capabilities` NEVER errors for an unknown-but-well-formed client_id; it returns the matrix with `client_registered: false`. Corrected canonical test vector row (was: "E-CFG-100 error"; now: matrix-path with `client_registered: false`). Added new test vector row `unknown-client-no-error` making this path unambiguous. Expanded `client_registered` postcondition note to explicitly cover the `false` case. Clarified implementer gap item 4 to cite `test_MCP_01_list_capabilities_unregistered_client_not_registered` as the verification test. Added EC-10-020 edge case for unregistered client. Added non-error callout block under Error Cases. No change to format-validation error (E-MCP-001), capability-path error (E-CFG-106), response schema, tri-state model, VP citations, or any other behavior. |
 | 1.5 | S-5.02-pre-TDD-reconciliation | 2026-06-14 | product-owner | R2 reconciliation: Locked response model as tri-state + hierarchical capability-path (supersedes story-spec `{effective_capabilities: Map<String,bool>}` and merged-code `{client_registered, capabilities: Map<String,bool>, not_implemented, note}`). Added complete JSON response schema for single-client and cross-client summary modes. Added `resolution_chain` spec (level/result/source per step). Added implementer gap note: merged code must replace bool map with CapabilityEntry{status+resolution_chain}, rename `not_implemented` → `not_registered_tools`, and use the shared capability resolver. Updated error cases table with PrismError variants and MCP error codes. Updated canonical test vectors for new response shape. Added input-shape note (`client_id: Option<String>` with null=all-clients). `not_registered_tools` field replaces `not_implemented`. Status labels, VP citations, trust_level, and tool annotations unchanged. |
 | 1.4 | MCP cascade pass-1 P1-02 BC sibling sweep (2026-06-10 review-cycle PO micro-burst) | 2026-06-10 | product-owner | Stale cargo-feature framing rewritten to registry-derived compile-tier semantics, aligned with error-taxonomy v1.67 E-FLAG-002 row and BC-2.04.001 v1.2: `compile_time_disabled` status redefined as registry-derived compile-tier denial (no `[[write_endpoints]]` entry in the sensor's TOML spec, BC-2.16.012; alias-write cfg feature for `alias.write`); `runtime_disabled` definition reworded "compile-time feature present" → "compile tier permits"; EC-10-022 and the compile-tier test vector restated to declaration-based conditions (EC ID preserved). Status labels (`enabled`/`runtime_disabled`/`compile_time_disabled`), trust_level, annotations, and VP-002/003/004 citations unchanged. |

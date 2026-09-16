@@ -1,10 +1,11 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "10.20"
+version: "10.21"
 status: draft
 producer: state-manager
-timestamp: 2026-09-03T00:00:00Z
+timestamp: 2026-09-16T10:00:00Z
+# NOTE: D-2542 — BC-INDEX v10.20→v10.21: F3 W1 S-MCP-TOOL-GATE-001 amendments — feature-gate absent-state postconditions. BC-2.10.017 row cell synced v1.1→v1.2 (absent `operations` feature → NOT_YET_AVAILABLE_TOOLS empty slice, -32601 not -32003, 14 LIVE_TOOLS unconditionally registered). BC-2.10.011 row cell synced active→active v1.7 (not_registered_tools empty-slice semantics when `operations` feature absent). draft_contracts 5 / active_contracts 260 / total_contracts 278 ALL UNCHANGED.
 # NOTE: pass-12-fix-burst — BC-INDEX v10.19→v10.20: pass-12 fix-burst — F-B0P12-001 HIGH (POL-37/POL-29-8f): BC-2.11.025 and BC-2.11.001 Full-BC table row cells synced to on-disk frontmatter (draft v1.6→v1.8; active v1.36→v1.37); the regate9/10/11 bursts bumped the index version and wrote pin-bump NOTEs but never edited the row cells. Counts UNCHANGED: draft_contracts 5 / active_contracts 260 / total_contracts 278.
 # NOTE: beta3-f13-regate11-spec — BC-INDEX v10.18→v10.19: Re-gate pass-11 spec fixes (product-owner 2026-09-16). BC-2.11.025 pin v1.7→v1.8 (F-1 MED mis-anchor: purity §B2→§B1; Volatility::Immutable gets §E cite. Consistency F-1 LOW: removed leading "null" from NOT-Kani list; Arrow/SQL-NULL case now exclusively in Kani-proven item 2). BC-2.11.001 pin v1.36→v1.37 (F-2 LOW: frontmatter modified: enumerated version-history comment replaced with version-agnostic one-liner). draft_contracts 5 / active_contracts 260 / total_contracts 278 ALL UNCHANGED.
 # NOTE: beta3-f1-regate10-spec — BC-INDEX v10.17→v10.18: Re-gate pass-10 spec fixes (product-owner 2026-09-16). BC-2.11.025 pin v1.6→v1.7 (F-1 MED internal contradiction: VP-162 item (2) cited `Value::Null` and `Value::Object` missing-key as Kani-proven, but those are behavioral routing cases covered by RG-JEX (ADR-066 §G); ADR-066 §C item 2 / VP-162-B proves the Arrow/SQL NULL (`column_value = None`) case only; item (2) corrected to "when `column_value` is `None` (the Arrow/SQL column cell is SQL NULL), `json_extract_string_impl` always returns `None`, regardless of `key` (VP-162-B harness)"; no term now appears in both Kani-proven and NOT-Kani-proven sections). error-taxonomy.md pin v2.87→v2.88 (LOW records: E-QUERY-045 row was physically before E-QUERY-043; row order restored to numeric 040→041→042→043→045; no content change). draft_contracts 5 / active_contracts 260 / total_contracts 278 ALL UNCHANGED.
@@ -304,10 +305,10 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.10.013 | `prismql://schema/{client_id}` Resource Template (L2) | 10 - MCP Interface | CAP-034 | P1 | **active** (POL-14: draft→active D-1277 2026-06-21; anchor story S-DEMO-PRISMQL-ONBOARDING-001-A merged PR #197 develop@ffe9315a; lifecycle_status was already active) — **v1.3** (D-1277 2026-06-21: POL-20 normalization + POL-7 H1 backtick hygiene — OBS-PR197-RG3-P3-001/002 closed; was v1.2: D-1269 ADR-042 multi-tenant update; was v1.1: D-1263; was v1.0: D-1241 ADR-041-teaching-burst) |
 | BC-2.10.014 | `prismql://reference` Static PQL Grammar Reference Resource (L3) | 10 - MCP Interface | CAP-034 | P1 | **active** (POL-14: draft→active D-1277 2026-06-21; anchor story S-DEMO-PRISMQL-ONBOARDING-001-A merged PR #197 develop@ffe9315a; lifecycle_status was already active) — v1.2 (D-1308 2026-06-23: 001-C F2 spec-evolution — reference Enrichment section + BNF enrich_stage/JOIN/MATCHES; was v1.1: 2026-06-22: D-1289 POL-20 format-fix — `introduced:` opaque→2026-06-19; was v1.0) |
 | BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT | 10 - MCP Interface | CAP-034 | P0 | active |
-| BC-2.10.011 | list_capabilities Meta-Tool | 10 - MCP Interface | CAP-005 | P0 | active |
+| BC-2.10.011 | list_capabilities Meta-Tool | 10 - MCP Interface | CAP-005 | P0 | active v1.7 |
 | BC-2.10.015 | `list_capabilities` Consults `OrgRegistry` for `client_registered` Check | 10 - MCP Interface | CAP-005 | P0 | active v1.2 |
 | BC-2.10.016 | MCP Prompts Fast-Return Guarantee — No Indefinite Hang | 10 - MCP Interface | CAP-034 | P0 | active v1.2 |
-| BC-2.10.017 | Not-Yet-Available Tools Fast-Fail — Audit Channel Non-Blocking | 10 - MCP Interface | CAP-034 | P0 | active v1.1 |
+| BC-2.10.017 | Not-Yet-Available Tools Fast-Fail — Audit Channel Non-Blocking | 10 - MCP Interface | CAP-034 | P0 | active v1.2 |
 | BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | 11 - Query Execution | CAP-015 | P0 | active v1.37 |
 | BC-2.11.002 | PrismQL Filter Mode Parsing | 11 - Query Execution | CAP-015 | P0 | active v1.6 |
 | BC-2.11.003 | PrismQL SQL Mode Parsing | 11 - Query Execution | CAP-015 | P0 | active v1.13 |

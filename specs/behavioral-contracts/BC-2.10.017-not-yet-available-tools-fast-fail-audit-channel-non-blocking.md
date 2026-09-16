@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: active
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-10"
 capability: "CAP-034"
 lifecycle_status: active
 introduced: demo-readiness-2026-06-24
-modified: "2026-06-26"
+modified: "2026-09-16"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -30,7 +30,7 @@ extracted_from: null
 
 ## Description
 
-Tools in the `NOT_YET_AVAILABLE_TOOLS` set (`list_infusions`, `plugin_status`, `infusion_status`) MUST return a fast-fail JSON-RPC error response within 1 second of the tool invocation request arriving at the MCP server. The audit channel write (`emit_tool_audit`) MUST NOT be on the blocking path before the fast-fail guard fires; the guard MUST fire before any audit emission for tools in this set.
+When the `operations` Cargo feature is enabled, tools in the `NOT_YET_AVAILABLE_TOOLS` set MUST return a fast-fail JSON-RPC error response within 1 second of the tool invocation request arriving at the MCP server. When the `operations` feature is absent (the production default), `NOT_YET_AVAILABLE_TOOLS` is an empty slice `&[]` — no stub tools are registered in the MCP catalog and no `-32003` responses are generated; previously-stubbed tool names are simply unknown to the router. The audit channel write (`emit_tool_audit`) MUST NOT be on the blocking path before the fast-fail guard fires (when `operations` is enabled); the guard MUST fire before any audit emission for tools in this set.
 
 ## Preconditions
 
@@ -39,17 +39,20 @@ Tools in the `NOT_YET_AVAILABLE_TOOLS` set (`list_infusions`, `plugin_status`, `
 
 ## Postconditions
 
-- The tool invocation returns a structured JSON-RPC `-32003` error response within **1 second** of request receipt
-- The response body uses the `not_yet_available_msg` pattern: a structured JSON-RPC error with code `-32003`, message indicating the tool is not yet available, and a `content[].text` with human-readable guidance
-- The NOT_YET_AVAILABLE fast-fail guard fires BEFORE `emit_tool_audit` is called — the handlers for `list_infusions`, `infusion_status`, and `plugin_status` return `Err(not_yet_available_msg(...))` directly WITHOUT ever calling `emit_tool_audit` (Option A per original contract). No audit event is emitted for a not-yet-available tool invocation because no tool execution occurred and nothing needs to be audited.
-- `emit_tool_audit` is an `async fn` that `.await`s `AuditWriter::write_tool_call` on `Option<Arc<dyn AuditWriter>>`. There is no `mpsc::Sender` channel and no `try_send` call on the audit path. The pre-D-1110 hypothesis of using `try_send` as a non-blocking mechanism (Option B) was superseded — the shipped implementation achieves non-blocking behavior for NOT_YET_AVAILABLE tools by never reaching `emit_tool_audit` at all.
+- **When the `operations` Cargo feature is ABSENT (default — production state):** `NOT_YET_AVAILABLE_TOOLS` is the empty slice `&[]`. No stub operations tools are registered in the MCP catalog; `tools/list` reports only the 14 `LIVE_TOOLS`. Invocations of previously-stubbed tool names return the MCP protocol-level "unknown tool" response (`-32601`) — not the prism-specific `-32003` fast-fail. `emit_tool_audit` is never reached for these invocations because no handler exists for the tool. (S-MCP-TOOL-GATE-001 AC-001/AC-003/AC-005 — RG-GATE-001, RG-GATE-003)
+
+- **When the `operations` Cargo feature is ENABLED (opt-in):** `NOT_YET_AVAILABLE_TOOLS` is populated with the ~40 stub tool names. The following postconditions apply in this state:
+  - The tool invocation returns a structured JSON-RPC `-32003` error response within **1 second** of request receipt
+  - The response body uses the `not_yet_available_msg` pattern: a structured JSON-RPC error with code `-32003`, message indicating the tool is not yet available, and a `content[].text` with human-readable guidance
+  - The NOT_YET_AVAILABLE fast-fail guard fires BEFORE `emit_tool_audit` is called — the handlers for `list_infusions`, `infusion_status`, and `plugin_status` return `Err(not_yet_available_msg(...))` directly WITHOUT ever calling `emit_tool_audit` (Option A per original contract). No audit event is emitted for a not-yet-available tool invocation because no tool execution occurred and nothing needs to be audited.
+  - `emit_tool_audit` is an `async fn` that `.await`s `AuditWriter::write_tool_call` on `Option<Arc<dyn AuditWriter>>`. There is no `mpsc::Sender` channel and no `try_send` call on the audit path. The pre-D-1110 hypothesis of using `try_send` as a non-blocking mechanism (Option B) was superseded — the shipped implementation achieves non-blocking behavior for NOT_YET_AVAILABLE tools by never reaching `emit_tool_audit` at all.
 
 ## Invariants
 
 - **INV-NOT-YET-AVAILABLE-GUARD-ORDER:** For tools in `NOT_YET_AVAILABLE_TOOLS`, the guard check MUST evaluate before any blocking audit `.await` in the tool dispatch path. The shipped implementation satisfies this invariant by placing the fast-fail `return Err(not_yet_available_msg(...))` at the start of each handler body — `emit_tool_audit` is never reached for these tools.
 - **INV-AUDIT-NON-BLOCKING:** (D-1110 reconciliation) The audit path uses `Arc<dyn AuditWriter>::write_tool_call(...).await` — there is no `mpsc::Sender` channel and no `try_send` call. For NOT_YET_AVAILABLE tools specifically, the non-blocking invariant is satisfied by the guard-reorder: `emit_tool_audit` is not called at all, so the async audit write cannot block the fast-fail response regardless of `AuditWriter` implementation.
 - The set `NOT_YET_AVAILABLE_TOOLS` is a compile-time constant — not configurable at runtime
-- Tool names in `NOT_YET_AVAILABLE_TOOLS` are registered in `tools/list` (visible to clients) but invoke the fast-fail handler, consistent with the existing not-yet-available pattern
+- **INV-OPERATIONS-FEATURE-GATE:** When the `operations` Cargo feature is absent (the default), `NOT_YET_AVAILABLE_TOOLS` is the empty slice `&[]` — no stub tools are registered in the MCP catalog, `tools/list` reports only the 14 `LIVE_TOOLS`, and invocations of previously-stubbed tool names return the MCP protocol-level "unknown tool" error (`-32601`), NOT the prism-specific `-32003` fast-fail. When `operations` is enabled, `NOT_YET_AVAILABLE_TOOLS` is populated with stub tool names; stub tools are registered and visible in `tools/list`; invocations return `-32003`. The 14 `LIVE_TOOLS` MUST remain unconditionally registered in both feature states — the `operations` gate applies exclusively to the operations impl block. Verified by S-MCP-TOOL-GATE-001 AC-001/AC-003/AC-004 (RG-GATE-001, RG-GATE-003, RG-GATE-004).
 
 ## Error Cases
 
@@ -116,6 +119,7 @@ TBD
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | beta3-remediation-BC-amendments | 2026-09-16 | product-owner | Operations feature gate: amended §Description to capture absent-feature default. Added feature-gate postcondition block (absent = NOT_YET_AVAILABLE_TOOLS &[], 14-tool catalog, -32601 for unknown tool; enabled = existing -32003 fast-fail). Replaced stale "registered in tools/list" invariant with INV-OPERATIONS-FEATURE-GATE. Anchors: S-MCP-TOOL-GATE-001 AC-001/AC-003/AC-004/AC-005 (RG-GATE-001, RG-GATE-003, RG-GATE-004). Resolves beta.3 issues 1 and 2 (beta3-remediation-delta-analysis.md §Issue 1). |
 | 1.1 | PR-203-post-merge-POL-14 | 2026-06-26 | state-manager | **POL-14 BC auto-promotion: draft → active.** Anchor story S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 squash-merged via PR #203 to develop@7e60df03 (2026-06-26; CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) cascade on frozen HEAD 356e0573). `status: draft → active`. No behavioral change; frontmatter status field only. |
 | 1.1 | PR-203-fix-burst-F-P2R2-HIGH-001 | 2026-06-26 | product-owner | D-1110 reality-drift reconciliation (F-P2R2-HIGH-001 sibling-sweep miss). §Preconditions: removed fictional `mpsc::Sender<AuditEntry>`; reflects `Option<Arc<dyn AuditWriter>>`. §Postconditions: Option B `try_send` mandate dropped; shipped implementation is Option A (guard-reorder — `emit_tool_audit` never reached for NOT_YET_AVAILABLE tools). INV-AUDIT-NON-BLOCKING: rewritten to reflect Arc-DI async-await path with no mpsc/try_send; non-blocking property is satisfied by guard-reorder. §Architecture Anchors: cite real `emit_tool_audit` function signature + behavioral anchor; drop stale `try_send` prescription. BC-2.10.016 received its D-1110 reconciliation in the prior burst; this BC (2.10.017) is the sibling-sweep closure. EC-10-017-001 (and §Edge Cases sweep) reconciled to guard-reorder reality — "audit channel buffer full" was a fictional condition; rewritten to describe the slow-AuditWriter scenario and the invariant that `emit_tool_audit` is never reached for NOT_YET_AVAILABLE tools (completes the v1.1 D-1110 sweep, closes F-002). |
 | 1.0 | demo-readiness-2026-06-24 | 2026-06-24 | product-owner | Initial contract. Authored per demo-readiness-remediation-design-2026-06-24.md. Closes BLOCKER-004. Root cause: `emit_tool_audit` blocking `send()` before fast-fail guard; fix: reorder guard before audit OR change to `try_send`. |
