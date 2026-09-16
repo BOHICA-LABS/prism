@@ -5,7 +5,7 @@ title: "json_extract_string Scalar UDF — Synchronous serde_json Single-Key Ext
 status: ACCEPTED
 date: "2026-09-16"
 modified: "2026-09-16"
-version: "1.1"
+version: "1.2"
 producer: architect
 subsystems_affected: [SS-11]
 supersedes: []
@@ -186,7 +186,7 @@ tests this from the `prism_query` public API.
 
 ---
 
-## §C Scope Boundaries
+## §D Scope Boundaries
 
 ### §D1 — VP-162 Proof Target
 
@@ -313,8 +313,8 @@ DataFusion version pinned in `Cargo.toml` before authoring the final implementat
 
 | Sub-case | Trigger | Message |
 |----------|---------|---------|
-| E-QUERY-045(a) | Non-literal key argument | `"E-QUERY-045: json_extract_string requires a literal string key; dynamic key expressions are not permitted"` |
-| E-QUERY-045(b) | Key exceeds `{max_len}` bytes | `"E-QUERY-045: json_extract_string key exceeds the {max_len}-byte limit"` |
+| E-QUERY-045(a) | Non-literal key argument | `"E-QUERY-045: json_extract_string requires a literal string key (e.g., json_extract_string(col, 'key_name')). Dynamic key expressions are not supported."` |
+| E-QUERY-045(b) | Key exceeds `{max_len}` bytes | `"E-QUERY-045: json_extract_string key is {key_len} bytes, which exceeds the {max_len}-byte maximum (CWE-400)."` |
 
 Both sub-cases are rejected at plan time, before DataFusion planning. They are surfaced
 through the standard prism `E-QUERY-NNN` error response path (structured, not
@@ -424,5 +424,6 @@ key only, string return type only, no push-down.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.2 | 2026-09-16 | architect | Re-gate pass 1 fixes. OBS-3 (LOW): `## §C Scope Boundaries` header renamed to `## §D Scope Boundaries` — §D1..§D6 subsections already carried the §D prefix; the §C parent header was the discrepancy, not the subsections. F-6 (MED, POL-24): §F error message strings corrected to be VERBATIM with error-taxonomy v2.84 / BC-2.11.025: (a) now includes inline example `(e.g., json_extract_string(col, 'key_name'))` and uses "Dynamic key expressions are not supported." (b) now uses `{key_len} bytes, which exceeds the {max_len}-byte maximum (CWE-400).` with bytes-count placeholder and CWE reference. |
 | 1.1 | 2026-09-16 | architect | Adversarial gate fixes (F2/F7/F10). F2 (HIGH): §G mandate table — RG-JEX-006/007 swap corrected to canonical (RG-JEX-006 = non-literal-key gate; RG-JEX-007 = key>256 gate); §B3 "RG-JEX-007 tests this" → "RG-JEX-006 tests this". F7 (MED): §G expanded from 8 to 12 entries — all distinct MUSTs now have dedicated gates: RG-JEX-008 = non-string-coercion (§B1 step 7, NOT NULL); RG-JEX-009 = parse-failure→NULL (§B1 step 2); RG-JEX-010 = dot-in-key literal treatment (§D4 top-level-key-only, injection boundary); RG-JEX-011 = pipe-mode e2e SAP-3 public-surface reachability. Canonical RG-JEX-001..011 list published for PO to mirror into BC-2.11.025. F10 (LOW): §F error message table — `E-QUERY-045:` prefix added to both message strings; hardcoded `256` replaced with `{max_len}` in E-QUERY-045(b) message and trigger cell. |
 | 1.0 | 2026-09-16 | architect | Initial. D-2522 beta.3 spec-gate approved. Closes latent dead-path defect: `ScalarFunc::JsonExtractString` existed in ast.rs/sql_parser.rs/pipe_sql_emitter.rs but no ScalarUDF registered. Defines: §B1 synchronous serde_json extraction; §B2 serde_json over arrow-rs rationale; §B3 literal-key plan gate (E-QUERY-045); §D1 VP-162 proof target; §D2–§D6 scope constraints (literal-key, top-level, string-only, no push-down); §E DataFusion registration contract; §F error taxonomy (E-QUERY-045 sub-cases a/b); §G mandate anchors (TD-VSDD-097 Dim-3: 9 MUST→RG mappings); §H latent defect closure rationale. Deferrals anchored: S-JSON-EXTRACT-TYPED-001 (typed variants) + S-JSON-EXTRACT-NESTED-001 (nested JSONPath). |
