@@ -11,6 +11,20 @@ Current checkpoint lives in `.factory/STATE.md §Session Resume Checkpoint`.
 
 ---
 
+## Archived: D-2535 — 2026-09-16; STATE v10.041 — BATCH-0 RE-GATE PASS-11 FIX-BURST COMPLETE; STRICT-GRIND PAUSED FOR HUMAN DECISION
+
+**RESUME IN ONE BREATH (D-2535):** Prism at develop@561d8bac — BETA.3 BATCH-0 RE-GATE PASS-11 FIX-BURST COMPLETE (D-2535). BC-2.11.025 v1.8 (F-1 MED: purity §Invariants cited ADR-066 §B2; corrected to §B1; Volatility::Immutable gets §E cite). BC-2.11.001 v1.37 (F-2 LOW: frontmatter modified comment replaced with version-agnostic one-liner to stop rolling-enumeration drift). BC-INDEX v10.19. ARCH-INDEX v2.394 / VP-INDEX v2.26 / ADR-066 v1.5 / ADR-058 v2.43 / ADR-060 v1.25 / VP-162 v1.3 / error-taxonomy v2.88 UNCHANGED. Adversary NOT CLEAN(strict) F-1 MED + F-2 LOW (all fixed); consistency CLEAN(PR-merge) 1 LOW (fixed). CONVERGENCE-ECONOMICS ESCALATION: 11 consecutive passes, streak NEVER reached 1/3; ~3 findings introduced by prior fix-bursts themselves. Orchestrator PAUSING strict-grind at D-2535 for human decision: (a) resume strict grind (pass 12) or (b) accept Batch-0 spec delta at PR-merge-clean and proceed to story materialization. NO pass-12 auto-launched. CARRY-FORWARD: F11 OBS (S-CLAROTY-OCSF-STATUS-001 DTU is_online false/null fixture obligation); F12 PROCESS-GAP OPEN (S-MAINT-RG-ANCHOR-DRIFT-GATE-001; VP-row Kani-scope wording recurrence (3×) candidate for F12 scope). story_index v3.037 / total_stories 344. FIRST NEXT ACTION: HUMAN DECISION — (a) strict grind pass 12 or (b) accept PR-merge-clean + proceed to story materialization. HUMAN ACTION REQUIRED BEFORE W4: RELEASE_PROMOTE_TOKEN PAT re-scope for BOHICA-LABS.
+
+**RESUME STEP 0 (D-2535):** `CronList` → re-arm heartbeat cron b98bd9dc (8,23,38,53 * * * *) if absent/expired (.factory/ops/vsdd-heartbeat-autorecovery.md).
+
+**RESUME NEXT-ACTION (D-2535):** PAUSED FOR HUMAN DECISION (11 consecutive re-gate passes; streak NEVER reached 1/3; non-converging strict-clean asymptote on pre-implementation spec prose). Option (a): resume strict grind — dispatch fresh adversary + consistency on D-2535 HEAD (BC-5.39.001 3-CLEAN streak restarts — need 3 consecutive CLEAN(strict); BOTH reviewers MUST complete before any further fix dispatch). Option (b): accept Batch-0 spec delta at PR-merge-clean — proceed to F3 story materialization (10 beta.3 stories + remove-uncertainty; attach F11/F12/Finding-5 obligations at materialization). Canonical RG sets FROZEN: RG-JEX-001..011, RG-QTT-001..011, RG-COS-001..008. NOTE: F1 delta-analysis in .factory/cycles/wave-5-e-demo-fidelity/beta3-remediation-delta-analysis.md. Post-beta.3 fast-follow stubs (D-2521) in STORY-INDEX v3.037; reconcile depends_on S-JSON-EXTRACT-UDF-001 + SS-01→SS-11 relabeling at F3 materialization.
+
+**HEADS (D-2535):** develop HEAD `561d8baccc` (UNCHANGED; RECONCILIATION-PENDING: +2 out-of-session; #284 @daac70dc7; #287 @561d8bacc; tag v1.0.0-nightly.20260910). `main`: `bdf24cec8` (stub). `factory-artifacts`: f880b045c (D-2535 commit). Open PRs: #292, #291, #288, #282; Dependabot: #266–#274 (UNTRIAGED). Worktrees: PARKED: S-3.09, W3-FIX-S307-001 (DIRTY do-NOT-touch), S-ENGINE-H2-LARGE-RESPONSE-001.
+
+**NOTE: Superseded by D-2536 — SESSION-WRAP-PAUSE-2026-09-16; pipeline PAUSED; durable checkpoint D-2536 written. STATE v10.041→v10.042.**
+
+---
+
 ## Archived: D-2518 — 2026-09-14; STATE v10.024 — RECORDS-ONLY MICRO-BURST (TD-VSDD-096); vsdd-factory rc.25
 
 **RESUME IN ONE BREATH (D-2518):** Prism at develop@561d8bac — org BOHICA-LABS/prism; vsdd-factory plugin upgraded 1.0.0-rc.23→rc.25 (D-2518 records-only micro-burst); all D-2517 open items carry forward: reconcile out-of-session #284/#287, triage open PRs #288/#291/#292/#282 + Dependabot, verify RELEASE_PROMOTE_TOKEN for BOHICA-LABS, branch-protection fix, remaining v1 scope; NOT stable.
