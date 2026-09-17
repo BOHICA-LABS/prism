@@ -2925,31 +2925,59 @@ pub(crate) fn check_json_extract_key_literal(ast: &crate::ast::Ast) -> Result<()
 }
 
 fn check_jex_in_sql_query(sq: &crate::ast::SqlQuery) -> Result<(), PrismError> {
-    use crate::ast::SelectItem;
-    // SELECT projections
-    for item in &sq.select.items {
+    use crate::ast::{Join, OrderExpr, SelectClause, SelectItem};
+    // Exhaustive destructure is a deliberate injection-perimeter compile-time guard: if a
+    // future Expr-bearing field is added to SqlQuery (e.g. QUALIFY, WINDOW, CTE list),
+    // this becomes a compile error rather than silently bypassing the E-QUERY-045 security
+    // gate (matching check_jex_in_pipe_stage / check_jex_in_predicate style).
+    // `_`-binds cover provably-non-Expr fields: `from` (table/source names only, no Expr)
+    // and `limit` (Option<u64>, no Expr).
+    let crate::ast::SqlQuery {
+        select,
+        from: _,
+        joins,
+        where_,
+        group_by,
+        having,
+        order_by,
+        limit: _,
+    } = sq;
+
+    // SELECT projections — exhaustive SelectClause destructure guards against future
+    // Expr-bearing fields (e.g. window-clause list). `distinct` is bool; not Expr-bearing.
+    let SelectClause { items, distinct: _ } = select;
+    for item in items {
         if let SelectItem::Expr { expr, .. } = item {
             check_jex_in_expr(expr)?;
         }
     }
-    // JOIN ON conditions
-    for join in &sq.joins {
-        check_jex_in_expr(&join.on)?;
+    // JOIN ON conditions — exhaustive Join destructure guards against future Expr-bearing
+    // fields (e.g. USING clause). `kind`/`source`/`alias` carry no Expr nodes.
+    for join in joins {
+        let Join {
+            on,
+            kind: _,
+            source: _,
+            alias: _,
+        } = join;
+        check_jex_in_expr(on)?;
     }
     // WHERE clause
-    if let Some(pred) = &sq.where_ {
+    if let Some(pred) = where_ {
         check_jex_in_predicate(pred)?;
     }
     // GROUP BY
-    for expr in &sq.group_by {
+    for expr in group_by {
         check_jex_in_expr(expr)?;
     }
-    // ORDER BY
-    for oe in &sq.order_by {
-        check_jex_in_expr(&oe.expr)?;
+    // ORDER BY — exhaustive OrderExpr destructure guards against future Expr-bearing
+    // fields. `direction` is SortDirection; not Expr-bearing.
+    for oe in order_by {
+        let OrderExpr { expr, direction: _ } = oe;
+        check_jex_in_expr(expr)?;
     }
     // HAVING
-    if let Some(pred) = &sq.having {
+    if let Some(pred) = having {
         check_jex_in_predicate(pred)?;
     }
     Ok(())
