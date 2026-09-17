@@ -4,7 +4,7 @@ story_id: S-MCP-ENVELOPE-DESCRIBE-001
 title: "Fix prism_describe total_results counting and add missing virtual field column descriptors"
 wave: 2
 epic_id: E-BETA3-REMEDIATION
-version: "1.1"
+version: "1.2"
 status: ready
 producer: story-writer
 phase: 3
@@ -112,7 +112,7 @@ This arm fires only for the `prism_describe` shape; no existing behavior changes
 
 ### Issue 5 — 3 of 4 virtual fields absent from prism_describe column list
 
-`build_column_descriptors_ocsf` in `prism_describe.rs` appends only two synthesized descriptors
+`build_ocsf_column_descriptors` in `prism_describe.rs` appends only two synthesized descriptors
 after spec-derived columns (OQ-003):
 1. `class_uid` (Integer, nullable=false) — OCSF class identifier
 2. `_sensor` (String, nullable=false) — sensor type provenance
@@ -251,7 +251,7 @@ test-writer BEFORE implementer begins any implementation tasks. See §Tasks.
 | Component | File | Pure/Effectful |
 |-----------|------|---------------|
 | `wrap()` total_results counting | `crates/prism-mcp/src/safety_envelope.rs` | Pure (arithmetic on Value shape) |
-| OQ-003 synthesized-column append | `crates/prism-mcp/src/tools/prism_describe.rs` — `build_column_descriptors_ocsf()` | Pure (Vec append) |
+| OQ-003 synthesized-column append | `crates/prism-mcp/src/tools/prism_describe.rs` — `build_ocsf_column_descriptors()` | Pure (Vec append) |
 | Red Gate + wire-shape tests | `crates/prism-mcp/tests/mcp_prism_describe.rs` | Pure (tests) |
 
 ---
@@ -277,7 +277,7 @@ test-writer BEFORE implementer begins any implementation tasks. See §Tasks.
 | BC-2.10.012 v1.10 (active — primary AC source) | ~20,000 | Large; read §Response envelope + §Response shape + §OQ-003 |
 | BC-2.11.012 v1.11 (virtual fields — §Invariants, §Postconditions) | ~8,000 | Read full; §Invariants is the authoritative field set |
 | `safety_envelope.rs` (full) | ~5,000 | wrap() function + struct definitions |
-| `crates/prism-mcp/src/tools/prism_describe.rs` (full) | ~30,000 | Large; includes build_column_descriptors_ocsf OQ-003 block and all tests |
+| `crates/prism-mcp/src/tools/prism_describe.rs` (full) | ~30,000 | Large; includes build_ocsf_column_descriptors OQ-003 block and all tests |
 | `crates/prism-mcp/tests/mcp_prism_describe.rs` (existing test file) | ~20,000 | Add RG-DESC-001..003 to existing file |
 | beta3-remediation-delta-analysis.md §Issue 3 + §Issue 5 + §S-MCP-ENVELOPE-DESCRIBE-001 | ~4,000 | Reference for fix design |
 | ADR-058 v2.44 §G (OQ-003 section only) | ~2,000 | Read §G only; skip other sections |
@@ -347,7 +347,7 @@ All non-trivial function bodies in stubs use `todo!()` until Green Gate phase.
 #### Phase B — Add missing virtual field column descriptors (Issue 5)
 
 - [ ] **T-B01**: In `crates/prism-mcp/src/tools/prism_describe.rs`, in the function
-  `build_column_descriptors_ocsf()`, extend the OQ-003 synthesized-column append block to
+  `build_ocsf_column_descriptors()`, extend the OQ-003 synthesized-column append block to
   add three new `ColumnDescriptor` entries AFTER the existing `_sensor` entry:
   ```rust
   // OQ-003 extension (beta.3 S-MCP-ENVELOPE-DESCRIBE-001): _client, _source_table, _source_type
@@ -374,7 +374,7 @@ All non-trivial function bodies in stubs use `todo!()` until Green Gate phase.
   });
   ```
   Use the same pattern as the existing `_sensor` push (lines around `OQ-003 (AC-015)`
-  comment in `build_column_descriptors_ocsf`). Verify `nullable: false` matches the
+  comment in `build_ocsf_column_descriptors`). Verify `nullable: false` matches the
   populate-path injection (BC-2.11.012 §Invariants empty-MemTable schema parity note).
 
 - [ ] **T-B02**: Run `cargo test -p prism-mcp test_BC_2_10_012_virtual_fields_all_four_present_in_describe_columns`
@@ -495,7 +495,7 @@ No new crate dependencies are introduced by this story.
 | File | Change | Phase |
 |------|--------|-------|
 | `crates/prism-mcp/src/safety_envelope.rs` | Add `tables` arm in `wrap()` `total_results` block (between `rows` arm and `else { 0 }`) | Phase A |
-| `crates/prism-mcp/src/tools/prism_describe.rs` | Add three `ColumnDescriptor` pushes after `_sensor` in `build_column_descriptors_ocsf()` OQ-003 block | Phase B |
+| `crates/prism-mcp/src/tools/prism_describe.rs` | Add three `ColumnDescriptor` pushes after `_sensor` in `build_ocsf_column_descriptors()` OQ-003 block | Phase B |
 | `crates/prism-mcp/tests/mcp_prism_describe.rs` | Add RG-DESC-001..003 tests; update any column-count assertions if needed | Red Gate + Phase B |
 | `CHANGELOG.md` | Add [Unreleased] > Fixed entry (T-D01) | Phase D |
 
@@ -534,5 +534,6 @@ Holdout scenarios are stored in the holdout directory that test-writer/implement
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.2 | 2026-09-17 | Corrected nonexistent function reference `build_column_descriptors_ocsf` → `build_ocsf_column_descriptors` (real symbol at `prism_describe.rs` `fn build_ocsf_column_descriptors`; prior D-1110 pass false-confirmed the wrong spelling). Symbol-name only; no AC/RG/behavioral change. |
 | 1.1 | 2026-09-16 | F3 BC/ADR pin propagation (D-2544): BC-2.10.012 v1.9→v1.10; ADR-058 §G reference updated to v2.44. AMENDMENT PENDING annotations removed from frontmatter comment, §Authority, §Behavioral Contracts table, and §Token Budget. |
 | 1.0 | 2026-09-16 | Initial story decomposition |

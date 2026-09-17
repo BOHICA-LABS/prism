@@ -188,7 +188,7 @@ Rate each dimension 0.0–1.0; take weighted average. Satisfying threshold: >= 0
 
 If this scenario fails, send to the builder (one-line, no scenario specifics):
 
-`"HOLDOUT FAIL: HS-DESC-001-003 (satisfaction: X.XX) — virtual field column descriptor wire shape or compound-fix self-consistency gap; check (1) nullable field on synthesized ColumnDescriptors in build_column_descriptors_ocsf() [BC-2.11.012 §Invariants: nullable=false required, not true]; (2) safety_envelope wrap() tables-arm plus OQ-003 extension producing consistent _meta.total_results and columns in same response [BC-2.10.012 §Response envelope EC-10-032 + §Response shape OQ-003]"`
+`"HOLDOUT FAIL: HS-DESC-001-003 (satisfaction: X.XX) — virtual field column descriptor wire shape or compound-fix self-consistency gap; check (1) nullable field on synthesized ColumnDescriptors in build_ocsf_column_descriptors() [BC-2.11.012 §Invariants: nullable=false required, not true]; (2) safety_envelope wrap() tables-arm plus OQ-003 extension producing consistent _meta.total_results and columns in same response [BC-2.10.012 §Response envelope EC-10-032 + §Response shape OQ-003]"`
 
 Do NOT disclose: whether Part A or Part B failed specifically, the exact nullable values
 observed, or which virtual field was problematic.

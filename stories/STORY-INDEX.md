@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "3.041"
+version: "3.042"
 status: draft
 producer: state-manager
 timestamp: 2026-09-17T00:00:00Z
 phase: 3
-total_stories: 348
+total_stories: 350
+# D-2547 — STORY-INDEX v3.041→v3.042: F3 W2-arch MATERIALIZATION COMPLETE — 2 stories registered ready: S-DESCRIBE-EXAMPLE-DEDUP-001 (v1.1; BC-2.10.012 v1.11; 2pts; strict; holdout HS-036 complete); S-QUERY-TRUE-TOTAL-001 (v1.2; BC-2.11.001 v1.38; ADR-060 v1.28; 8pts; strict; holdout HS-037 complete). S-MCP-ENVELOPE-DESCRIBE-001 re-pinned v1.1→v1.2 (BC-2.10.012 v1.11). total_stories 348→350.
 # D-2546 — STORY-INDEX v3.040→v3.041: F3 W1+W2 MATERIALIZATION COMPLETE — 3 stories promoted draft→ready: S-MCP-TOOL-GATE-001 v1.1→v1.2 (D-1110+holdout complete; pins settled BC-2.10.017 v1.3/BC-2.10.011 v1.7; density 0.80), S-MCP-ENVELOPE-DESCRIBE-001 v1.0→v1.1 (BC-2.10.012 v1.10/BC-2.11.012 v1.11/ADR-058 v2.44 propagated; density 0.75), S-MCP-NULL-ENCODING-001 v1.0→v1.2 (BC-2.16.003 v1.32/BC-2.11.001 v1.37 propagated; Issue 7a PRE-FIXED on develop: build_column_array commit fff6e28ba; RG-NULL-001 lock-in guard; density 0.75). total_stories 348 UNCHANGED.
 # D-2543 — STORY-INDEX v3.039→v3.040: F3 W1-CORRECTION + W2-REGISTRATION — S-MCP-TOOL-GATE-001 row v1.0→v1.1 (D-1110 correction; BC-2.10.017 v1.2→v1.3 pin); S-MCP-ENVELOPE-DESCRIBE-001 REGISTERED (draft v1.0; epic E-BETA3-REMEDIATION; P0; 3 pts; strict; BCs BC-2.10.012 v1.9, BC-2.11.012 v1.11; RG-DESC-001..003); S-MCP-NULL-ENCODING-001 REGISTERED (draft v1.0; epic E-BETA3-REMEDIATION; P0; 3 pts; strict; BCs BC-2.11.001 v1.37, BC-2.16.003 v1.31). total_stories 346→348.
 # D-2542 — STORY-INDEX v3.038→v3.039: S-MCP-TOOL-GATE-001 REGISTERED (draft v1.0; epic E-BETA3-REMEDIATION; P0; 3 pts; prism-mcp; W1 strict; BCs BC-2.10.017 v1.2 + BC-2.10.011 v1.7 amended; RG-GATE-001..004; density 0.80; issues 1,2; spec-gap resolved via BC amendments — absent operations feature → NOT_YET_AVAILABLE_TOOLS empty slice, -32601 not -32003, 14 LIVE_TOOLS unconditionally registered). total_stories 345→346.
@@ -1076,8 +1077,10 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-MAINT-BURST-COMMIT-COUNT-GATE-001 | Factory Gate — Replace Trigger-Word Heuristic with Count-Based Single-Commit-Per-Burst Enforcement [draft v1.0] | .factory/hooks, drbothen/vsdd-factory | 0 (pending PO) | -- | 5 | -- |
 | S-MAINT-INDEX-FORMAT-RATCHET-001 | Corpus-Wide Records-Lint Cleanup — BC-INDEX Parenthetical Version Format + ARCH-INDEX ADR Inline-Changelog Collapse + records-lint L11 Gate [draft v0.1] | .factory/specs/behavioral-contracts/BC-INDEX.md, .factory/specs/architecture/ARCH-INDEX.md, scripts/records-lint.sh, .factory/policies.yaml | 0 (pending PO) | -- | 5 | -- |
 | S-MCP-TOOL-GATE-001 | Gate operations stubs behind default-off Cargo feature — eliminate -32003 catalog pollution; absent `operations` feature → NOT_YET_AVAILABLE_TOOLS empty slice, -32601 not -32003; LIVE_TOOLS unconditionally registered [ready v1.2] | prism-mcp | 2 (BC-2.10.017 v1.3, BC-2.10.011 v1.7) | -- | 3 | -- |
-| S-MCP-ENVELOPE-DESCRIBE-001 | Fix prism_describe total_results counting and add missing virtual field column descriptors [ready v1.1] | prism-mcp | 2 (BC-2.10.012 v1.10, BC-2.11.012 v1.11) | -- | 3 | -- |
+| S-MCP-ENVELOPE-DESCRIBE-001 | Fix prism_describe total_results counting and add missing virtual field column descriptors [ready v1.2] | prism-mcp | 2 (BC-2.10.012 v1.11, BC-2.11.012 v1.11) | -- | 3 | -- |
 | S-MCP-NULL-ENCODING-001 | Fix null/list null encoding in build_column_array and map_record [ready v1.2] | prism-bin, prism-spec-engine | 2 (BC-2.11.001 v1.37, BC-2.16.003 v1.32) | -- | 3 | S-MCP-TOOL-GATE-001 |
+| S-DESCRIBE-EXAMPLE-DEDUP-001 | Fix build_example_with_note: exclude synthesized metadata columns from aggregate query target selection [ready v1.1] | prism-mcp | 1 (BC-2.10.012 v1.11) | -- | 2 | -- |
+| S-QUERY-TRUE-TOTAL-001 | Thread upstream sensor total_count through pagination pipeline to total_available [ready v1.2] | prism-bin, prism-sensors, prism-query, prism-mcp | 2 (BC-2.11.001 v1.38, ADR-060 v1.28) | -- | 8 | -- |
 | DEFECT-PQL-SUBQUERY-FANOUT-001 | cross-sensor WHERE IN(SELECT) silently returns 0 rows — recursive source extraction missing at materialization stage [draft v0.1] | prism-query | 0 (pending PO) | -- | TBD | -- |
 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 | xDome transport hardening: http2 feature + User-Agent + error source-chain + error mapping (F10 + F9 bundled) [draft v0.1] [ready v1.1] [corrected v1.2] [corrected v1.3] [corrected v1.4] [corrected v1.5] [corrected v1.6] [corrected v1.7] [corrected v1.8] [corrected v1.9] [corrected v1.10] [corrected v1.11] [corrected v1.12] [corrected v1.13] [corrected v1.14] [corrected v1.15] [corrected v1.16] [corrected v1.17] [corrected v1.18] [corrected v1.19] [corrected v1.20] [corrected v1.21] [corrected v1.22] [corrected v1.23] [corrected v1.24] [corrected v1.25] [corrected v1.26] [corrected v1.27] [corrected v1.28] [corrected v1.29] [corrected v1.30] [corrected v1.31] [corrected v1.32] [corrected v1.33] [corrected v1.34] [merged v1.34] | prism-spec-engine, prism-sensors, prism-bin, prism-core, prism-mcp, prism-query | 7 (BC-2.16.002 v2.20, BC-2.08.002 v1.8, BC-2.01.010 v1.7, BC-2.01.013 v1.19, BC-2.16.014 v1.22, BC-2.19.001 v2.4, BC-2.11.001 v1.25) | -- | 5 | -- |
 | DEFECT-QUERY-TIMEOUT-ORPHAN-SWEEP-001 | query timeout drops parent future while detached fan-out continues [draft v0.1] | prism-query, prism-sensors | 0 (pending PO) | -- | TBD | -- |

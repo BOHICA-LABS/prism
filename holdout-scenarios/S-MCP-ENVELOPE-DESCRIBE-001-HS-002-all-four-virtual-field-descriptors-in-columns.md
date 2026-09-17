@@ -34,7 +34,7 @@ stale_reason: null
 retired: null
 assumption_source: null
 risk_source: null
-notes: "HIDDEN, SINGLE-USE story-level holdout for S-MCP-ENVELOPE-DESCRIBE-001 (HS-034 group). Validates Issue 5 fix: build_column_descriptors_ocsf() OQ-003 block was only appending class_uid + _sensor; the three additional virtual fields (_client, _source_table, _source_type) were absent. Discriminating: pre-patch has only class_uid + _sensor in synthesized set; post-fix has all five (class_uid, _sensor, _client, _source_table, _source_type). Wire-level assertion on names in columns array. BC-2.10.012 §Response shape OQ-003 amended postcondition + BC-2.11.012 §Invariants. Test-writer and implementer must NOT read this file."
+notes: "HIDDEN, SINGLE-USE story-level holdout for S-MCP-ENVELOPE-DESCRIBE-001 (HS-034 group). Validates Issue 5 fix: build_ocsf_column_descriptors() OQ-003 block was only appending class_uid + _sensor; the three additional virtual fields (_client, _source_table, _source_type) were absent. Discriminating: pre-patch has only class_uid + _sensor in synthesized set; post-fix has all five (class_uid, _sensor, _client, _source_table, _source_type). Wire-level assertion on names in columns array. BC-2.10.012 §Response shape OQ-003 amended postcondition + BC-2.11.012 §Invariants. Test-writer and implementer must NOT read this file."
 ---
 
 # HS-DESC-001-002: prism_describe columns array contains all four virtual field descriptors for every returned table
@@ -58,7 +58,7 @@ demo recording and PR push. SINGLE-USE. HIDDEN from test-writer and implementer.
 ## Scenario
 
 This scenario validates the **OQ-003 synthesized-column extension fix** in
-`build_column_descriptors_ocsf()` in `prism_describe.rs`
+`build_ocsf_column_descriptors()` in `prism_describe.rs`
 (BC-2.10.012 §Response shape OQ-003; S-MCP-ENVELOPE-DESCRIBE-001 Issue 5 / AC-002).
 
 When `prism_describe` returns a response with at least one `TableDescriptor`:
@@ -68,7 +68,7 @@ When `prism_describe` returns a response with at least one `TableDescriptor`:
 2. Additionally, `class_uid` must be present (was already appended pre-fix; must not regress).
 3. The synthesized entries appear AFTER the spec-derived columns (appended last).
 
-**The defect this scenario catches:** Pre-patch `build_column_descriptors_ocsf()` OQ-003 block
+**The defect this scenario catches:** Pre-patch `build_ocsf_column_descriptors()` OQ-003 block
 appends only two synthesized descriptors: `class_uid` (OCSF class ID) and `_sensor` (sensor
 type provenance). The three additional virtual fields injected by `inject_virtual_fields` at
 query time — `_client`, `_source_table`, `_source_type` — are absent from the schema catalog.
@@ -211,7 +211,7 @@ Rate each dimension 0.0–1.0; take weighted average. Satisfying threshold: >= 0
 
 If this scenario fails, send to the builder (one-line, no scenario specifics):
 
-`"HOLDOUT FAIL: HS-DESC-001-002 (satisfaction: X.XX) — virtual field column descriptor gap in prism_describe schema output; check build_column_descriptors_ocsf() OQ-003 block (BC-2.10.012 §Response shape OQ-003: five synthesized ColumnDescriptors required; BC-2.11.012 §Invariants: sensor-table virtual field set must be exactly four)"`
+`"HOLDOUT FAIL: HS-DESC-001-002 (satisfaction: X.XX) — virtual field column descriptor gap in prism_describe schema output; check build_ocsf_column_descriptors() OQ-003 block (BC-2.10.012 §Response shape OQ-003: five synthesized ColumnDescriptors required; BC-2.11.012 §Invariants: sensor-table virtual field set must be exactly four)"`
 
 Do NOT disclose: which specific field names were found absent, the exact column count, or
 which table was inspected.
