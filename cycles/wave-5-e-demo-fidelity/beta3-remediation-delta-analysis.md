@@ -983,6 +983,8 @@ No rename needed; the IDs match.
 4. Verify `gh attestation verify --repo BOHICA-LABS/prism` succeeds on beta.3 artifacts
 5. Update RELEASING.md to document beta.2 attestation non-verifiability
 
+> **ERRATA (2026-09-17 state-manager D-2550):** Scope item 2 ("Develop→main promotion via PR") is imprecise and contradicts `RELEASING.md §1 Pre-Release Exception`. Pre-release beta tags MUST use `release-tag.yml` and NEVER touch `main`. The authoritative release mechanism is `gh workflow run release-tag.yml --ref develop -f tag=v1.0.0-beta.3`. The `release-promote.yml` (develop→main promotion) workflow is reserved for stable tags only (X.Y.Z without pre-release suffix). `RELEASING.md §1` and `RELEASING.md §4` are the Source-of-Truth per project precedence rules; this delta-analysis narrative is superseded on this point. `S-BETA3-RELEASE-001 §Prerequisites` and `§Architecture Compliance Rules` capture the correct mechanism.
+
 **No new BC/ADR/VP.** Facade story.
 
 **Live re-validation:** YES — after beta.3 release, run full live-tenant validation per
