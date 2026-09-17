@@ -3,7 +3,7 @@ document_type: story
 story_id: S-JSON-EXTRACT-UDF-001
 title: "Minimal json_extract_string ScalarUDF with Literal-Key Plan Gate (E-QUERY-045)"
 level: "L4"
-version: "1.4"
+version: "1.5"
 status: ready
 producer: story-writer
 timestamp: "2026-09-17T00:00:00Z"
@@ -67,7 +67,7 @@ blocks:
 #   beta.3 live-validation gate (OQ-002 human decision 2026-08-21).
 behavioral_contracts:
   - BC-2.11.025
-# BC status: draft v1.8 (frozen per beta3 spec-gate passes; BC-INDEX pin v1.8 confirmed).
+# BC status: draft v1.9 (frozen per beta3 spec-gate passes; BC-INDEX pin v1.9 confirmed).
 #   BC-2.11.025 contains 11 edge cases (EC-11-025-001..011) each anchored to
 #   S-JSON-EXTRACT-UDF-001 RG-JEX-001..011 with canonical test names.
 #   Spec-First Gate S-7.01 satisfied: behavioral_contracts is non-empty with canonical
@@ -91,7 +91,7 @@ boundaries), §E (DataFusion registration contract), §F (E-QUERY-045 error mess
 §G (mandate anchors — 11 MUST → RG-JEX mappings), and §H (latent defect closure) in full
 before implementing.
 
-**BC-2.11.025 v1.8** (`behavioral-contracts/BC-2.11.025-json-extract-string-scalar-udf.md`)
+**BC-2.11.025 v1.9** (`behavioral-contracts/BC-2.11.025-json-extract-string-scalar-udf.md`)
 governs the full behavioral contract. The 11 edge cases (EC-11-025-001..011) are the
 authoritative acceptance criteria and provide canonical test names for RG-JEX-001..011.
 
@@ -100,7 +100,7 @@ defines the Kani proof target (`json_extract_string_impl` pure function). The Ka
 files live in `crates/prism-query/src/proofs/vp162_json_extract_null_safety.rs` per VP-162
 §Kani Proof Harness. The proof is dispatched in Phase 5 (formal-verify), not Phase 3.
 
-> NOTE: ADR-066 v1.6, BC-2.11.025 v1.8, and VP-162 v1.5 are FROZEN per beta3 spec-gate.
+> NOTE: ADR-066 v1.6, BC-2.11.025 v1.9, and VP-162 v1.5 are FROZEN per beta3 spec-gate.
 > These spec files MUST NOT be amended by the implementer — any spec discrepancy routes
 > to product-owner/architect via the orchestrator.
 
@@ -177,7 +177,7 @@ to named Arrow columns.
 
 | BC | Title | Version at Authoring | Scope in This Story |
 |----|-------|---------------------|---------------------|
-| BC-2.11.025 | `json_extract_string` DataFusion ScalarUDF — Literal-Key-Only JSON String Extraction | v1.8 | All postconditions, invariants, and 11 edge cases (EC-11-025-001..011); 11 MUSTs anchored to S-JSON-EXTRACT-UDF-001 RG-JEX-001..011 with canonical test names |
+| BC-2.11.025 | `json_extract_string` DataFusion ScalarUDF — Literal-Key-Only JSON String Extraction | v1.9 | All postconditions, invariants, and 11 edge cases (EC-11-025-001..011); 11 MUSTs anchored to S-JSON-EXTRACT-UDF-001 RG-JEX-001..011 with canonical test names |
 
 ---
 
@@ -230,8 +230,12 @@ boolean, JSON `null` at root). Only a JSON object (`{}`) qualifies for key extra
 
 `json_extract_string(col, other_col)` where `other_col` is a column reference is rejected
 at plan time with `E-QUERY-045(a)` via `PrismError::JsonExtractNonLiteralKey`. The gate
-fires AFTER the existing E-QUERY-037/038/039/041/042/043 gates and BEFORE DataFusion
-execution or any sensor fan-out. The MCP response carries HTTP `-32602` INVALID_PARAMS
+fires AFTER plan-time gates E-QUERY-037/038/039, BEFORE DataFusion execution or any sensor
+fan-out. (Temporal validation E-QUERY-041/042 runs in-pipeline per ADR-052 §D4 — inside
+`run_materialization_pipeline`, after the plan-time gate sequence — and is not part of the
+pre-execution plan-gate ordering; no specific ordering between E-QUERY-045 and in-pipeline
+temporal is asserted beyond ADR-066 §B3 "before DataFusion execution".)
+The MCP response carries HTTP `-32602` INVALID_PARAMS
 with message: `"E-QUERY-045: json_extract_string requires a literal string key (e.g.,
 json_extract_string(col, 'key_name')). Dynamic key expressions are not supported."`
 
@@ -373,7 +377,7 @@ test — a synthetic-AST-only path for either gate is a P2 finding per SAP-3.
 | Context Source | Estimated Tokens |
 |----------------|-----------------|
 | This story spec | ~6,000 |
-| BC-2.11.025 v1.8 (full contract) | ~8,000 |
+| BC-2.11.025 v1.9 (full contract) | ~8,000 |
 | ADR-066 v1.6 (§A–§H) | ~9,000 |
 | VP-162 v1.5 (Kani harness) | ~3,500 |
 | `crates/prism-query/src/engine.rs` (registration + plan-gate sections) | ~4,000 |
@@ -451,7 +455,11 @@ Tasks are ordered RED-THEN-GREEN per SAC-1: test authoring precedes all implemen
   - Walk AST for `ScalarFunc::JsonExtractString` nodes
   - Reject non-`Expr::Literal(Literal::String(_))` second argument with E-QUERY-045(a)
   - Reject literal key > 256 UTF-8 bytes with E-QUERY-045(b)
-  - Fire AFTER E-QUERY-037/038/039/041/042/043 gates, BEFORE `ctx.sql()` call
+  - Fire AFTER plan-time gates E-QUERY-037/038/039, BEFORE `ctx.sql()` / DataFusion
+    execution; temporal E-QUERY-041/042 runs in-pipeline per ADR-052 §D4 (inside
+    `run_materialization_pipeline`) — not part of the pre-execution gate sequence; no
+    specific ordering between E-QUERY-045 and in-pipeline temporal asserted beyond
+    ADR-066 §B3 "before DataFusion execution"
   - Use verbatim error messages from ADR-066 §F / BC-2.11.025 §Error Cases (including
     `{key_len}` and `{max_len}` substitutions)
   Run `just iter prism-query -E 'test(test_jex_rg006|rg007)'` — RG-JEX-006 + RG-JEX-007 GREEN.
@@ -498,7 +506,7 @@ Tasks are ordered RED-THEN-GREEN per SAC-1: test authoring precedes all implemen
   ```
 
 - [ ] **T-16:** Create PR targeting `develop`. PR description must include:
-  - Link to ADR-066 v1.6 and BC-2.11.025 v1.8
+  - Link to ADR-066 v1.6 and BC-2.11.025 v1.9
   - Summary of 11 Red Gate tests (RG-JEX-001..011) all GREEN
   - Security review confirmation (T-14 PASS)
   - SAP-1 / SAP-3 compliance confirmation
@@ -524,7 +532,7 @@ from implementing this story.
 | Rule | Source | Enforcement |
 |------|--------|-------------|
 | `json_extract_string` UDF registered at `QueryEngine::new` under exact name `"json_extract_string"` with types `(Utf8, Utf8)` → `Utf8` nullable and `Volatility::Immutable` | ADR-066 §E + BC-2.11.025 postcondition §Registration | RG-JEX-001; adversary §E check |
-| `check_json_extract_key_literal` gate fires AFTER E-QUERY-037/038/039/041/042/043, BEFORE `ctx.sql()` — never skipped for any query mode | BC-2.11.025 postcondition §Plan-time literal-key gate; ADR-066 §B3 | RG-JEX-006 (SAP-3 public surface); adversary gate-ordering check |
+| `check_json_extract_key_literal` gate fires AFTER plan-time gates E-QUERY-037/038/039, BEFORE `ctx.sql()` / DataFusion execution — never skipped for any query mode; temporal E-QUERY-041/042 runs in-pipeline per ADR-052 §D4 (not part of pre-execution gate ordering); no specific ordering between E-QUERY-045 and in-pipeline temporal asserted beyond ADR-066 §B3 | BC-2.11.025 v1.9 postcondition §Plan-time literal-key gate; ADR-066 §B3 | RG-JEX-006 (SAP-3 public surface); adversary gate-ordering check |
 | 256-byte key cap enforced at plan time (byte length of UTF-8 encoded literal key ≤ 256), NOT at runtime | ADR-066 §D3 + BC-2.11.025 §Error Cases E-QUERY-045(b) | RG-JEX-007; zero per-row overhead confirmed |
 | `json_extract_string_impl` MUST be a `pub(crate)` pure function in `json_extract_udf.rs` — no DataFusion or Arrow types in its signature | ADR-066 §B1 + VP-162 §Proof Target | VP-162 Kani harness provability; security review T-14 |
 | `prism-query` MUST NOT gain a dependency on `prism-bin` | dependency-graph.md §Dependency Rules Rule 2 (Level 6 / Level 7 ordering) | `cargo tree -p prism-query` must show no `prism-bin` edge post-merge |
@@ -583,6 +591,7 @@ If any of these appear, the build MUST fail (checked by `cargo tree -p prism-que
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.5 | 2026-09-17 | story-writer | LOW-1 (LOCAL pass): AC-006 / T-09 / Architecture Compliance Rules gate-ordering reconciled to BC-2.11.025 v1.9 (stale E-QUERY-041/042/043 pre-execution enumeration corrected; temporal in-pipeline per ADR-052 §D4). BC-2.11.025 body-pin updated v1.8 → v1.9 in §Authority, FROZEN NOTE, Behavioral Contracts table, Token Budget, and T-16 PR description (POL-8 bc_array_changes_propagate_to_body_and_acs; frontmatter pin left for state-manager). RG-JEX-006 gate mapping unchanged — gate still asserts fire-before-execution. |
 | 1.4 | 2026-09-17 | state-manager | D-2553 LOCAL re-gate CLEAN(PR-merge) errata pin sync. VP-162 v1.4→v1.5 authority pins updated in §Authority, FROZEN NOTE, Token Budget table, and Architecture Compliance Rules (TD-VSDD-060 sibling-site sweep; v1.3 cite in Architecture Compliance Rules also corrected — stale from D-2551 sweep miss). Historical changelog rows preserved verbatim. |
 | 1.3 | 2026-09-17 | story-writer | F-2 (LOCAL pass-1): AC-009 + EC-11-025-010 aligned to ratified BC-2.11.025/ADR-066 silent-null-propagation contract; type_mismatch warn/catalog obligation struck (precedence rule 1: BC supersedes on contract semantics; ADR-066 §D1 purity). T-12 rewritten as purity-gate verification. SAP-1 Architecture Compliance row removed — no emissions exist in this story. |
 | 1.2 | 2026-09-17 | state-manager | D-2551 pre-TDD errata pin sync. ADR-066 v1.5→v1.6 and VP-162 v1.3→v1.4 authority pins updated in §Authority, FROZEN NOTE, Token Budget table, and T-16 PR bullet (TD-VSDD-060 sibling-site sweep). Historical changelog rows preserved verbatim. Additive/errata post-freeze; spec-gate NOT reopened. |
