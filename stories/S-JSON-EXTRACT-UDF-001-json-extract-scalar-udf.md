@@ -3,7 +3,7 @@ document_type: story
 story_id: S-JSON-EXTRACT-UDF-001
 title: "Minimal json_extract_string ScalarUDF with Literal-Key Plan Gate (E-QUERY-045)"
 level: "L4"
-version: "1.6"
+version: "1.7"
 status: ready
 producer: story-writer
 timestamp: "2026-09-17T00:00:00Z"
@@ -67,7 +67,7 @@ blocks:
 #   beta.3 live-validation gate (OQ-002 human decision 2026-08-21).
 behavioral_contracts:
   - BC-2.11.025
-# BC status: draft v1.9 (frozen per beta3 spec-gate passes; BC-INDEX pin v1.9 confirmed).
+# BC status: draft v1.10 (frozen per beta3 spec-gate passes; BC-INDEX pin v1.10 confirmed).
 #   BC-2.11.025 contains 11 edge cases (EC-11-025-001..011) each anchored to
 #   S-JSON-EXTRACT-UDF-001 RG-JEX-001..011 with canonical test names.
 #   Spec-First Gate S-7.01 satisfied: behavioral_contracts is non-empty with canonical
@@ -91,7 +91,7 @@ boundaries), §E (DataFusion registration contract), §F (E-QUERY-045 error mess
 §G (mandate anchors — 11 MUST → RG-JEX mappings), and §H (latent defect closure) in full
 before implementing.
 
-**BC-2.11.025 v1.9** (`behavioral-contracts/BC-2.11.025-json-extract-string-scalar-udf.md`)
+**BC-2.11.025 v1.10** (`behavioral-contracts/BC-2.11.025-json-extract-string-scalar-udf.md`)
 governs the full behavioral contract. The 11 edge cases (EC-11-025-001..011) are the
 authoritative acceptance criteria and provide canonical test names for RG-JEX-001..011.
 
@@ -100,7 +100,7 @@ defines the Kani proof target (`json_extract_string_impl` pure function). The Ka
 files live in `crates/prism-query/src/proofs/vp162_json_extract_null_safety.rs` per VP-162
 §Kani Proof Harness. The proof is dispatched in Phase 5 (formal-verify), not Phase 3.
 
-> NOTE: ADR-066 v1.6, BC-2.11.025 v1.9, and VP-162 v1.6 are FROZEN per beta3 spec-gate.
+> NOTE: ADR-066 v1.6, BC-2.11.025 v1.10, and VP-162 v1.6 are FROZEN per beta3 spec-gate.
 > These spec files MUST NOT be amended by the implementer — any spec discrepancy routes
 > to product-owner/architect via the orchestrator.
 
@@ -152,7 +152,7 @@ and would be evaluated with a runtime-resolved key, bypassing:
 1. Implement `json_extract_string_impl` pure function and `JsonExtractStringUdf` struct
    implementing DataFusion `ScalarUDFImpl` in new file
    `crates/prism-query/src/json_extract_udf.rs`.
-2. Register the UDF in `engine.rs` at `QueryEngine::new` / `SessionContext` construction.
+2. Register the UDF in `engine.rs` per ephemeral `SessionContext` (`execute_inner` / `execute_scheduled_inner`).
 3. Add `check_json_extract_key_literal` plan gate to reject non-literal key arguments with
    `E-QUERY-045` before DataFusion execution (ADR-066 §B3).
 4. Add `PrismError::JsonExtractNonLiteralKey` and `PrismError::JsonExtractKeyTooLong`
@@ -177,7 +177,7 @@ to named Arrow columns.
 
 | BC | Title | Version at Authoring | Scope in This Story |
 |----|-------|---------------------|---------------------|
-| BC-2.11.025 | `json_extract_string` DataFusion ScalarUDF — Literal-Key-Only JSON String Extraction | v1.9 | All postconditions, invariants, and 11 edge cases (EC-11-025-001..011); 11 MUSTs anchored to S-JSON-EXTRACT-UDF-001 RG-JEX-001..011 with canonical test names |
+| BC-2.11.025 | `json_extract_string` DataFusion ScalarUDF — Literal-Key-Only JSON String Extraction | v1.10 | All postconditions, invariants, and 11 edge cases (EC-11-025-001..011); 11 MUSTs anchored to S-JSON-EXTRACT-UDF-001 RG-JEX-001..011 with canonical test names |
 
 ---
 
@@ -187,7 +187,7 @@ to named Arrow columns.
 
 `json_extract_string(column, 'severity')` where `column = '{"severity":"high","count":5}'`
 returns `"high"` as a non-null `Utf8` Arrow cell. The UDF is registered in the DataFusion
-`SessionContext` at engine construction (before any query executes) under the name
+`SessionContext` per ephemeral SessionContext (execute_inner / execute_scheduled_inner, before any query executes) under the name
 `"json_extract_string"` with input types `(Utf8, Utf8)`, return type `Utf8` (nullable),
 and `Volatility::Immutable` (ADR-066 §E).
 
@@ -337,7 +337,7 @@ test — a synthetic-AST-only path for either gate is a P2 finding per SAP-3.
 |-----------|------|---------------|----------------|
 | `json_extract_string_impl` pure function | `crates/prism-query/src/json_extract_udf.rs` (new) | Pure | No I/O, no global state, deterministic string → Option\<String\>; VP-162 Kani proof target |
 | `JsonExtractStringUdf` struct + `ScalarUDFImpl` | `crates/prism-query/src/json_extract_udf.rs` (new) | Effectful (Arrow column I/O) | DataFusion `invoke_with_args(&self, args: ScalarFunctionArgs)` wrapper; iterates Arrow array per-row; calls `json_extract_string_impl` |
-| UDF registration | `crates/prism-query/src/engine.rs` (modify) | Effectful | `ctx.register_udf(json_extract_string_udf())` at `QueryEngine::new` |
+| UDF registration | `crates/prism-query/src/engine.rs` (modify) | Effectful | `ctx.register_udf(json_extract_string_udf())` per ephemeral `SessionContext` (`execute_inner` / `execute_scheduled_inner`) |
 | `check_json_extract_key_literal` gate | `crates/prism-query/src/engine.rs` or `plan_gates.rs` (modify/new) | Pure | Pre-planning AST validation; fires after E-QUERY-043 gates, before `ctx.sql()` |
 | `PrismError` variants | `crates/prism-core/src/error.rs` (modify) | Pure | `JsonExtractNonLiteralKey` + `JsonExtractKeyTooLong { key_len: usize, max_len: usize }` |
 | VP-162 Kani proof harness | `crates/prism-query/src/proofs/vp162_json_extract_null_safety.rs` (new) | Pure | Phase 5 formal-verify target; authored alongside UDF implementation |
@@ -377,7 +377,7 @@ test — a synthetic-AST-only path for either gate is a P2 finding per SAP-3.
 | Context Source | Estimated Tokens |
 |----------------|-----------------|
 | This story spec | ~6,000 |
-| BC-2.11.025 v1.9 (full contract) | ~8,000 |
+| BC-2.11.025 v1.10 (full contract) | ~8,000 |
 | ADR-066 v1.6 (§A–§H) | ~9,000 |
 | VP-162 v1.6 (Kani harness) | ~3,500 |
 | `crates/prism-query/src/engine.rs` (registration + plan-gate sections) | ~4,000 |
@@ -441,9 +441,8 @@ Tasks are ordered RED-THEN-GREEN per SAC-1: test authoring precedes all implemen
   Harness (two harnesses: `vp162_json_extract_string_null_safety` + `vp162_b_none_input_is_none_output`).
   The harness is authored now alongside the implementation so Phase 5 dispatch is ready.
 
-- [ ] **T-07:** Wire `json_extract_string_udf()` into `engine.rs` at `SessionContext`
-  construction: `ctx.register_udf(json_extract_string_udf())`. Register ONCE at engine
-  construction per BC-2.11.025 postcondition §Registration (ADR-066 §E). Run
+- [ ] **T-07:** Wire `json_extract_string_udf()` into `engine.rs` per ephemeral `SessionContext`
+  (`execute_inner` / `execute_scheduled_inner`): `ctx.register_udf(json_extract_string_udf())`. Register ONCE per ephemeral SessionContext (execute_inner / execute_scheduled_inner) per BC-2.11.025 postcondition §Registration (ADR-066 §E). Run
   `just iter prism-query -E 'test(test_jex_rg001)'` — RG-JEX-001 GREEN.
 
 - [ ] **T-08:** Implement dot-in-key literal behavior (top-level key `.get(key)` without
@@ -506,7 +505,7 @@ Tasks are ordered RED-THEN-GREEN per SAC-1: test authoring precedes all implemen
   ```
 
 - [ ] **T-16:** Create PR targeting `develop`. PR description must include:
-  - Link to ADR-066 v1.6 and BC-2.11.025 v1.9
+  - Link to ADR-066 v1.6 and BC-2.11.025 v1.10
   - Summary of 11 Red Gate tests (RG-JEX-001..011) all GREEN
   - Security review confirmation (T-14 PASS)
   - SAP-1 / SAP-3 compliance confirmation
@@ -531,8 +530,8 @@ from implementing this story.
 
 | Rule | Source | Enforcement |
 |------|--------|-------------|
-| `json_extract_string` UDF registered at `QueryEngine::new` under exact name `"json_extract_string"` with types `(Utf8, Utf8)` → `Utf8` nullable and `Volatility::Immutable` | ADR-066 §E + BC-2.11.025 postcondition §Registration | RG-JEX-001; adversary §E check |
-| `check_json_extract_key_literal` gate fires AFTER plan-time gates E-QUERY-037/038/039, BEFORE `ctx.sql()` / DataFusion execution — never skipped for any query mode; temporal E-QUERY-041/042 runs in-pipeline per ADR-052 §D4 (not part of pre-execution gate ordering); no specific ordering between E-QUERY-045 and in-pipeline temporal asserted beyond ADR-066 §B3 | BC-2.11.025 v1.9 postcondition §Plan-time literal-key gate; ADR-066 §B3 | RG-JEX-006 (SAP-3 public surface); adversary gate-ordering check |
+| `json_extract_string` UDF registered per ephemeral `SessionContext` (`execute_inner` / `execute_scheduled_inner`) under exact name `"json_extract_string"` with types `(Utf8, Utf8)` → `Utf8` nullable and `Volatility::Immutable` | ADR-066 §E + BC-2.11.025 postcondition §Registration | RG-JEX-001; adversary §E check |
+| `check_json_extract_key_literal` gate fires AFTER plan-time gates E-QUERY-037/038/039, BEFORE `ctx.sql()` / DataFusion execution — never skipped for any query mode; temporal E-QUERY-041/042 runs in-pipeline per ADR-052 §D4 (not part of pre-execution gate ordering); no specific ordering between E-QUERY-045 and in-pipeline temporal asserted beyond ADR-066 §B3 | BC-2.11.025 v1.10 postcondition §Plan-time literal-key gate; ADR-066 §B3 | RG-JEX-006 (SAP-3 public surface); adversary gate-ordering check |
 | 256-byte key cap enforced at plan time (byte length of UTF-8 encoded literal key ≤ 256), NOT at runtime | ADR-066 §D3 + BC-2.11.025 §Error Cases E-QUERY-045(b) | RG-JEX-007; zero per-row overhead confirmed |
 | `json_extract_string_impl` MUST be a `pub(crate)` pure function in `json_extract_udf.rs` — no DataFusion or Arrow types in its signature | ADR-066 §B1 + VP-162 §Proof Target | VP-162 Kani harness provability; security review T-14 |
 | `prism-query` MUST NOT gain a dependency on `prism-bin` | dependency-graph.md §Dependency Rules Rule 2 (Level 6 / Level 7 ordering) | `cargo tree -p prism-query` must show no `prism-bin` edge post-merge |
@@ -567,7 +566,7 @@ stale illustration; the implementer MUST use `invoke_with_args` with `ScalarFunc
 | File | Action | Purpose |
 |------|--------|---------|
 | `crates/prism-query/src/json_extract_udf.rs` | Create (new) | `json_extract_string_udf()` factory fn + `JsonExtractStringUdf` struct + `ScalarUDFImpl` impl + `pub(crate) json_extract_string_impl()` pure function |
-| `crates/prism-query/src/engine.rs` | Modify | Register UDF at `QueryEngine::new`: `ctx.register_udf(json_extract_string_udf())`. Add or call `check_json_extract_key_literal` gate in plan-validation step (after E-QUERY-043, before `ctx.sql()`). Wire `mod json_extract_udf;` |
+| `crates/prism-query/src/engine.rs` | Modify | Register UDF per ephemeral `SessionContext` (`execute_inner` / `execute_scheduled_inner`): `ctx.register_udf(json_extract_string_udf())`. Add or call `check_json_extract_key_literal` gate in plan-validation step (after E-QUERY-043, before `ctx.sql()`). Wire `mod json_extract_udf;` |
 | `crates/prism-query/src/engine.rs` or `crates/prism-query/src/plan_gates.rs` | Modify or Create | `check_json_extract_key_literal(ast: &PrismQuery) -> Result<(), PrismError>` — AST walk rejecting non-literal key arguments |
 | `crates/prism-core/src/error.rs` | Modify | Add `PrismError::JsonExtractNonLiteralKey` and `PrismError::JsonExtractKeyTooLong { key_len: usize, max_len: usize }` variants; wire into MCP `-32602` mapping |
 | `crates/prism-query/src/proofs/vp162_json_extract_null_safety.rs` | Create (new) | VP-162 Kani harnesses (two harnesses per VP-162 §Kani Proof Harness); `#[cfg(kani)]` gated |
@@ -591,6 +590,7 @@ If any of these appear, the build MUST fail (checked by `cargo tree -p prism-que
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.7 | 2026-09-17 | story-writer | LOW-001 registration phrasing → per-ephemeral-context; BC-2.11.025 pin v1.9→v1.10 (MED-001 verified false-positive, no gate change). |
 | 1.6 | 2026-09-17 | state-manager | D-2556 LOCAL pass CLEAN(PR-merge) errata pin sync. VP-162 v1.5→v1.6 authority pins updated in §Authority, FROZEN NOTE, Token Budget table, and Architecture Compliance Rules (TD-VSDD-060 sibling-site sweep; F-JEX-P1-003: §Kani Proof Harness inner module renamed vp162_proofs→kani_proofs; sibling convention + code rename @9ce8642e). Historical changelog rows preserved verbatim. |
 | 1.5 | 2026-09-17 | story-writer | LOW-1 (LOCAL pass): AC-006 / T-09 / Architecture Compliance Rules gate-ordering reconciled to BC-2.11.025 v1.9 (stale E-QUERY-041/042/043 pre-execution enumeration corrected; temporal in-pipeline per ADR-052 §D4). BC-2.11.025 body-pin updated v1.8 → v1.9 in §Authority, FROZEN NOTE, Behavioral Contracts table, Token Budget, and T-16 PR description (POL-8 bc_array_changes_propagate_to_body_and_acs; frontmatter pin left for state-manager). RG-JEX-006 gate mapping unchanged — gate still asserts fire-before-execution. |
 | 1.4 | 2026-09-17 | state-manager | D-2553 LOCAL re-gate CLEAN(PR-merge) errata pin sync. VP-162 v1.4→v1.5 authority pins updated in §Authority, FROZEN NOTE, Token Budget table, and Architecture Compliance Rules (TD-VSDD-060 sibling-site sweep; v1.3 cite in Architecture Compliance Rules also corrected — stale from D-2551 sweep miss). Historical changelog rows preserved verbatim. |
