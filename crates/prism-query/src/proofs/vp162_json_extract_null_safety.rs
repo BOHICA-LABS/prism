@@ -22,51 +22,69 @@
 //! implementation so the proof is ready for Phase 5 dispatch without a separate
 //! story. The harness must compile under `cargo kani -p prism-query` before merge.
 //!
-//! VP-162 v1.3; ADR-066 §D1; BC-2.11.025 postcondition §Null column (AC-004).
+//! VP-162 v1.4; ADR-066 §D1; BC-2.11.025 postcondition §Null column (AC-004).
 //! Story: S-JSON-EXTRACT-UDF-001 T-06.
 
-#[cfg(kani)]
-use crate::json_extract_udf::json_extract_string_impl;
+// Implementer note: VP-162 §Kani Proof Harness specifies
+// `use super::super::json_extract_udf::json_extract_string_impl;` inside
+// `mod vp162_proofs`. From a file at `src/proofs/<name>.rs`, `super::super`
+// resolves to `crate::proofs`, not the crate root — `json_extract_udf` lives
+// at the crate root. Using the absolute `crate::` path instead, matching the
+// VP-014 / VP-015 import convention in this module.
 
-/// VP-162 invariant 1 — `json_extract_string_impl` never panics.
-///
-/// Verifies that for all bounded symbolic `Option<&str>` inputs and `&str` keys,
-/// `json_extract_string_impl` terminates without panicking.
-///
-/// Panic-free property required for `Volatility::Immutable` DataFusion UDF:
-/// a panicking UDF aborts the query executor with no structured E-QUERY-NNN error.
-/// Zero per-row overhead from the proof — the check is at the pure function level.
-///
-/// VP-162 §Kani Proof Harness (harness a); ADR-066 §D1.
 #[cfg(kani)]
-#[kani::proof]
-fn vp162_json_extract_string_null_safety() {
-    // Symbolic boolean controls whether the json_col input is None or Some.
-    // The actual string content is bounded symbolic bytes.
-    let is_none: bool = kani::any();
-    let json_col: Option<&str> = if is_none { None } else { Some("{}") };
-    let key: &str = "key";
+mod vp162_proofs {
+    use crate::json_extract_udf::json_extract_string_impl;
 
-    // Verify: does not panic for any combination of is_none and the bounded inputs.
-    let _result = json_extract_string_impl(json_col, key);
-    // No assertion needed beyond "did not panic" (Kani checks absence of panics).
-}
+    /// VP-162: null safety and panic freedom for json_extract_string_impl.
+    ///
+    /// Precondition: key.len() <= 256 (models ADR-066 §B3 literal-key plan gate).
+    /// Postcondition: result is Some(String) or None; no panic.
+    ///
+    /// Pattern follows VP-014 and VP-015 in this module: bounded Vec<u8> + from_utf8.
+    /// kani::any::<&str>() is NOT used because it is not a stable API across Kani
+    /// versions and does not correctly bind preconditions on key length.
+    #[kani::proof]
+    #[kani::unwind(8)]
+    fn vp162_json_extract_string_null_safety() {
+        // Symbolic key bounded to 256 bytes — models ADR-066 §B3/§D3 plan gate.
+        // any_vec::<u8, 256>() guarantees key_bytes.len() <= 256 structurally;
+        // no separate kani::assume on length needed.
+        let key_bytes: Vec<u8> = kani::vec::any_vec::<u8, 256>();
+        kani::assume(std::str::from_utf8(&key_bytes).is_ok());
+        let key = std::str::from_utf8(&key_bytes).unwrap();
 
-/// VP-162 invariant 2 — `None` input always produces `None` output.
-///
-/// Targeted proof: for ALL `&str` key values (symbolic), when `json_col` is `None`
-/// (Arrow null), the output MUST be `None`. This is the null-propagating contract
-/// mandated by AC-004 (BC-2.11.025 postcondition §Null column).
-///
-/// VP-162 §Kani Proof Harness (harness b); ADR-066 §B1 step 1; AC-004.
-#[cfg(kani)]
-#[kani::proof]
-fn vp162_b_none_input_is_none_output() {
-    let key: &str = "any_key";
-    let result = json_extract_string_impl(None, key);
-    // Invariant 2: None input → None output (AC-004; VP-162 invariant 2).
-    kani::assert(
-        result.is_none(),
-        "VP-162 invariant 2: None input must produce None output",
-    );
+        // Symbolic column value: None or Some(arbitrary bounded string).
+        // 1024-byte column bound covers realistic OCSF raw_extensions payloads.
+        let has_value: bool = kani::any();
+        if has_value {
+            let col_bytes: Vec<u8> = kani::vec::any_vec::<u8, 1024>();
+            if let Ok(col_str) = std::str::from_utf8(&col_bytes) {
+                // Kani verifies panic-freedom automatically: any reachable panic site
+                // (index out of bounds, unwrap on None, etc.) is a verification failure.
+                let _result: Option<String> = json_extract_string_impl(Some(col_str), key);
+            }
+            // If col_bytes is not valid UTF-8, skip invocation — the plan gate ensures
+            // the column is a Utf8 Arrow column, so non-UTF-8 bytes model an unreachable path.
+        } else {
+            let _result: Option<String> = json_extract_string_impl(None, key);
+        }
+    }
+
+    /// VP-162-B: None input → None output.
+    ///
+    /// Specialization: when column_value is None, the result is always None.
+    /// Uses the same Vec<u8> + from_utf8 bounded key pattern as the main harness.
+    #[kani::proof]
+    #[kani::unwind(4)]
+    fn vp162_b_none_input_is_none_output() {
+        let key_bytes: Vec<u8> = kani::vec::any_vec::<u8, 256>();
+        kani::assume(std::str::from_utf8(&key_bytes).is_ok());
+        let key = std::str::from_utf8(&key_bytes).unwrap();
+        let result = json_extract_string_impl(None, key);
+        assert!(
+            result.is_none(),
+            "None column input must produce None output"
+        );
+    }
 }

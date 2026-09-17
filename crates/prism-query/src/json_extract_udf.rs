@@ -242,13 +242,6 @@ impl ScalarUDFImpl for JsonExtractStringUdf {
 /// The UDF is registered under name `"json_extract_string"` with input types
 /// `(Utf8, Utf8)` → `Utf8` (nullable) and `Volatility::Immutable` per ADR-066 §E.
 ///
-/// BC-5.38.005 self-check: "If I include this real implementation, will the test
-/// for this function pass trivially without any implementer work?" — YES (RG-JEX-001
-/// requires the UDF to be registered AND execute; implementing the factory without
-/// the registration call in `engine.rs` is still incomplete, but returning a
-/// non-todo factory would partially satisfy the test once T-07 wires it in).
-/// MUST remain `todo!()` to prevent premature partial green.
-///
 /// S-JSON-EXTRACT-UDF-001 AC-001; ADR-066 §E; BC-2.11.025 postcondition §Registration.
 pub fn json_extract_string_udf() -> ScalarUDF {
     ScalarUDF::from(JsonExtractStringUdf::new())
