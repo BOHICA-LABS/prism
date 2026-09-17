@@ -45,7 +45,9 @@ use datafusion::logical_expr::{
 
 /// DataFusion scalar UDF implementation for `json_extract_string(column, 'key')`.
 ///
-/// Registered at `QueryEngine::new` via `ctx.register_udf(json_extract_string_udf())`.
+/// Registered per ephemeral `SessionContext` in `execute_inner` / `execute_scheduled_inner`
+/// via `ctx.register_udf(json_extract_string_udf())`. There is no global registration at
+/// `QueryEngine::new` — every ephemeral context receives its own UDF registration.
 /// Extracts the top-level string value at `key` from a JSON `Utf8` Arrow column.
 ///
 /// Input signature: `(Utf8, Utf8)` — first arg is the JSON column, second is the
@@ -233,8 +235,9 @@ impl ScalarUDFImpl for JsonExtractStringUdf {
 
 /// Construct the `json_extract_string` DataFusion `ScalarUDF` for registration.
 ///
-/// Returns a `ScalarUDF` wrapping `JsonExtractStringUdf`. Wire into the
-/// `SessionContext` at engine construction:
+/// Returns a `ScalarUDF` wrapping `JsonExtractStringUdf`. Wire into a per-ephemeral
+/// `SessionContext` inside `execute_inner` / `execute_scheduled_inner` (NOT at
+/// `QueryEngine::new` — there is no global `SessionContext`):
 /// ```ignore
 /// ctx.register_udf(json_extract_string_udf());
 /// ```
