@@ -42,15 +42,15 @@
 //! | RG-ID       | BC EC anchor      | AC                     | ADR-066 §B1 step |
 //! |-------------|-------------------|------------------------|------------------|
 //! | RG-JEX-001  | EC-11-025-001     | AC-001 happy path      | step 6 (String)  |
-//! | RG-JEX-002  | EC-11-025-002     | AC-002 JSON null→NULL  | step 5 (Null)    |
+//! | RG-JEX-002  | EC-11-025-005     | AC-002 JSON null→NULL  | step 5 (Null)    |
 //! | RG-JEX-003  | EC-11-025-003     | AC-003 missing key     | step 4 (absent)  |
-//! | RG-JEX-004  | EC-11-025-004     | AC-004 null col input  | step 1 (None)    |
-//! | RG-JEX-005  | EC-11-025-005     | AC-005 non-object JSON | step 3 (non-obj) |
+//! | RG-JEX-004  | EC-11-025-002     | AC-004 null col input  | step 1 (None)    |
+//! | RG-JEX-005  | EC-11-025-004     | AC-005 non-object JSON | step 3 (non-obj) |
 //! | RG-JEX-006  | EC-11-025-006     | AC-006 E-QUERY-045(a)  | plan gate        |
 //! | RG-JEX-007  | EC-11-025-007     | AC-007 E-QUERY-045(b)  | plan gate        |
 //! | RG-JEX-008  | EC-11-025-008     | AC-008 non-string coerce | step 7 (other) |
-//! | RG-JEX-009  | EC-11-025-009     | AC-009 parse failure   | step 2 (parse)   |
-//! | RG-JEX-010  | EC-11-025-010     | AC-010 dot-in-key      | step 4 (top-lvl) |
+//! | RG-JEX-009  | EC-11-025-010     | AC-009 parse failure   | step 2 (parse)   |
+//! | RG-JEX-010  | EC-11-025-009     | AC-010 dot-in-key      | step 4 (top-lvl) |
 //! | RG-JEX-011  | EC-11-025-011     | AC-011 pipe mode E2E   | full E2E         |
 //!
 //! Story: S-JSON-EXTRACT-UDF-001 v1.2 | BC: BC-2.11.025 v1.8 | ADR: ADR-066 v1.6
@@ -220,6 +220,67 @@ impl SensorAdapter for JexMockAdapter {
     }
 }
 
+/// Generic single-row mock adapter for SAP-3 value-arm engine.execute assertions (F-4).
+///
+/// Returns one `RecordBatch` with a single `data` (Utf8, nullable) column containing
+/// `payload`. `sensor_prefix` must match the prefix in the query table name
+/// (e.g., `"jnoobj"` → table `"jnoobj_events"`).
+///
+/// Used by `test_jex_f4_*_engine_execute` tests to drive the four value-behavior
+/// arms (non-object, coerce, parse-failure, dot-in-key) through `QueryEngine::execute`
+/// (SAP-3 public-surface obligation, CLAUDE.md §SAP-3).
+struct SingleRowAdapter {
+    sensor_prefix: &'static str,
+    payload: Option<&'static str>,
+}
+
+impl std::fmt::Debug for SingleRowAdapter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SingleRowAdapter")
+            .field("sensor_prefix", &self.sensor_prefix)
+            .finish()
+    }
+}
+
+#[async_trait]
+impl SensorAdapter for SingleRowAdapter {
+    fn sensor_type(&self) -> SensorId {
+        SensorId::from(self.sensor_prefix)
+    }
+
+    fn sensor_name(&self) -> &'static str {
+        self.sensor_prefix
+    }
+
+    async fn fetch(
+        &self,
+        _spec: &SensorSpec,
+        _params: &QueryParams,
+        _auth: &dyn SensorAuth,
+    ) -> Result<FetchOutput, SensorError> {
+        let schema = Arc::new(Schema::new(vec![Field::new("data", DataType::Utf8, true)]));
+        let arr = StringArray::from(vec![self.payload]);
+        let batch = RecordBatch::try_new(Arc::clone(&schema), vec![Arc::new(arr)])
+            .expect("SingleRowAdapter: RecordBatch construction must succeed");
+        Ok(FetchOutput::new(vec![batch], false, false))
+    }
+}
+
+/// Build a `QueryEngine` with a `SingleRowAdapter` registered for SAP-3 arm tests.
+fn make_arm_engine(adapter: SingleRowAdapter) -> QueryEngine {
+    let org_id = OrgId::new();
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, Arc::new(adapter));
+    QueryEngine::new(
+        Arc::new(registry),
+        Arc::new(NullCredentialStore),
+        Arc::new(OcsfNormalizer::new()),
+        Arc::new(ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+    )
+    .with_credential_resolver(Arc::new(StubCredentialResolver))
+}
+
 /// Build a `QueryEngine` for plan-gate tests (no table_registry, empty AdapterRegistry).
 ///
 /// With `table_registry = None`, the E-QUERY-037 gate is bypassed. Only E-QUERY-038,
@@ -319,7 +380,7 @@ async fn test_jex_rg001_udf_registered_happy_path_executes() {
 }
 
 // ===========================================================================
-// RG-JEX-002 — AC-002 / EC-11-025-002: JSON null at key → SQL NULL
+// RG-JEX-002 — AC-002 / EC-11-025-005: JSON null at key → SQL NULL
 // ===========================================================================
 
 /// RG-JEX-002: `json_extract_string` returns SQL NULL when the key maps to JSON null.
@@ -327,7 +388,7 @@ async fn test_jex_rg001_udf_registered_happy_path_executes() {
 /// Input: `{"severity":null}`, key `'severity'`
 /// Expected: SQL NULL (Arrow null cell), NOT the string "null".
 ///
-/// BC-2.11.025 EC-11-025-002 — ADR-066 §B1 step 5 (Value::Null → None).
+/// BC-2.11.025 EC-11-025-005 — ADR-066 §B1 step 5 (Value::Null → None).
 /// Wire-shape: `col.is_null(0)` must be true; the string "null" is WRONG.
 ///
 /// RED failure: `json_extract_string_udf()` panics `todo!()` at T-07 stub.
@@ -358,7 +419,7 @@ async fn test_jex_rg002_json_null_value_at_key_returns_sql_null() {
     // JSON null at key → SQL NULL (Arrow is_null), NOT the string "null".
     assert!(
         col.is_null(0),
-        "RG-JEX-002 (EC-11-025-002 / AC-002): JSON null at 'severity' must yield SQL NULL \
+        "RG-JEX-002 (EC-11-025-005 / AC-002): JSON null at 'severity' must yield SQL NULL \
          (is_null=true). Wire-shape: must not be the string \"null\" or empty string. \
          Got: {:?}",
         if col.is_null(0) { "null" } else { col.value(0) }
@@ -409,7 +470,7 @@ async fn test_jex_rg003_missing_key_returns_sql_null() {
 }
 
 // ===========================================================================
-// RG-JEX-004 — AC-004 / EC-11-025-004: Arrow-null column input → SQL NULL
+// RG-JEX-004 — AC-004 / EC-11-025-002: Arrow-null column input → SQL NULL
 // ===========================================================================
 
 /// RG-JEX-004: `json_extract_string` returns SQL NULL when the input column cell is NULL.
@@ -417,7 +478,7 @@ async fn test_jex_rg003_missing_key_returns_sql_null() {
 /// The `raw_data` column cell is an Arrow NULL (no JSON string at all).
 /// Expected: SQL NULL.
 ///
-/// BC-2.11.025 EC-11-025-004 — ADR-066 §B1 step 1 (None input → None output).
+/// BC-2.11.025 EC-11-025-002 — ADR-066 §B1 step 1 (None input → None output).
 /// VP-162 invariant 2: null-safety — None input always produces None output.
 ///
 /// RED failure: `json_extract_string_udf()` panics `todo!()` at T-07 stub.
@@ -447,14 +508,14 @@ async fn test_jex_rg004_null_column_input_returns_sql_null() {
 
     assert!(
         col.is_null(0),
-        "RG-JEX-004 (EC-11-025-004 / AC-004 / VP-162 invariant 2): Arrow-null input must yield \
+        "RG-JEX-004 (EC-11-025-002 / AC-004 / VP-162 invariant 2): Arrow-null input must yield \
          SQL NULL. Got: {:?}",
         if col.is_null(0) { "null" } else { col.value(0) }
     );
 }
 
 // ===========================================================================
-// RG-JEX-005 — AC-005 / EC-11-025-005: non-object JSON root → SQL NULL
+// RG-JEX-005 — AC-005 / EC-11-025-004: non-object JSON root → SQL NULL
 // ===========================================================================
 
 /// RG-JEX-005: `json_extract_string` returns SQL NULL when the JSON root is not an object.
@@ -462,7 +523,7 @@ async fn test_jex_rg004_null_column_input_returns_sql_null() {
 /// Input: `["a","b","c"]` (JSON array at root), key `'severity'`
 /// Expected: SQL NULL.
 ///
-/// BC-2.11.025 EC-11-025-005 — ADR-066 §B1 step 3 (non-object → None).
+/// BC-2.11.025 EC-11-025-004 — ADR-066 §B1 step 3 (non-object → None).
 ///
 /// RED failure: `json_extract_string_udf()` panics `todo!()` at T-07 stub.
 /// GREEN: returns SQL NULL after T-05 + T-07.
@@ -490,7 +551,7 @@ async fn test_jex_rg005_non_object_json_returns_sql_null() {
 
     assert!(
         col.is_null(0),
-        "RG-JEX-005 (EC-11-025-005 / AC-005): non-object JSON root (array) must yield SQL NULL. \
+        "RG-JEX-005 (EC-11-025-004 / AC-005): non-object JSON root (array) must yield SQL NULL. \
          Got: {:?}",
         if col.is_null(0) { "null" } else { col.value(0) }
     );
@@ -694,7 +755,7 @@ async fn test_jex_rg008_non_string_json_value_coerced_to_string() {
 }
 
 // ===========================================================================
-// RG-JEX-009 — AC-009 / EC-11-025-009: unparseable JSON input → SQL NULL
+// RG-JEX-009 — AC-009 / EC-11-025-010: unparseable JSON input → SQL NULL
 // ===========================================================================
 
 /// RG-JEX-009: a non-JSON string in the `raw_data` column yields SQL NULL.
@@ -702,7 +763,7 @@ async fn test_jex_rg008_non_string_json_value_coerced_to_string() {
 /// Input: `"not valid json at all !!"` (parse failure), key `'severity'`
 /// Expected: SQL NULL (Arrow null cell, not a runtime error).
 ///
-/// BC-2.11.025 EC-11-025-009 — ADR-066 §B1 step 2 (serde_json parse failure → None).
+/// BC-2.11.025 EC-11-025-010 — ADR-066 §B1 step 2 (serde_json parse failure → None).
 ///
 /// RED failure: `json_extract_string_udf()` panics `todo!()` at T-07 stub.
 /// GREEN: returns SQL NULL after T-05 + T-07.
@@ -730,7 +791,7 @@ async fn test_jex_rg009_parse_failure_non_json_input_returns_sql_null() {
 
     assert!(
         col.is_null(0),
-        "RG-JEX-009 (EC-11-025-009 / AC-009): JSON parse failure must yield SQL NULL \
+        "RG-JEX-009 (EC-11-025-010 / AC-009): JSON parse failure must yield SQL NULL \
          (not a runtime error, not an empty string). \
          Got: {:?}",
         if col.is_null(0) { "null" } else { col.value(0) }
@@ -738,7 +799,7 @@ async fn test_jex_rg009_parse_failure_non_json_input_returns_sql_null() {
 }
 
 // ===========================================================================
-// RG-JEX-010 — AC-010 / EC-11-025-010: dot in key = top-level key, NOT nested path
+// RG-JEX-010 — AC-010 / EC-11-025-009: dot in key = top-level key, NOT nested path
 // ===========================================================================
 
 /// RG-JEX-010: a dot in the key literal is treated as a top-level key name, not JSONPath.
@@ -749,7 +810,7 @@ async fn test_jex_rg009_parse_failure_non_json_input_returns_sql_null() {
 /// This distinguishes `json_extract_string` from JSONPath-style nested access, which
 /// is reserved for `S-JSON-EXTRACT-NESTED-001` post-beta.3 (ADR-066 §D4).
 ///
-/// BC-2.11.025 EC-11-025-010 — ADR-066 §B1 step 4 + §D4.
+/// BC-2.11.025 EC-11-025-009 — ADR-066 §B1 step 4 + §D4.
 ///
 /// RED failure: `json_extract_string_udf()` panics `todo!()` at T-07 stub.
 /// GREEN: returns `"dotted"` after T-05 + T-07.
@@ -781,12 +842,12 @@ async fn test_jex_rg010_dot_in_key_literal_not_nested_path() {
 
     assert!(
         !col.is_null(0),
-        "RG-JEX-010 (EC-11-025-010 / AC-010): top-level key 'a.b' exists and must NOT be SQL NULL."
+        "RG-JEX-010 (EC-11-025-009 / AC-010): top-level key 'a.b' exists and must NOT be SQL NULL."
     );
     assert_eq!(
         col.value(0),
         "dotted",
-        "RG-JEX-010 (EC-11-025-010 / AC-010 / ADR-066 §D4): \
+        "RG-JEX-010 (EC-11-025-009 / AC-010 / ADR-066 §D4): \
          key 'a.b' must resolve to the TOP-LEVEL key \"a.b\" → \"dotted\", \
          NOT the nested path a→b → \"nested\". Got: {:?}",
         col.value(0)
@@ -955,5 +1016,298 @@ async fn test_jex_rg011_pipe_mode_end_to_end_executes() {
         wire_row2.as_object().unwrap().contains_key("extracted"),
         "RG-JEX-011 wire-shape: row 2 'extracted' key must be PRESENT in wire output \
          (null-not-absent)."
+    );
+}
+
+// ===========================================================================
+// F-4 SAP-3 public-surface value-arm assertions (QueryEngine::execute)
+//
+// These four tests close the SAP-3 residual from LOCAL adversary pass-1 F-4:
+// arms currently only exercised via bare SessionContext.sql() are now also
+// asserted end-to-end through QueryEngine::execute (the prism_query public
+// surface). Wire-level null-not-absent assertions (BC-2.11.001 EC-11-079) are
+// included for arms that produce SQL NULL. Production code already implements
+// all four behaviors; these tests are GREEN additions, not new Red Gate tests.
+// ===========================================================================
+
+/// F-4-A (SAP-3): non-object JSON root → SQL NULL via QueryEngine::execute.
+///
+/// Companion to RG-JEX-005 (SessionContext.sql path). Drives EC-11-025-004 arm
+/// end-to-end from `QueryEngine::execute` (the prism_query public surface),
+/// satisfying CLAUDE.md §SAP-3 reachability obligation.
+///
+/// BC-2.11.025 EC-11-025-004 — ADR-066 §B1 step 3 (non-object → None).
+/// Wire-shape: null-not-absent per BC-2.11.001 EC-11-079.
+#[tokio::test]
+async fn test_jex_f4_non_object_arm_engine_execute() {
+    let engine = make_arm_engine(SingleRowAdapter {
+        sensor_prefix: "jnoobj",
+        payload: Some(r#"["a","b","c"]"#), // JSON array root — non-object → SQL NULL
+    });
+
+    let options = QueryOptions {
+        clients: None,
+        sensors: None,
+        limit: Some(1),
+        force_refresh: false,
+        ..QueryOptions::default()
+    };
+
+    let qr = engine
+        .execute(
+            "SELECT json_extract_string(data, 'key') AS extracted FROM jnoobj_events | limit 1",
+            options,
+        )
+        .await
+        .expect(
+            "F-4-A: engine.execute must succeed (non-object JSON → SQL NULL, not a runtime error)",
+        );
+
+    let total_rows: usize = qr.batches.iter().map(|b| b.num_rows()).sum();
+    assert_eq!(total_rows, 1, "F-4-A: mock adapter returns 1 row");
+
+    let batch = &qr.batches[0];
+    let idx = batch
+        .schema()
+        .index_of("extracted")
+        .expect("F-4-A: 'extracted' column must be present in result schema");
+    let col = batch
+        .column(idx)
+        .as_any()
+        .downcast_ref::<StringArray>()
+        .expect("F-4-A: 'extracted' column must be Utf8 StringArray");
+
+    // Arrow-level null assertion.
+    assert!(
+        col.is_null(0),
+        "F-4-A (EC-11-025-004 via engine.execute): JSON array root must yield SQL NULL. \
+         Got: {:?}",
+        if col.is_null(0) { "null" } else { col.value(0) }
+    );
+
+    // Wire-shape null-not-absent (BC-2.11.001 EC-11-079).
+    let wire = serde_json::json!({
+        "extracted": if col.is_null(0) { serde_json::Value::Null } else {
+            serde_json::Value::String(col.value(0).to_string())
+        }
+    });
+    assert!(
+        wire["extracted"].is_null(),
+        "F-4-A wire-shape (EC-11-079): non-object arm must serialize as JSON null. Got: {:?}",
+        wire["extracted"]
+    );
+    assert!(
+        wire.as_object().unwrap().contains_key("extracted"),
+        "F-4-A wire-shape: 'extracted' key must be PRESENT (null-not-absent)."
+    );
+}
+
+/// F-4-B (SAP-3): non-string JSON value → coerced string via QueryEngine::execute.
+///
+/// Companion to RG-JEX-008 (SessionContext.sql path). Drives EC-11-025-008 arm
+/// end-to-end from `QueryEngine::execute` (the prism_query public surface),
+/// satisfying CLAUDE.md §SAP-3 reachability obligation.
+///
+/// BC-2.11.025 EC-11-025-008 — ADR-066 §B1 step 7 (non-string, non-null → to_string()).
+#[tokio::test]
+async fn test_jex_f4_coerce_arm_engine_execute() {
+    let engine = make_arm_engine(SingleRowAdapter {
+        sensor_prefix: "jcoerce",
+        payload: Some(r#"{"count":42}"#), // integer value → coerced to "42"
+    });
+
+    let options = QueryOptions {
+        clients: None,
+        sensors: None,
+        limit: Some(1),
+        force_refresh: false,
+        ..QueryOptions::default()
+    };
+
+    let qr = engine
+        .execute(
+            "SELECT json_extract_string(data, 'count') AS extracted FROM jcoerce_events | limit 1",
+            options,
+        )
+        .await
+        .expect("F-4-B: engine.execute must succeed (integer value → coerced string \"42\")");
+
+    let total_rows: usize = qr.batches.iter().map(|b| b.num_rows()).sum();
+    assert_eq!(total_rows, 1, "F-4-B: mock adapter returns 1 row");
+
+    let batch = &qr.batches[0];
+    let idx = batch
+        .schema()
+        .index_of("extracted")
+        .expect("F-4-B: 'extracted' column must be present in result schema");
+    let col = batch
+        .column(idx)
+        .as_any()
+        .downcast_ref::<StringArray>()
+        .expect("F-4-B: 'extracted' column must be Utf8 StringArray");
+
+    assert!(
+        !col.is_null(0),
+        "F-4-B (EC-11-025-008 via engine.execute): integer value at 'count' must NOT be SQL NULL \
+         (coerced via to_string())."
+    );
+    assert_eq!(
+        col.value(0),
+        "42",
+        "F-4-B (EC-11-025-008 via engine.execute): integer 42 must coerce to string \"42\". \
+         Got: {:?}",
+        col.value(0)
+    );
+
+    // Wire-shape: non-null value serializes as the coerced string.
+    let wire = serde_json::json!({
+        "extracted": serde_json::Value::String(col.value(0).to_string())
+    });
+    assert_eq!(
+        wire["extracted"].as_str().unwrap(),
+        "42",
+        "F-4-B wire-shape: coerced integer must serialize as JSON string \"42\". Got: {:?}",
+        wire["extracted"]
+    );
+}
+
+/// F-4-C (SAP-3): JSON parse failure → SQL NULL via QueryEngine::execute.
+///
+/// Companion to RG-JEX-009 (SessionContext.sql path). Drives EC-11-025-010 arm
+/// end-to-end from `QueryEngine::execute` (the prism_query public surface),
+/// satisfying CLAUDE.md §SAP-3 reachability obligation.
+///
+/// BC-2.11.025 EC-11-025-010 — ADR-066 §B1 step 2 (serde_json parse failure → None).
+/// Wire-shape: null-not-absent per BC-2.11.001 EC-11-079.
+#[tokio::test]
+async fn test_jex_f4_parse_fail_arm_engine_execute() {
+    let engine = make_arm_engine(SingleRowAdapter {
+        sensor_prefix: "jpfail",
+        payload: Some("not valid json at all !!"), // malformed JSON → SQL NULL
+    });
+
+    let options = QueryOptions {
+        clients: None,
+        sensors: None,
+        limit: Some(1),
+        force_refresh: false,
+        ..QueryOptions::default()
+    };
+
+    let qr = engine
+        .execute(
+            "SELECT json_extract_string(data, 'key') AS extracted FROM jpfail_events | limit 1",
+            options,
+        )
+        .await
+        .expect(
+            "F-4-C: engine.execute must succeed (parse failure yields SQL NULL, not runtime error)",
+        );
+
+    let total_rows: usize = qr.batches.iter().map(|b| b.num_rows()).sum();
+    assert_eq!(total_rows, 1, "F-4-C: mock adapter returns 1 row");
+
+    let batch = &qr.batches[0];
+    let idx = batch
+        .schema()
+        .index_of("extracted")
+        .expect("F-4-C: 'extracted' column must be present in result schema");
+    let col = batch
+        .column(idx)
+        .as_any()
+        .downcast_ref::<StringArray>()
+        .expect("F-4-C: 'extracted' column must be Utf8 StringArray");
+
+    assert!(
+        col.is_null(0),
+        "F-4-C (EC-11-025-010 via engine.execute): JSON parse failure must yield SQL NULL \
+         (not a runtime error, not an empty string). Got: {:?}",
+        if col.is_null(0) { "null" } else { col.value(0) }
+    );
+
+    // Wire-shape null-not-absent (BC-2.11.001 EC-11-079).
+    let wire = serde_json::json!({
+        "extracted": if col.is_null(0) { serde_json::Value::Null } else {
+            serde_json::Value::String(col.value(0).to_string())
+        }
+    });
+    assert!(
+        wire["extracted"].is_null(),
+        "F-4-C wire-shape (EC-11-079): parse-failure arm must serialize as JSON null. Got: {:?}",
+        wire["extracted"]
+    );
+    assert!(
+        wire.as_object().unwrap().contains_key("extracted"),
+        "F-4-C wire-shape: 'extracted' key must be PRESENT (null-not-absent)."
+    );
+}
+
+/// F-4-D (SAP-3): dot-in-key literal → top-level key (not JSONPath) via QueryEngine::execute.
+///
+/// Companion to RG-JEX-010 (SessionContext.sql path). Drives EC-11-025-009 arm
+/// end-to-end from `QueryEngine::execute` (the prism_query public surface),
+/// satisfying CLAUDE.md §SAP-3 reachability obligation.
+///
+/// BC-2.11.025 EC-11-025-009 — ADR-066 §B1 step 4 + §D4 (top-level-key-only; dot is
+/// NOT a JSONPath separator in beta.3).
+#[tokio::test]
+async fn test_jex_f4_dot_in_key_arm_engine_execute() {
+    let engine = make_arm_engine(SingleRowAdapter {
+        sensor_prefix: "jdotkey",
+        payload: Some(r#"{"a.b":"dotted","a":{"b":"nested"}}"#),
+    });
+
+    let options = QueryOptions {
+        clients: None,
+        sensors: None,
+        limit: Some(1),
+        force_refresh: false,
+        ..QueryOptions::default()
+    };
+
+    let qr = engine
+        .execute(
+            "SELECT json_extract_string(data, 'a.b') AS extracted FROM jdotkey_events | limit 1",
+            options,
+        )
+        .await
+        .expect("F-4-D: engine.execute must succeed (dot-in-key → top-level match \"dotted\")");
+
+    let total_rows: usize = qr.batches.iter().map(|b| b.num_rows()).sum();
+    assert_eq!(total_rows, 1, "F-4-D: mock adapter returns 1 row");
+
+    let batch = &qr.batches[0];
+    let idx = batch
+        .schema()
+        .index_of("extracted")
+        .expect("F-4-D: 'extracted' column must be present in result schema");
+    let col = batch
+        .column(idx)
+        .as_any()
+        .downcast_ref::<StringArray>()
+        .expect("F-4-D: 'extracted' column must be Utf8 StringArray");
+
+    assert!(
+        !col.is_null(0),
+        "F-4-D (EC-11-025-009 via engine.execute): top-level key 'a.b' must NOT be SQL NULL."
+    );
+    assert_eq!(
+        col.value(0),
+        "dotted",
+        "F-4-D (EC-11-025-009 / ADR-066 §D4 via engine.execute): \
+         key 'a.b' must resolve to the TOP-LEVEL key \"a.b\" → \"dotted\", \
+         NOT the nested path a→b → \"nested\". Got: {:?}",
+        col.value(0)
+    );
+
+    // Wire-shape: non-null value serializes as the extracted string.
+    let wire = serde_json::json!({
+        "extracted": serde_json::Value::String(col.value(0).to_string())
+    });
+    assert_eq!(
+        wire["extracted"].as_str().unwrap(),
+        "dotted",
+        "F-4-D wire-shape: dot-in-key arm must serialize as JSON string \"dotted\". Got: {:?}",
+        wire["extracted"]
     );
 }
