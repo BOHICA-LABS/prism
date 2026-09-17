@@ -3,7 +3,7 @@
 //! 11 failing tests — RG-JEX-001..RG-JEX-011 — all MUST FAIL against the current
 //! `todo!()` stubs before any production logic is implemented (Red Gate requirement,
 //! BC-5.38.001). Every test traces to exactly one EC-11-025-NNN edge case in
-//! BC-2.11.025 v1.8 and one acceptance criterion in S-JSON-EXTRACT-UDF-001 v1.2.
+//! BC-2.11.025 v1.9 and one acceptance criterion in S-JSON-EXTRACT-UDF-001 v1.5.
 //!
 //! # Test method by group
 //!
@@ -53,7 +53,7 @@
 //! | RG-JEX-010  | EC-11-025-009     | AC-010 dot-in-key      | step 4 (top-lvl) |
 //! | RG-JEX-011  | EC-11-025-011     | AC-011 pipe mode E2E   | full E2E         |
 //!
-//! Story: S-JSON-EXTRACT-UDF-001 v1.2 | BC: BC-2.11.025 v1.8 | ADR: ADR-066 v1.6
+//! Story: S-JSON-EXTRACT-UDF-001 v1.5 | BC: BC-2.11.025 v1.9 | ADR: ADR-066 v1.6
 
 #![allow(
     clippy::unwrap_used,
@@ -645,7 +645,7 @@ async fn test_jex_rg006_non_literal_key_rejected_e_query_045_a() {
 ///
 /// SAP-3 compliance: exercises the gate end-to-end from `QueryEngine::execute`.
 ///
-/// BC-2.11.025 EC-11-025-007 / AC-007 — ADR-066 §B3 + §B2 (MAX_KEY_BYTES = 256, CWE-400).
+/// BC-2.11.025 EC-11-025-007 / AC-007 — ADR-066 §B3 + §D3 (MAX_KEY_BYTES = 256, CWE-400).
 ///
 /// RED failure: E-QUERY-045 gate not wired (T-09 not done); gets DataFusion error instead.
 /// GREEN: gate fires after T-09, assertion passes.
@@ -668,7 +668,7 @@ async fn test_jex_rg007_key_exceeds_max_len_rejected_e_query_045_b() {
             );
             assert_eq!(
                 max_len, 256,
-                "RG-JEX-007: max_len must be 256 (ADR-066 §B2 / BC-2.11.025 EC-11-025-007). Got: {max_len}"
+                "RG-JEX-007: max_len must be 256 (ADR-066 §D3 / BC-2.11.025 EC-11-025-007). Got: {max_len}"
             );
             // Wire-shape assertion: Display must match MCP INVALID_PARAMS message.
             let display = format!("{}", PrismError::JsonExtractKeyTooLong { key_len, max_len });
@@ -750,6 +750,140 @@ async fn test_jex_rg008_non_string_json_value_coerced_to_string() {
         col.value(0),
         "42",
         "RG-JEX-008 (EC-11-025-008 / AC-008): integer 42 must coerce to string \"42\". Got: {:?}",
+        col.value(0)
+    );
+}
+
+// ---------------------------------------------------------------------------
+// RG-JEX-008-bool / RG-JEX-008-array / RG-JEX-008-object
+// OBS-2 coercion siblings (BC-2.11.025 EC-11-025-008 / AC-008):
+// boolean, array, and object values coerced via serde_json Value::to_string().
+// ---------------------------------------------------------------------------
+
+/// RG-JEX-008-bool: boolean JSON value is coerced via `val.to_string()` → `"true"` / `"false"`.
+///
+/// Input: `{"flag":true}`, key `'flag'`
+/// Expected: the string `"true"` — `serde_json::Value::Bool(true).to_string()` compact output.
+///
+/// BC-2.11.025 EC-11-025-008 / AC-008 — ADR-066 §B1 step 7 (non-string, non-null → to_string()).
+/// Sibling of RG-JEX-008 (integer case already tested); extends coercion coverage to booleans.
+#[tokio::test]
+async fn test_jex_rg008_bool_true_coerced_to_string() {
+    let ctx = make_udf_ctx();
+    register_json_table(&ctx, "jex_data", Some(r#"{"flag":true}"#));
+
+    let df = ctx
+        .sql("SELECT json_extract_string(raw_data, 'flag') AS extracted FROM jex_data")
+        .await
+        .expect("RG-JEX-008-bool: SQL must parse and plan");
+
+    let batches = df
+        .collect()
+        .await
+        .expect("RG-JEX-008-bool: UDF execution must succeed");
+
+    let col = batches[0]
+        .column(0)
+        .as_any()
+        .downcast_ref::<StringArray>()
+        .expect("RG-JEX-008-bool: result column must be Utf8 StringArray");
+
+    assert!(
+        !col.is_null(0),
+        "RG-JEX-008-bool (EC-11-025-008 / AC-008): boolean true at 'flag' key must NOT be SQL NULL. \
+         Non-null non-string values are coerced via serde_json val.to_string()."
+    );
+    assert_eq!(
+        col.value(0),
+        "true",
+        "RG-JEX-008-bool (EC-11-025-008 / AC-008): serde_json::Value::Bool(true).to_string() must \
+         produce \"true\" (JSON literal, not a Rust Debug string). Got: {:?}",
+        col.value(0)
+    );
+}
+
+/// RG-JEX-008-array: JSON array value is coerced via `val.to_string()` → compact JSON array string.
+///
+/// Input: `{"items":[1,2]}`, key `'items'`
+/// Expected: the string `"[1,2]"` — `serde_json::Value::Array([1,2]).to_string()` compact output
+/// (no spaces; serde_json Display uses compact serialization).
+///
+/// BC-2.11.025 EC-11-025-008 / AC-008 — ADR-066 §B1 step 7 (non-string, non-null → to_string()).
+/// Sibling of RG-JEX-008 (integer case); extends coercion coverage to JSON arrays.
+#[tokio::test]
+async fn test_jex_rg008_array_coerced_to_string() {
+    let ctx = make_udf_ctx();
+    register_json_table(&ctx, "jex_data", Some(r#"{"items":[1,2]}"#));
+
+    let df = ctx
+        .sql("SELECT json_extract_string(raw_data, 'items') AS extracted FROM jex_data")
+        .await
+        .expect("RG-JEX-008-array: SQL must parse and plan");
+
+    let batches = df
+        .collect()
+        .await
+        .expect("RG-JEX-008-array: UDF execution must succeed");
+
+    let col = batches[0]
+        .column(0)
+        .as_any()
+        .downcast_ref::<StringArray>()
+        .expect("RG-JEX-008-array: result column must be Utf8 StringArray");
+
+    assert!(
+        !col.is_null(0),
+        "RG-JEX-008-array (EC-11-025-008 / AC-008): array value at 'items' key must NOT be SQL NULL. \
+         Non-null non-string values are coerced via serde_json val.to_string()."
+    );
+    assert_eq!(
+        col.value(0),
+        "[1,2]",
+        "RG-JEX-008-array (EC-11-025-008 / AC-008): serde_json array [1,2] must coerce to \"[1,2]\" \
+         (compact JSON, no spaces). Got: {:?}",
+        col.value(0)
+    );
+}
+
+/// RG-JEX-008-object: nested JSON object value is coerced via `val.to_string()` → compact JSON string.
+///
+/// Input: `{"meta":{"k":"v"}}`, key `'meta'`
+/// Expected: the string `r#"{"k":"v"}"#` — `serde_json::Value::Object({"k":"v"}).to_string()`
+/// compact output (no spaces).
+///
+/// BC-2.11.025 EC-11-025-008 / AC-008 — ADR-066 §B1 step 7 (non-string, non-null → to_string()).
+/// Sibling of RG-JEX-008 (integer case); extends coercion coverage to nested JSON objects.
+#[tokio::test]
+async fn test_jex_rg008_object_coerced_to_string() {
+    let ctx = make_udf_ctx();
+    register_json_table(&ctx, "jex_data", Some(r#"{"meta":{"k":"v"}}"#));
+
+    let df = ctx
+        .sql("SELECT json_extract_string(raw_data, 'meta') AS extracted FROM jex_data")
+        .await
+        .expect("RG-JEX-008-object: SQL must parse and plan");
+
+    let batches = df
+        .collect()
+        .await
+        .expect("RG-JEX-008-object: UDF execution must succeed");
+
+    let col = batches[0]
+        .column(0)
+        .as_any()
+        .downcast_ref::<StringArray>()
+        .expect("RG-JEX-008-object: result column must be Utf8 StringArray");
+
+    assert!(
+        !col.is_null(0),
+        "RG-JEX-008-object (EC-11-025-008 / AC-008): object value at 'meta' key must NOT be SQL NULL. \
+         Non-null non-string values are coerced via serde_json val.to_string()."
+    );
+    assert_eq!(
+        col.value(0),
+        r#"{"k":"v"}"#,
+        "RG-JEX-008-object (EC-11-025-008 / AC-008): serde_json nested object must coerce to \
+         compact JSON string {{\"k\":\"v\"}} (no spaces). Got: {:?}",
         col.value(0)
     );
 }
