@@ -2883,9 +2883,13 @@ const JSON_EXTRACT_MAX_KEY_BYTES: usize = 256;
 ///
 /// # Gate ordering
 ///
-/// MUST fire AFTER the E-QUERY-037/038/039/041/042/043 gates and BEFORE `ctx.sql()`
-/// (DataFusion plan + execution). This ordering is enforced by the caller
-/// (materialization pipeline) and verified by RG-JEX-006 (AC-006; SAP-3 reachability).
+/// Fires AFTER the plan-time gates E-QUERY-037 (table not found), E-QUERY-038 (column
+/// not found), and E-QUERY-039 (enrich UDF not found), and BEFORE `ctx.sql()` (DataFusion
+/// plan + execution). Temporal gates E-QUERY-041 (bad literal format) and E-QUERY-042
+/// (type mismatch) run in-pipeline per ADR-052 §D4 (inside `run_materialization_pipeline`,
+/// after the plan-time gate sequence) — they are not pre-execution plan-gate peers of
+/// E-QUERY-045. This ordering is enforced by the caller and verified by RG-JEX-006
+/// (AC-006; SAP-3 reachability). ADR-066 §B3.
 ///
 /// # SAP-3 reachability
 ///
@@ -3039,8 +3043,15 @@ fn check_jex_in_expr(expr: &crate::ast::Expr) -> Result<(), PrismError> {
         | Expr::In { .. }
         | Expr::Star
         | Expr::Now
-        | Expr::Interval(_)
-        | Expr::TimestampArithmetic { .. } => Ok(()),
+        | Expr::Interval(_) => Ok(()),
+        // Defense-in-depth: recurse into `base` even though the grammar constrains `base`
+        // to `Expr::Now` (see `build_temporal_rhs_parser`). If a future grammar extension
+        // or synthetic-AST construction places a `json_extract_string` call in the `base`
+        // position, the 256-byte key-length cap (CWE-400, ADR-066 §D3) — enforced here at
+        // plan time but NOT in `invoke_with_args` — would otherwise be bypassed.
+        // SAP-3: grammar-non-reachable position; see unit test
+        // `test_jex_timestamp_arithmetic_base_rejected_defense_in_depth`.
+        Expr::TimestampArithmetic { base, .. } => check_jex_in_expr(base),
     }
 }
 
@@ -17308,6 +17319,98 @@ mod sanitize_ordering_did_you_mean_tests {
             "F-PQLFN-PR14-OBS-001 (b): infusion must be 'nvdcvs' (sanitize is no-op for ASCII). \
              Got: {:?}",
             details.infusion
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// E-QUERY-045 walk completeness — defense-in-depth unit tests (LOW-1 fix)
+// ---------------------------------------------------------------------------
+//
+// SAP-3 defense-in-depth: these tests construct synthetic AST nodes that are
+// NOT grammar-reachable from a PrismQL query string (see `build_temporal_rhs_parser`
+// — the `base` of a TimestampArithmetic node is always Expr::Now in valid PQL AST).
+// They exist purely to verify that the `check_jex_in_expr` walk descends into the
+// TimestampArithmetic base, closing the 256-byte CWE-400 bypass path for any future
+// grammar extension or synthetic-AST construction (ADR-066 §D3, LOW-1 fix).
+
+#[cfg(test)]
+mod jex_gate_walk_completeness_tests {
+    use crate::ast::{BinaryOp, Expr, FuncCall, Literal, ScalarFunc, Span};
+    use prism_core::error::PrismError;
+
+    /// Defense-in-depth: `json_extract_string` in the `base` of a
+    /// `TimestampArithmetic` node is rejected by `check_jex_in_expr`.
+    ///
+    /// The grammar never produces this shape (base is always `Expr::Now`), so
+    /// this test is intentionally synthetic-AST only — it closes the CWE-400
+    /// bypass path for future grammar extensions without a corresponding plan-gate
+    /// update. SAP-3 defense-in-depth: grammar-non-reachable position.
+    ///
+    /// LOW-1 fix for S-JSON-EXTRACT-UDF-001 LOCAL adversary pass.
+    #[test]
+    fn test_jex_timestamp_arithmetic_base_rejected_defense_in_depth() {
+        // Construct: TimestampArithmetic { base: json_extract_string(row, col), .. }
+        // — a shape that cannot be produced by the PrismQL parser but could arise
+        // from synthetic AST construction or a future grammar change.
+        let jex_in_base = Expr::TimestampArithmetic {
+            base: Box::new(Expr::FuncCall(FuncCall::Scalar {
+                func: ScalarFunc::JsonExtractString,
+                args: vec![
+                    Expr::Field(crate::ast::FieldPath::new(vec!["row".to_string()])),
+                    // Non-literal key — triggers E-QUERY-045(a) NonLiteralKey
+                    Expr::Field(crate::ast::FieldPath::new(vec!["col".to_string()])),
+                ],
+                span: Span::ZERO,
+            })),
+            op: BinaryOp::Add,
+            offset: chrono::Duration::days(1),
+        };
+
+        let result = super::check_jex_in_expr(&jex_in_base);
+
+        assert!(
+            matches!(result, Err(PrismError::JsonExtractNonLiteralKey)),
+            "LOW-1 (defense-in-depth): json_extract_string with non-literal key inside \
+             TimestampArithmetic.base must be rejected by check_jex_in_expr. \
+             Got: {result:?}"
+        );
+    }
+
+    /// Defense-in-depth variant: literal key too long in `TimestampArithmetic` base
+    /// triggers E-QUERY-045(b) rather than silently passing the 256-byte cap.
+    ///
+    /// SAP-3 defense-in-depth: grammar-non-reachable position (same rationale as above).
+    #[test]
+    fn test_jex_timestamp_arithmetic_base_key_too_long_defense_in_depth() {
+        let long_key = "k".repeat(257); // 257 bytes — exceeds the 256-byte cap
+
+        let jex_in_base = Expr::TimestampArithmetic {
+            base: Box::new(Expr::FuncCall(FuncCall::Scalar {
+                func: ScalarFunc::JsonExtractString,
+                args: vec![
+                    Expr::Field(crate::ast::FieldPath::new(vec!["row".to_string()])),
+                    Expr::Literal(Literal::String(long_key.clone())),
+                ],
+                span: Span::ZERO,
+            })),
+            op: BinaryOp::Add,
+            offset: chrono::Duration::days(1),
+        };
+
+        let result = super::check_jex_in_expr(&jex_in_base);
+
+        assert!(
+            matches!(
+                result,
+                Err(PrismError::JsonExtractKeyTooLong {
+                    key_len: 257,
+                    max_len: 256
+                })
+            ),
+            "LOW-1 (defense-in-depth): json_extract_string with 257-byte key inside \
+             TimestampArithmetic.base must return JsonExtractKeyTooLong(257, 256). \
+             Got: {result:?}"
         );
     }
 }
