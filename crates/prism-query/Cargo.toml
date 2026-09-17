@@ -87,10 +87,6 @@ ulid = { version = "1", features = ["serde"] }
 strsim = "0.11"
 
 [dev-dependencies]
-# OBS-2 fix: wire-shape null-not-absent assertions via the production arrow_json serializer.
-# Matches arrow-json version used by prism-mcp (arrow-json 58.2.0 in lockfile). Ensures
-# contains_key assertions on serialized JSON are genuinely failable when explicit_nulls=false.
-arrow-json = "58"
 # S-2.08 — isolation tests: LruCache mirrors prism-dtu-crowdstrike session_registry (dev-only)
 lru = "0.18"
 tempfile = "3"
