@@ -5136,6 +5136,7 @@ dependencies = [
  "arc-swap",
  "ariadne",
  "arrow",
+ "arrow-json",
  "async-trait",
  "bincode",
  "chrono",

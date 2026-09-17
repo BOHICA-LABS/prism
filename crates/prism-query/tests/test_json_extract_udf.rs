@@ -69,6 +69,7 @@ use std::sync::Arc;
 use arrow::array::{Array, StringArray};
 use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
+use arrow_json;
 use async_trait::async_trait;
 use datafusion::datasource::MemTable;
 use datafusion::execution::context::SessionContext;
@@ -978,44 +979,64 @@ async fn test_jex_rg011_pipe_mode_end_to_end_executes() {
     );
 
     // Wire-shape assertion (BC-2.11.001 EC-11-079 null-not-absent / SID-2):
-    // Serialize rows 1 and 2 to JSON; null cells must appear as JSON `null`, not absent.
-    // Uses serde_json since arrow-json is not a dep of prism-query.
-    let wire_row1 = serde_json::json!({
-        "extracted": if extracted_col.is_null(1) {
-            serde_json::Value::Null
-        } else {
-            serde_json::Value::String(extracted_col.value(1).to_string())
-        }
-    });
+    // Serialize the full result batch through the REAL production serializer —
+    // arrow_json::writer::WriterBuilder::new().with_explicit_nulls(true) —
+    // which is the exact path prism-mcp server.rs uses for every query response.
+    //
+    // GENUINELY FAILABLE: arrow_json::WriterBuilder::new() uses explicit_nulls=false
+    // by DEFAULT, which OMITS null-valued keys entirely from the serialized row object
+    // (producing `{}` instead of `{"extracted":null}`). The contains_key assertion
+    // below FAILS under that default, catching the historical [C3]/[H20] defect class
+    // (live-audit 2026-07-13, CLAUDE.md wire-shape discipline). The prior hand-built
+    // serde_json::json!({..if is_null..}) form was tautological — it constructed the
+    // assertion target from the same is_null check being asserted on (OBS-2).
+    let mut wire_buf: Vec<u8> = Vec::new();
+    let mut wire_writer = arrow_json::writer::WriterBuilder::new()
+        .with_explicit_nulls(true)
+        .build::<_, arrow_json::writer::JsonArray>(&mut wire_buf);
+    wire_writer
+        .write(batch)
+        .expect("RG-JEX-011 wire: arrow_json write must not fail");
+    wire_writer
+        .finish()
+        .expect("RG-JEX-011 wire: arrow_json finish must not fail");
+    let wire_rows: Vec<serde_json::Value> = serde_json::from_slice(&wire_buf)
+        .expect("RG-JEX-011 wire: arrow_json output must parse as JSON array of row objects");
+
+    // Row 1: JSON null at 'severity' key → SQL NULL → must serialize as JSON null, NOT absent.
     assert!(
-        wire_row1["extracted"].is_null(),
-        "RG-JEX-011 wire-shape (EC-11-079 null-not-absent): row 1 (JSON null at key) must \
-         serialize as JSON null. Got: {:?}",
-        wire_row1["extracted"]
+        wire_rows[1]
+            .as_object()
+            .expect("RG-JEX-011 wire: row 1 must be a JSON object")
+            .contains_key("extracted"),
+        "RG-JEX-011 wire-shape (EC-11-079 null-not-absent): row 1 'extracted' key must be \
+         PRESENT in the serialized wire output. This assertion FAILS when WriterBuilder uses \
+         explicit_nulls=false (the arrow_json default) — the defect that caused [C3]/[H20] \
+         in the live-audit. Got wire row 1: {:?}",
+        wire_rows[1]
     );
     assert!(
-        wire_row1.as_object().unwrap().contains_key("extracted"),
-        "RG-JEX-011 wire-shape: row 1 'extracted' key must be PRESENT in wire output \
-         (null-not-absent). A missing key would fail EC-11-079."
+        wire_rows[1]["extracted"].is_null(),
+        "RG-JEX-011 wire-shape (EC-11-079): row 1 (JSON null at 'severity') must serialize \
+         as JSON null, not as the string \"null\" or any other value. Got: {:?}",
+        wire_rows[1]["extracted"]
     );
 
-    let wire_row2 = serde_json::json!({
-        "extracted": if extracted_col.is_null(2) {
-            serde_json::Value::Null
-        } else {
-            serde_json::Value::String(extracted_col.value(2).to_string())
-        }
-    });
+    // Row 2: 'severity' key absent in source JSON → SQL NULL → must serialize as JSON null, NOT absent.
     assert!(
-        wire_row2["extracted"].is_null(),
-        "RG-JEX-011 wire-shape (EC-11-079 null-not-absent): row 2 (absent key) must \
-         serialize as JSON null. Got: {:?}",
-        wire_row2["extracted"]
+        wire_rows[2]
+            .as_object()
+            .expect("RG-JEX-011 wire: row 2 must be a JSON object")
+            .contains_key("extracted"),
+        "RG-JEX-011 wire-shape (EC-11-079 null-not-absent): row 2 'extracted' key must be \
+         PRESENT in the serialized wire output (null-not-absent). Got wire row 2: {:?}",
+        wire_rows[2]
     );
     assert!(
-        wire_row2.as_object().unwrap().contains_key("extracted"),
-        "RG-JEX-011 wire-shape: row 2 'extracted' key must be PRESENT in wire output \
-         (null-not-absent)."
+        wire_rows[2]["extracted"].is_null(),
+        "RG-JEX-011 wire-shape (EC-11-079): row 2 (absent 'severity' key → SQL NULL) must \
+         serialize as JSON null. Got: {:?}",
+        wire_rows[2]["extracted"]
     );
 }
 
@@ -1085,20 +1106,36 @@ async fn test_jex_f4_non_object_arm_engine_execute() {
         if col.is_null(0) { "null" } else { col.value(0) }
     );
 
-    // Wire-shape null-not-absent (BC-2.11.001 EC-11-079).
-    let wire = serde_json::json!({
-        "extracted": if col.is_null(0) { serde_json::Value::Null } else {
-            serde_json::Value::String(col.value(0).to_string())
-        }
-    });
+    // Wire-shape null-not-absent (BC-2.11.001 EC-11-079):
+    // Serialize through the real production arrow_json path (prism-mcp server.rs).
+    // GENUINELY FAILABLE: WriterBuilder::new() without .with_explicit_nulls(true)
+    // (the arrow_json default) omits null keys, causing contains_key to return false.
+    let mut wire_buf: Vec<u8> = Vec::new();
+    let mut wire_writer = arrow_json::writer::WriterBuilder::new()
+        .with_explicit_nulls(true)
+        .build::<_, arrow_json::writer::JsonArray>(&mut wire_buf);
+    wire_writer
+        .write(batch)
+        .expect("F-4-A wire: arrow_json write must not fail");
+    wire_writer
+        .finish()
+        .expect("F-4-A wire: arrow_json finish must not fail");
+    let wire_rows: Vec<serde_json::Value> = serde_json::from_slice(&wire_buf)
+        .expect("F-4-A wire: arrow_json output must parse as JSON array");
     assert!(
-        wire["extracted"].is_null(),
-        "F-4-A wire-shape (EC-11-079): non-object arm must serialize as JSON null. Got: {:?}",
-        wire["extracted"]
+        wire_rows[0]
+            .as_object()
+            .expect("F-4-A wire: row must be a JSON object")
+            .contains_key("extracted"),
+        "F-4-A wire-shape (EC-11-079 null-not-absent): 'extracted' key must be PRESENT \
+         in the serialized wire output. Fails when WriterBuilder uses explicit_nulls=false \
+         (arrow_json default). Got wire row: {:?}",
+        wire_rows[0]
     );
     assert!(
-        wire.as_object().unwrap().contains_key("extracted"),
-        "F-4-A wire-shape: 'extracted' key must be PRESENT (null-not-absent)."
+        wire_rows[0]["extracted"].is_null(),
+        "F-4-A wire-shape (EC-11-079): non-object arm must serialize as JSON null. Got: {:?}",
+        wire_rows[0]["extracted"]
     );
 }
 
@@ -1225,20 +1262,36 @@ async fn test_jex_f4_parse_fail_arm_engine_execute() {
         if col.is_null(0) { "null" } else { col.value(0) }
     );
 
-    // Wire-shape null-not-absent (BC-2.11.001 EC-11-079).
-    let wire = serde_json::json!({
-        "extracted": if col.is_null(0) { serde_json::Value::Null } else {
-            serde_json::Value::String(col.value(0).to_string())
-        }
-    });
+    // Wire-shape null-not-absent (BC-2.11.001 EC-11-079):
+    // Serialize through the real production arrow_json path (prism-mcp server.rs).
+    // GENUINELY FAILABLE: WriterBuilder::new() without .with_explicit_nulls(true)
+    // (the arrow_json default) omits null keys, causing contains_key to return false.
+    let mut wire_buf: Vec<u8> = Vec::new();
+    let mut wire_writer = arrow_json::writer::WriterBuilder::new()
+        .with_explicit_nulls(true)
+        .build::<_, arrow_json::writer::JsonArray>(&mut wire_buf);
+    wire_writer
+        .write(batch)
+        .expect("F-4-C wire: arrow_json write must not fail");
+    wire_writer
+        .finish()
+        .expect("F-4-C wire: arrow_json finish must not fail");
+    let wire_rows: Vec<serde_json::Value> = serde_json::from_slice(&wire_buf)
+        .expect("F-4-C wire: arrow_json output must parse as JSON array");
     assert!(
-        wire["extracted"].is_null(),
-        "F-4-C wire-shape (EC-11-079): parse-failure arm must serialize as JSON null. Got: {:?}",
-        wire["extracted"]
+        wire_rows[0]
+            .as_object()
+            .expect("F-4-C wire: row must be a JSON object")
+            .contains_key("extracted"),
+        "F-4-C wire-shape (EC-11-079 null-not-absent): 'extracted' key must be PRESENT \
+         in the serialized wire output. Fails when WriterBuilder uses explicit_nulls=false \
+         (arrow_json default). Got wire row: {:?}",
+        wire_rows[0]
     );
     assert!(
-        wire.as_object().unwrap().contains_key("extracted"),
-        "F-4-C wire-shape: 'extracted' key must be PRESENT (null-not-absent)."
+        wire_rows[0]["extracted"].is_null(),
+        "F-4-C wire-shape (EC-11-079): parse-failure arm must serialize as JSON null. Got: {:?}",
+        wire_rows[0]["extracted"]
     );
 }
 
