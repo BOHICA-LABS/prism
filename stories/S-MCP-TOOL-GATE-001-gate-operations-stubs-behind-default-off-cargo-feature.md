@@ -4,7 +4,7 @@ story_id: S-MCP-TOOL-GATE-001
 title: "Gate 40 operations stubs behind default-off Cargo feature to eliminate -32003 catalog pollution"
 wave: 1
 epic_id: E-BETA3-REMEDIATION
-version: "1.0"
+version: "1.1"
 status: draft
 producer: story-writer
 phase: 3
@@ -35,9 +35,9 @@ blocks:
 risk: LOW
 # Risk justification:
 #   LOW — blast radius is prism-mcp only; no cross-crate API changes; no struct changes;
-#   no new public types; NOT_YET_AVAILABLE_TOOLS is compile-time const only. The single
-#   unknown is rmcp #[tool_router] proc-macro behavior under #[cfg] (Spike Task T-S01
-#   addresses this before any tests are written).
+#   no new public types; NOT_YET_AVAILABLE_TOOLS is compile-time const only. The gating
+#   mechanism (two independent `#[tool_router]` blocks + combiner fn per T-C01) is
+#   ratified per architect decision D-1110; T-S01 confirms the approach compiles cleanly.
 behavioral_contracts:
   - BC-2.10.017
   - BC-2.10.011
@@ -158,17 +158,19 @@ field value, not only on the Rust slice length.
 (traces to BC-2.10.011 amended §Postconditions: `not_registered_tools` binding
 `NOT_YET_AVAILABLE_TOOLS` becomes &[] when `operations` feature absent)
 
-### AC-003 — Invoking a previously-stubbed operations tool returns MCP `-32601`, NOT `-32003`, when `operations` feature absent
+### AC-003 — Invoking a previously-stubbed operations tool returns MCP `-32602`, NOT `-32003`, when `operations` feature absent
 
 When compiled without the `operations` feature, calling `tools/call` with a previously-stubbed
 operations tool name (e.g., `get_diagnostics`, `create_schedule`, or any of the 40 names that
-were in `NOT_YET_AVAILABLE_TOOLS`) returns MCP error code `-32601` (MethodNotFound —
-standard MCP "unknown tool" response). It MUST NOT return `-32003` (which signals "tool
-exists but is not yet available").
+were in `NOT_YET_AVAILABLE_TOOLS`) returns MCP error code `-32602` (InvalidParams, message
+`tool not found`). It MUST NOT return `-32003` (which signals "tool exists but is not yet
+available").
 
 The distinction is semantically significant: `-32003` tells the agent "this tool will work
-eventually"; `-32601` tells the agent "this tool does not exist". The correct signal when the
-`operations` feature is absent is `-32601` (the tool was never registered).
+eventually"; `-32602` (InvalidParams, `tool not found`) tells the agent "this tool does not
+exist". The correct signal when the `operations` feature is absent is `-32602` (the tool was
+never registered; rmcp 1.7.0 returns `-32602` with message `"tool not found"` for unregistered-tool
+invocations — confirmed in rmcp source and `error_mapping.rs:86-91`).
 
 (traces to BC-2.10.017 amended §Invariants: when operations feature absent, stub tools are not
 registered; an unregistered tool invocation returns the MCP protocol-level unknown-tool error,
@@ -196,7 +198,7 @@ The existing inline test `test_MCP_01_partition_positive_coverage` currently ass
 absent, `get_diagnostics` is NOT registered and will return a different error. The test must
 be updated (gated with `#[cfg(feature = "operations")]` or its assertions updated) so it
 reflects the correct behavior in both worlds:
-- `#[cfg(not(feature = "operations"))]`: calling `get_diagnostics` returns a non-`-32003` error (unknown tool)
+- `#[cfg(not(feature = "operations"))]`: calling `get_diagnostics` returns `err.code == -32602` (InvalidParams, message `tool not found`; NOT `-32003`, NOT `-32601`)
 - `#[cfg(feature = "operations")]`: calling `get_diagnostics` still returns `-32003` (fast-fail preserved)
 
 This prevents the test from becoming a false negative (paper-fix) after the feature gate lands.
@@ -229,7 +231,7 @@ is ENABLED; the test must verify the correct code in each compilation context)
 | EC-002 | `operations` feature enabled (explicit opt-in) | NOT_YET_AVAILABLE_TOOLS = full 40-name slice; all 40 stubs return -32003; behavior identical to current pre-fix state |
 | EC-003 | `list_capabilities(null)` (cross-client summary mode) with `operations` feature absent | Response carries `not_registered_tools: []` in both single-client and cross-client modes |
 | EC-004 | `test_MCP_01_capability_classification_partitions_tool_catalog` after feature gate lands | Test continues to pass because `production_tool_catalog()` drops gated methods and NOT_YET_AVAILABLE_TOOLS = &[]; catalog = LIVE_TOOLS; union = LIVE_TOOLS; no phantom, no unclassified |
-| EC-005 | rmcp `#[tool_router]` proc-macro + `#[cfg(feature = "operations")]` on a method | Gated method is absent from `production_tool_catalog()` when feature absent (verified by Spike T-S01 before RG tests are written) |
+| EC-005 | rmcp two-router-block + combiner under `#[cfg(feature = "operations")]` | Gated ops block absent from `production_tool_catalog()` when feature absent; confirmed by T-S01 compile-check using the ratified two-router-block + combiner approach (T-C01(a)-(d)) |
 
 ---
 
@@ -254,18 +256,21 @@ is ENABLED; the test must verify the correct code in each compilation context)
 
 ### Spike task (BEFORE writing any Red Gate tests)
 
-- [ ] **T-S01** — rmcp `#[cfg]` compile-spike: verify that `rmcp`'s `#[tool_router]`
-  proc-macro and method-dispatch machinery correctly DROPS methods when
-  `#[cfg(feature = "operations")]` is absent. Write a minimal test binary in
-  `crates/prism-mcp/tests/` (or a small inline test in server.rs `#[cfg(test)] mod tests`)
-  that:
-  1. Builds the test WITHOUT the `operations` feature (the default)
-  2. Calls `PrismServer::production_tool_catalog()` and asserts `len() == 14`
-  3. Run: `cargo test -p prism-mcp test_spike_tool_catalog_count_without_operations_feature`
+- [ ] **T-S01** — rmcp two-router-block compile-confirmation: verify that the ratified
+  gating mechanism (T-C01: two separate `#[tool_router]` impl blocks + combiner `fn
+  tool_router()`) compiles cleanly for BOTH the default (no-operations) and
+  `--features operations` configurations. This is a **confirmation step, not an open
+  question** — the architect decision (D-1110) has already ratified the two-router-block +
+  combiner approach as the correct rmcp 1.7.0 pattern (per-method `#[cfg]` inside a single
+  `#[tool_router]` block does NOT compile; rmcp-macros 1.7.0 emits unguarded `.with_route(...)`
+  → E0599).
+  1. After T-C01 implementation: run `cargo build -p prism-mcp` (no features — default)
+  2. Run `cargo build -p prism-mcp --features operations`
+  3. Run `cargo test -p prism-mcp test_spike_tool_catalog_count_without_operations_feature`
+     (asserts `PrismServer::production_tool_catalog().len() == 14`)
 
-  If the proc-macro does NOT correctly drop gated methods, stop and escalate to architect —
-  the implementation design may need an alternative gating mechanism. Do NOT proceed to
-  the Red Gate tests until the spike passes.
+  If either build fails, stop and report to orchestrator. Do NOT proceed to the Red Gate
+  tests until both builds pass cleanly (zero E0599 errors).
 
 ### Red Gate tests (to be written by test-writer BEFORE implementation)
 
@@ -285,10 +290,11 @@ Green Gate phase.
   on serialized JSON bytes. Currently FAILS (returns 40-element array).
   AC-002.
 
-- [ ] **RG-GATE-003**: `test_ops_tool_invocation_returns_method_not_found_without_operations_feature`
+- [ ] **RG-GATE-003**: `test_ops_tool_invocation_returns_invalid_params_without_operations_feature`
   Assert: Calling `tools/call` with `method = "get_diagnostics"` returns an MCP error response
-  with code != -32003. The specific expected behavior is "unknown tool" (rmcp returns -32601 or
-  equivalent for an unregistered tool). Currently FAILS (returns -32003 from not_yet_available_msg).
+  where `err.code == -32602` (InvalidParams, message `"tool not found"`). MUST NOT return
+  `-32003` (fast-fail) and MUST NOT return `-32601`. Wire-shape: assert the exact code and
+  message on the serialized response (SID-2). Currently FAILS (returns -32003 from not_yet_available_msg).
   AC-003.
 
 - [ ] **RG-GATE-004**: `test_live_tools_all_present_without_operations_feature`
@@ -340,12 +346,32 @@ entries; tests fail on count assertions.
 
 #### Phase C — Gate stub handler methods and operations module
 
-- [ ] **T-C01**: Add `#[cfg(feature = "operations")]` to the `impl PrismServer` block
-  containing all 40 operations stub handlers (the block beginning at the `// ─── Operations
-  tools (NotImplemented — prism-operations not merged) ───` comment in `server.rs`).
-  Verify the `not_yet_available_msg` helper function is also gated or becomes dead-code-free.
-  If `not_yet_available_msg` is used by other non-operations handlers, gate ONLY the
-  operations handler block; leave the helper ungated.
+- [ ] **T-C01**: Ratified gating mechanism — two-router-block + combiner. All changes are
+  within `crates/prism-mcp/src/server.rs`; no new files required:
+  - **(a)** Rename the existing `#[tool_router]` on the `impl PrismServer` block that contains
+    all 14 LIVE_TOOLS `#[tool]` handlers to `#[tool_router(router = live_tool_router)]`.
+    Keep all 14 LIVE_TOOLS `#[tool]` methods in this block unchanged. This generates
+    `PrismServer::live_tool_router()`.
+  - **(b)** Create a new `impl PrismServer` block containing all 40 ops `#[tool]` methods,
+    annotated: `#[cfg(feature = "operations")] #[tool_router(router = operations_tool_router)]`.
+    Move all 40 ops `#[tool]` methods into it. This generates `operations_tool_router()` only
+    when the `operations` feature is enabled.
+  - **(c)** Add a plain (non-macro) combiner in a separate `impl PrismServer` block:
+    ```rust
+    fn tool_router() -> ToolRouter<Self> {
+        let base = Self::live_tool_router();
+        #[cfg(feature = "operations")]
+        let base = base + Self::operations_tool_router();
+        base
+    }
+    ```
+    This combiner is used by `#[tool_handler]` and `production_tool_catalog()`.
+    `ToolRouter: Add` merge is the rmcp 1.7 composition API.
+  - **(d)** Relocate the `not_yet_available_msg` helper into the ops `impl` block OR add
+    `#[cfg(feature = "operations")]` to it to avoid a dead-code warning when the feature is
+    absent.
+  Verify: `cargo build -p prism-mcp` (default, no features) AND
+  `cargo build -p prism-mcp --features operations` both compile with zero E0599 errors.
 
 - [ ] **T-C02**: In `crates/prism-mcp/src/tools/operations.rs`, add `#[cfg(feature = "operations")]`
   at the top of the file (or to the module declaration in `mod.rs` / `lib.rs` where it is
@@ -355,10 +381,9 @@ entries; tests fail on count assertions.
 
 - [ ] **T-D01**: Update `test_MCP_01_partition_positive_coverage` (inline `#[cfg(test)] mod tests`
   in `server.rs`):
-  - Wrap the `get_diagnostics` → -32003 assertion in `#[cfg(feature = "operations")]`
+  - Wrap the `get_diagnostics` → `-32003` assertion in `#[cfg(feature = "operations")]`
   - Add a `#[cfg(not(feature = "operations"))]` arm that asserts calling `get_diagnostics`
-    does NOT return -32003 (asserts the error code is not -32003 or the call returns
-    "unknown tool")
+    returns `err.code == -32602` with message `"tool not found"` (NOT `-32003`, NOT `-32601`)
   - This test update enforces AC-005.
 
 - [ ] **T-D02**: Verify `test_MCP_01_capability_classification_partitions_tool_catalog` still
@@ -409,11 +434,12 @@ N/A — first story in beta.3 Wave 1. No predecessor stories in this epic have s
    method is a P0 defect. Verified by AC-004 / RG-GATE-004 and the existing
    `test_MCP_01_capability_classification_partitions_tool_catalog` partition test.
 
-2. **Spike before Red Gate.** Per delta-analysis §Issue 1 rmcp spike requirement and
-   Spike Task T-S01: do NOT write RG tests until T-S01 confirms that `#[cfg]` method
-   gating is correctly handled by the `#[tool_router]` proc-macro. If the proc-macro
-   requires a different mechanism (e.g., conditional impl block, conditional trait impl),
-   the story design must be updated before testing begins.
+2. **Compile-confirm before Red Gate.** The gating mechanism is ratified (T-C01: two
+   independent `#[tool_router]` blocks + combiner `fn tool_router()`; D-1110 architect
+   decision). T-S01 is a compile-confirmation step: run both the default build and the
+   `--features operations` build before writing RG tests. If either build fails with E0599
+   or other errors, stop and report to orchestrator. The per-method `#[cfg]`-inside-one-
+   `#[tool_router]`-block approach is NOT the ratified design and MUST NOT be used.
 
 3. **Three sync points after any router change (BC-2.10.017 invariant).**
    Whenever `build_tool_router` registration is changed, all three must stay in sync:
@@ -437,7 +463,7 @@ All versions pinned in workspace `Cargo.toml` — use workspace pins, not standa
 
 | Dependency | Version | Note |
 |-----------|---------|------|
-| `rmcp` | workspace pin | `#[tool_router]` proc-macro must support `#[cfg]`-gated methods (verify via T-S01 spike) |
+| `rmcp` | workspace pin | Uses two-router-block + combiner pattern (T-C01); per-method `#[cfg]` inside a single `#[tool_router]` block is NOT supported (emits E0599). T-S01 confirms both builds compile cleanly. |
 | `schemars` | workspace pin | No change required |
 | Rust toolchain | per `rust-toolchain.toml` | Stable channel; edition 2024 |
 
@@ -458,7 +484,7 @@ No new dependencies are introduced by this story.
 | File | Change |
 |------|--------|
 | `crates/prism-mcp/Cargo.toml` | Add `[features]` section with `operations = []` |
-| `crates/prism-mcp/src/server.rs` | Gate `NOT_YET_AVAILABLE_TOOLS` const (two `#[cfg]` variants); add `#[cfg(feature = "operations")]` to the operations impl block (~40 stub handler methods); update `test_MCP_01_partition_positive_coverage` (T-D01); update `not_yet_available_msg` placement if needed |
+| `crates/prism-mcp/src/server.rs` | Gate `NOT_YET_AVAILABLE_TOOLS` const (two `#[cfg]` variants); rename existing `#[tool_router]` → `#[tool_router(router = live_tool_router)]`; create new `#[cfg(feature = "operations")] #[tool_router(router = operations_tool_router)]` impl block with all 40 ops `#[tool]` methods; add plain combiner `fn tool_router()`; relocate/gate `not_yet_available_msg`; update `test_MCP_01_partition_positive_coverage` (T-D01) |
 | `crates/prism-mcp/src/tools/operations.rs` | Add `#[cfg(feature = "operations")]` to module |
 | `CHANGELOG.md` | Add [Unreleased] > Fixed entry (T-F01) |
 
@@ -481,3 +507,12 @@ touchpoint as the remove-uncertainty pass). Holdout scenarios should exercise:
 - A previously-stubbed tool invocation returning the correct error code
 
 Holdout scenarios are stored in the holdout directory that test-writer/implementer never read.
+
+---
+
+## History
+
+| Version | Date | Change |
+|---------|------|--------|
+| 1.1 | 2026-09-16 | U-1: Corrected error code from `-32601` (MethodNotFound) to `-32602` (InvalidParams, message `tool not found`) per rmcp 1.7.0 source + `error_mapping.rs:86-91` confirmation (D-1110 uncertainty scan). Applied to AC-003, RG-GATE-003, T-D01, AC-005. U-2/U-3: Replaced T-C01 per-method-`#[cfg]`-inside-one-`#[tool_router]`-block approach (fails E0599 in rmcp-macros 1.7.0) with ratified two-router-block + combiner pattern per architect design decision D-1110. T-S01 updated from open-question spike to compile-confirmation step. Architecture Compliance Rule 2 and risk comment updated to reflect ratified mechanism. |
+| 1.0 | 2026-09-15 | Initial story decomposition |

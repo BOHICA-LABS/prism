@@ -1,10 +1,11 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "10.21"
+version: "10.22"
 status: draft
 producer: state-manager
 timestamp: 2026-09-16T10:00:00Z
+# NOTE: D-2543 — BC-INDEX v10.21→v10.22: F3 W1-CORRECTION + W2-REGISTRATION burst — BC-2.10.017 row cell synced v1.2→v1.3 (unregistered-tool error −32601→−32602 per rmcp 1.7.0 §error_mapping.rs; D-1110 scan + architect D-1110 decision). draft_contracts 5 / active_contracts 260 / total_contracts 278 ALL UNCHANGED.
 # NOTE: D-2542 — BC-INDEX v10.20→v10.21: F3 W1 S-MCP-TOOL-GATE-001 amendments — feature-gate absent-state postconditions. BC-2.10.017 row cell synced v1.1→v1.2 (absent `operations` feature → NOT_YET_AVAILABLE_TOOLS empty slice, -32601 not -32003, 14 LIVE_TOOLS unconditionally registered). BC-2.10.011 row cell synced active→active v1.7 (not_registered_tools empty-slice semantics when `operations` feature absent). draft_contracts 5 / active_contracts 260 / total_contracts 278 ALL UNCHANGED.
 # NOTE: pass-12-fix-burst — BC-INDEX v10.19→v10.20: pass-12 fix-burst — F-B0P12-001 HIGH (POL-37/POL-29-8f): BC-2.11.025 and BC-2.11.001 Full-BC table row cells synced to on-disk frontmatter (draft v1.6→v1.8; active v1.36→v1.37); the regate9/10/11 bursts bumped the index version and wrote pin-bump NOTEs but never edited the row cells. Counts UNCHANGED: draft_contracts 5 / active_contracts 260 / total_contracts 278.
 # NOTE: beta3-f13-regate11-spec — BC-INDEX v10.18→v10.19: Re-gate pass-11 spec fixes (product-owner 2026-09-16). BC-2.11.025 pin v1.7→v1.8 (F-1 MED mis-anchor: purity §B2→§B1; Volatility::Immutable gets §E cite. Consistency F-1 LOW: removed leading "null" from NOT-Kani list; Arrow/SQL-NULL case now exclusively in Kani-proven item 2). BC-2.11.001 pin v1.36→v1.37 (F-2 LOW: frontmatter modified: enumerated version-history comment replaced with version-agnostic one-liner). draft_contracts 5 / active_contracts 260 / total_contracts 278 ALL UNCHANGED.
@@ -308,7 +309,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.10.011 | list_capabilities Meta-Tool | 10 - MCP Interface | CAP-005 | P0 | active v1.7 |
 | BC-2.10.015 | `list_capabilities` Consults `OrgRegistry` for `client_registered` Check | 10 - MCP Interface | CAP-005 | P0 | active v1.2 |
 | BC-2.10.016 | MCP Prompts Fast-Return Guarantee — No Indefinite Hang | 10 - MCP Interface | CAP-034 | P0 | active v1.2 |
-| BC-2.10.017 | Not-Yet-Available Tools Fast-Fail — Audit Channel Non-Blocking | 10 - MCP Interface | CAP-034 | P0 | active v1.2 |
+| BC-2.10.017 | Not-Yet-Available Tools Fast-Fail — Audit Channel Non-Blocking | 10 - MCP Interface | CAP-034 | P0 | active v1.3 |
 | BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | 11 - Query Execution | CAP-015 | P0 | active v1.37 |
 | BC-2.11.002 | PrismQL Filter Mode Parsing | 11 - Query Execution | CAP-015 | P0 | active v1.6 |
 | BC-2.11.003 | PrismQL SQL Mode Parsing | 11 - Query Execution | CAP-015 | P0 | active v1.13 |
