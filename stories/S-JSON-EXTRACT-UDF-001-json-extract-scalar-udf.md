@@ -3,7 +3,7 @@ document_type: story
 story_id: S-JSON-EXTRACT-UDF-001
 title: "Minimal json_extract_string ScalarUDF with Literal-Key Plan Gate (E-QUERY-045)"
 level: "L4"
-version: "1.1"
+version: "1.2"
 status: ready
 producer: story-writer
 timestamp: "2026-09-17T00:00:00Z"
@@ -84,7 +84,7 @@ modified: "2026-09-17"
 
 ## Authority
 
-**ADR-066 v1.5** (`decisions/ADR-066-json-extract-scalar-udf.md`) is the authoritative
+**ADR-066 v1.6** (`decisions/ADR-066-json-extract-scalar-udf.md`) is the authoritative
 design document for this story. Read §A (dead-path defect), §B (decision: synchronous
 serde_json + literal-key gate), §C (formal correctness contract), §D1-§D6 (scope
 boundaries), §E (DataFusion registration contract), §F (E-QUERY-045 error messages),
@@ -95,12 +95,12 @@ before implementing.
 governs the full behavioral contract. The 11 edge cases (EC-11-025-001..011) are the
 authoritative acceptance criteria and provide canonical test names for RG-JEX-001..011.
 
-**VP-162 v1.3** (`verification-properties/vp-162-json-extract-string-null-safety.md`)
+**VP-162 v1.4** (`verification-properties/vp-162-json-extract-string-null-safety.md`)
 defines the Kani proof target (`json_extract_string_impl` pure function). The Kani harness
 files live in `crates/prism-query/src/proofs/vp162_json_extract_null_safety.rs` per VP-162
 §Kani Proof Harness. The proof is dispatched in Phase 5 (formal-verify), not Phase 3.
 
-> NOTE: ADR-066 v1.5, BC-2.11.025 v1.8, and VP-162 v1.3 are FROZEN per beta3 spec-gate.
+> NOTE: ADR-066 v1.6, BC-2.11.025 v1.8, and VP-162 v1.4 are FROZEN per beta3 spec-gate.
 > These spec files MUST NOT be amended by the implementer — any spec discrepancy routes
 > to product-owner/architect via the orchestrator.
 
@@ -371,8 +371,8 @@ test — a synthetic-AST-only path for either gate is a P2 finding per SAP-3.
 |----------------|-----------------|
 | This story spec | ~6,000 |
 | BC-2.11.025 v1.8 (full contract) | ~8,000 |
-| ADR-066 v1.5 (§A–§H) | ~9,000 |
-| VP-162 v1.3 (Kani harness) | ~3,500 |
+| ADR-066 v1.6 (§A–§H) | ~9,000 |
+| VP-162 v1.4 (Kani harness) | ~3,500 |
 | `crates/prism-query/src/engine.rs` (registration + plan-gate sections) | ~4,000 |
 | `crates/prism-core/src/error.rs` (existing error variants for context) | ~2,000 |
 | `crates/prism-query/src/ast.rs` (ScalarFunc enum — relevant section) | ~1,000 |
@@ -494,7 +494,7 @@ Tasks are ordered RED-THEN-GREEN per SAC-1: test authoring precedes all implemen
   ```
 
 - [ ] **T-16:** Create PR targeting `develop`. PR description must include:
-  - Link to ADR-066 v1.5 and BC-2.11.025 v1.8
+  - Link to ADR-066 v1.6 and BC-2.11.025 v1.8
   - Summary of 11 Red Gate tests (RG-JEX-001..011) all GREEN
   - Security review confirmation (T-14 PASS)
   - SAP-1 / SAP-3 compliance confirmation
@@ -580,6 +580,7 @@ If any of these appear, the build MUST fail (checked by `cargo tree -p prism-que
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.2 | 2026-09-17 | state-manager | D-2551 pre-TDD errata pin sync. ADR-066 v1.5→v1.6 and VP-162 v1.3→v1.4 authority pins updated in §Authority, FROZEN NOTE, Token Budget table, and T-16 PR bullet (TD-VSDD-060 sibling-site sweep). Historical changelog rows preserved verbatim. Additive/errata post-freeze; spec-gate NOT reopened. |
 | 1.1 | 2026-09-17 | story-writer | D-1110 remove-uncertainty pass. Three corrections applied in-scope: (1) Architecture Mapping `invoke_batch` → `invoke_with_args(&self, args: ScalarFunctionArgs)` — confirmed DataFusion 53.1 method via `infusion_udf.rs` `impl ScalarUDFImpl` and Context7 docs; `invoke_batch` deprecated at DataFusion 46.0, absent from workspace. (2) Library & Framework Requirements implementer obligation rewritten from uncertain "resolve X vs Y vs Z" to definitive: `invoke_with_args` + `ScalarUDF::from(impl)` factory pattern confirmed. (3) Problem Statement dead-code location annotations converted from volatile line numbers to symbol/grep anchors per TD-VSDD-091; factual error corrected (sql_parser.rs had one site at the function-name match arm, not two — the erroneous second reference was verified absent by grep). |
 | 1.0 | 2026-09-17 | story-writer | Stub → full materialization. Full AC layer (AC-001..011) traced to BC-2.11.025 v1.8 EC-11-025-001..011. Enumerated RG-JEX-001..011 list with canonical test names per ADR-066 §G + BC-2.11.025 §Edge Cases MUST anchors. Red-then-green task ordering (T-01..T-16) per SAC-1. BC-5.38.001 density check: 11/11 = 1.0. Behavioral contracts: BC-2.11.025. Verification properties: VP-162. Frozen anchor pins: ADR-066 v1.5, BC-2.11.025 v1.8, VP-162 v1.3 (confirmed from ARCH-INDEX/BC-INDEX/VP-INDEX). Security reviewer pass (T-14) mandated — agent-facing injection surface. Fast-follow depends_on reconciliation note added (S-JSON-EXTRACT-TYPED-001, S-JSON-EXTRACT-NESTED-001 stubs need updating). Forbidden dependencies section added. |
 | 0.1 | 2026-08-21 | story-writer | Initial draft stub — scope capture per OQ-002 human decision 2026-08-21; full BC/AC/RG deferred to materialization. v1-chain obligation documented. |

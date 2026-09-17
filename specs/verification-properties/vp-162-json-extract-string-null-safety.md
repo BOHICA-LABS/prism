@@ -3,7 +3,7 @@ document_type: verification-property
 level: L4
 vp_id: "VP-162"
 title: "json_extract_string_impl — Null Safety and Panic Freedom (Kani)"
-version: "1.3"
+version: "1.4"
 status: draft
 producer: architect
 phase: P0
@@ -204,7 +204,7 @@ harness in CI and triage any findings before Phase 5 freeze.
 This VP covers the **pure extraction function** (`json_extract_string_impl`) only. It does
 NOT cover:
 
-- The DataFusion `ScalarUDFImpl::invoke_batch` wrapper — this is effectful (Arrow column
+- The DataFusion `ScalarUDFImpl::invoke_with_args` wrapper — this is effectful (Arrow column
   I/O) and is covered by integration tests in S-JSON-EXTRACT-UDF-001.
 - The literal-key plan gate (ADR-066 §B3) — this runs before the pure function and is
   covered by RG-JEX-006 and RG-JEX-007 in S-JSON-EXTRACT-UDF-001.
@@ -232,6 +232,7 @@ extraction logic is safe for all possible input string values.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.4 | 2026-09-17 | architect | Errata (additive/errata post-freeze lane; no behavioral/contract/mandate change). §Coverage Scope effectful-wrapper method name corrected: `invoke_batch` → `invoke_with_args` — DataFusion 46.0 deprecated `ScalarUDFImpl::invoke_batch`; workspace is pinned to datafusion 53.1 which exposes `invoke_with_args`. Same errata class corrected in ADR-066 §E this burst. |
 | 1.3 | 2026-09-16 | architect | Re-gate pass 10 fix. Consistency F-2 (LOW): `source_invariant: null` added to frontmatter — VP-162 §Source Traceability explicitly anchors its 256-byte key-length precondition to ADR-066 §D3 (CWE-400), not to any DI-NNN workspace invariant; per VP-INDEX §Properties convention, a VP with no DI-NNN invariant must carry `source_invariant: null`. |
 | 1.2 | 2026-09-16 | architect | Re-gate pass 2 fix. F-3 (MED): §Source Traceability Invariant row corrected — DI-019 label was "null-safe extraction" (factually wrong; DI-019 = Query Security Limits: 64KB query, 10K cap, 30s timeout); relabeled to "Query Security Limits" with correct description; ADR-066 §D3 (CWE-400 key-length cap) added as explicit anchor for the 256-byte key-length precondition modeled in the Kani harness. |
 | 1.1 | 2026-09-16 | architect | Adversarial gate fixes (F4/F8/Finding-2). F8 (MED): `lifecycle_status: active` → `lifecycle_status: draft` (story S-JSON-EXTRACT-UDF-001 not yet merged); `DI-NNN` placeholder in §Source Traceability replaced with `DI-019`. Finding-2 (OBS): stale "(to be authored by product-owner for S-JSON-EXTRACT-UDF-001)" parenthetical removed from BC-2.11.025 §Source Traceability row. F4 (HIGH): Both Kani harnesses rewritten — replaced `kani::any::<&str>()` (not a stable Kani API; does not bind preconditions) with the VP-014/VP-015 bounded pattern: `kani::vec::any_vec::<u8, N>()` + `std::str::from_utf8()`. `vp162_json_extract_string_null_safety`: key bounded to 256 bytes via `any_vec::<u8, 256>()` (ADR-066 §D3 plan gate modeled structurally); column string bounded to 1024 bytes; dead `buf` and unbound `key_len`/`column_str_len` variables removed; preconditions now actually constrain the values under test. `vp162_b_none_input_is_none_output`: same Vec<u8> + from_utf8 key pattern replaces `kani::any::<&str>()`. Known-risk annotation added: serde_json allocation-panic on symbolic input; 1024-byte column bound mitigates; catch_unwind resolution strategy documented. |
