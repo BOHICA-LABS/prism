@@ -3,7 +3,7 @@ document_type: story
 story_id: S-JSON-EXTRACT-UDF-001
 title: "Minimal json_extract_string ScalarUDF with Literal-Key Plan Gate (E-QUERY-045)"
 level: "L4"
-version: "1.2"
+version: "1.3"
 status: ready
 producer: story-writer
 timestamp: "2026-09-17T00:00:00Z"
@@ -269,7 +269,10 @@ value access; callers can cast downstream.
 `json_extract_string(col, 'key')` where `col = '{not_json}'` (malformed JSON) returns SQL
 NULL. `serde_json::from_str` failure is treated as absent value. This does NOT trigger
 E-QUERY-045 — that gate fires for plan-time literal-key constraint violations only, not
-runtime parse errors. Observability: emit `tracing::warn!(event_type = "json.extract.type_mismatch", ...)` (SAP-1 obligation; BC-2.16.002 catalog row required in same commit).
+runtime parse errors. On JSON parse failure of the column value, the UDF returns SQL NULL
+silently (no emission), per BC-2.11.025 §Postconditions Parse-failure and ADR-066 §B1
+step 2. The `json_extract_string_impl` function is pure (ADR-066 §D1); per-row warn
+emissions are not possible without violating purity and would generate per-row log spam.
 
 (traces to BC-2.11.025 postcondition §Parse failure + EC-11-025-010; ADR-066 §B1 step 2)
 
@@ -350,7 +353,7 @@ test — a synthetic-AST-only path for either gate is a P2 finding per SAP-3.
 | EC-11-025-007 | Key > 256 bytes: 257-byte literal key at plan time | E-QUERY-045(b) before fan-out | AC-007 / RG-JEX-007 |
 | EC-11-025-008 | Non-string value: `'{"count":42}'` + key `'count'` | Returns `"42"` (coerced, NOT NULL) | AC-008 / RG-JEX-008 |
 | EC-11-025-009 | Dot-in-key: `'{"a.b":"lit","a":{"b":"nested"}}'` + key `'a.b'` | Returns `"lit"` (literal top-level key, NOT nested path) | AC-010 / RG-JEX-010 |
-| EC-11-025-010 | Parse failure: `'{not_json}'` + any key | Returns SQL NULL; emits `json.extract.type_mismatch` WARN | AC-009 / RG-JEX-009 |
+| EC-11-025-010 | Parse failure: `'{not_json}'` + any key | Returns SQL NULL silently (no emission); silent null-propagation per BC-2.11.025 §Postconditions Parse-failure + ADR-066 §B1 step 2 | AC-009 / RG-JEX-009 |
 | EC-11-025-011 | Pipe mode: MCP `query` tool + `json_extract_string(raw_extensions, 'severity')` | Correct wire-level extraction per SID-2 | AC-011 / RG-JEX-011 |
 
 ---
@@ -464,11 +467,12 @@ Tasks are ordered RED-THEN-GREEN per SAC-1: test authoring precedes all implemen
 
 ### Phase 4 — Observability and compliance
 
-- [ ] **T-12 (SAP-1):** If `tracing::warn!(event_type = "json.extract.type_mismatch", ...)`
-  is emitted on parse failure (AC-009 observability path), add the catalog row to
-  BC-2.16.002 §Canonical Structured Event Catalog in the SAME atomic commit as the
-  emission site (PG-LP11-001). Fields required: `event_type`, field schema, audit role,
-  recurrence policy. Omit the warn entirely rather than ship without the catalog row.
+- [ ] **T-12 (purity gate):** Confirm that `json_extract_string_impl` and
+  `JsonExtractStringUdf::invoke_with_args` contain no `tracing::*!` calls. The
+  implementation function is pure (ADR-066 §D1); per-row warn emissions are forbidden.
+  `serde_json::from_str` failure → `None` is the complete handling per AC-009 and
+  BC-2.11.025 §Postconditions Parse-failure. No event-catalog row is required or
+  permitted for parse-failure behavior in this story.
 
 - [ ] **T-13:** Run `just check` — full workspace gate GREEN (`just iter` was inner loop;
   `just check` is the pre-push canonical gate).
@@ -523,7 +527,6 @@ from implementing this story.
 | `check_json_extract_key_literal` gate fires AFTER E-QUERY-037/038/039/041/042/043, BEFORE `ctx.sql()` — never skipped for any query mode | BC-2.11.025 postcondition §Plan-time literal-key gate; ADR-066 §B3 | RG-JEX-006 (SAP-3 public surface); adversary gate-ordering check |
 | 256-byte key cap enforced at plan time (byte length of UTF-8 encoded literal key ≤ 256), NOT at runtime | ADR-066 §D3 + BC-2.11.025 §Error Cases E-QUERY-045(b) | RG-JEX-007; zero per-row overhead confirmed |
 | `json_extract_string_impl` MUST be a `pub(crate)` pure function in `json_extract_udf.rs` — no DataFusion or Arrow types in its signature | ADR-066 §B1 + VP-162 §Proof Target | VP-162 Kani harness provability; security review T-14 |
-| `tracing::*!(event_type = ...)` emissions MUST have a BC-2.16.002 catalog row in the same atomic commit | SAP-1 / PG-LP11-001 / CLAUDE.md §Conventions | Adversary SAP-1 probe on every pass |
 | `prism-query` MUST NOT gain a dependency on `prism-bin` | dependency-graph.md §Dependency Rules Rule 2 (Level 6 / Level 7 ordering) | `cargo tree -p prism-query` must show no `prism-bin` edge post-merge |
 | No `unsafe` blocks in `json_extract_udf.rs` or `plan_gates.rs` additions | CLAUDE.md §Conventions (error taxonomy + no-unwrap rule) | Security review T-14 + `just check` clippy |
 | VP-162 Kani harness file created alongside implementation (Phase 3 T-06) | VP-162 v1.3 §Kani Proof Harness | Phase 5 formal-verify dispatch; harness must compile clean under `cargo kani -p prism-query` before merge |
@@ -580,6 +583,7 @@ If any of these appear, the build MUST fail (checked by `cargo tree -p prism-que
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.3 | 2026-09-17 | story-writer | F-2 (LOCAL pass-1): AC-009 + EC-11-025-010 aligned to ratified BC-2.11.025/ADR-066 silent-null-propagation contract; type_mismatch warn/catalog obligation struck (precedence rule 1: BC supersedes on contract semantics; ADR-066 §D1 purity). T-12 rewritten as purity-gate verification. SAP-1 Architecture Compliance row removed — no emissions exist in this story. |
 | 1.2 | 2026-09-17 | state-manager | D-2551 pre-TDD errata pin sync. ADR-066 v1.5→v1.6 and VP-162 v1.3→v1.4 authority pins updated in §Authority, FROZEN NOTE, Token Budget table, and T-16 PR bullet (TD-VSDD-060 sibling-site sweep). Historical changelog rows preserved verbatim. Additive/errata post-freeze; spec-gate NOT reopened. |
 | 1.1 | 2026-09-17 | story-writer | D-1110 remove-uncertainty pass. Three corrections applied in-scope: (1) Architecture Mapping `invoke_batch` → `invoke_with_args(&self, args: ScalarFunctionArgs)` — confirmed DataFusion 53.1 method via `infusion_udf.rs` `impl ScalarUDFImpl` and Context7 docs; `invoke_batch` deprecated at DataFusion 46.0, absent from workspace. (2) Library & Framework Requirements implementer obligation rewritten from uncertain "resolve X vs Y vs Z" to definitive: `invoke_with_args` + `ScalarUDF::from(impl)` factory pattern confirmed. (3) Problem Statement dead-code location annotations converted from volatile line numbers to symbol/grep anchors per TD-VSDD-091; factual error corrected (sql_parser.rs had one site at the function-name match arm, not two — the erroneous second reference was verified absent by grep). |
 | 1.0 | 2026-09-17 | story-writer | Stub → full materialization. Full AC layer (AC-001..011) traced to BC-2.11.025 v1.8 EC-11-025-001..011. Enumerated RG-JEX-001..011 list with canonical test names per ADR-066 §G + BC-2.11.025 §Edge Cases MUST anchors. Red-then-green task ordering (T-01..T-16) per SAC-1. BC-5.38.001 density check: 11/11 = 1.0. Behavioral contracts: BC-2.11.025. Verification properties: VP-162. Frozen anchor pins: ADR-066 v1.5, BC-2.11.025 v1.8, VP-162 v1.3 (confirmed from ARCH-INDEX/BC-INDEX/VP-INDEX). Security reviewer pass (T-14) mandated — agent-facing injection surface. Fast-follow depends_on reconciliation note added (S-JSON-EXTRACT-TYPED-001, S-JSON-EXTRACT-NESTED-001 stubs need updating). Forbidden dependencies section added. |
