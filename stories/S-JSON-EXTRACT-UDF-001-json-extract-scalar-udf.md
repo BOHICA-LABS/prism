@@ -4,7 +4,7 @@ story_id: S-JSON-EXTRACT-UDF-001
 title: "Minimal json_extract_string ScalarUDF with Literal-Key Plan Gate (E-QUERY-045)"
 level: "L4"
 version: "1.1"
-status: draft
+status: ready
 producer: story-writer
 timestamp: "2026-09-17T00:00:00Z"
 phase: 3

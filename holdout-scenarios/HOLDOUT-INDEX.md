@@ -1,7 +1,7 @@
 ---
 document_type: holdout-scenario-index
 level: L3
-version: "1.45"
+version: "1.46"
 status: draft
 producer: product-owner
 timestamp: 2026-09-17T00:00:00Z
@@ -9,16 +9,16 @@ phase: 3
 inputs: []
 input-hash: null
 traces_to: prd.md
-total_scenarios: 140
-total_groups: 31
+total_scenarios: 148
+total_groups: 34
 ---
 
 # Holdout Scenario Index -- Prism
 
 **Date:** 2026-09-17 (updated)
-**Phase:** 0 (Multi-Repo Synthesis -- Step 5) / Phase 4.B (Wave 4 Holdout Coverage) / Phase 3 Wave 0 Plugin Migration / Phase 3 DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001 / Phase 3 S-ADR058-OCSF-ROUTING-001 A+W re-gate / Phase 3 Wave A xDome Expansion (S-CLAROTY-VULNS-001 + S-CLAROTY-OT-EVENTS-001) / Phase 3 Wave B xDome Expansion (S-CLAROTY-DEVVULNREL-001) / Phase 3 Wave C xDome Expansion (S-CLAROTY-SERVERS-001 + S-CLAROTY-ORGPOLICY-001) / Phase 3 S-ENGINE-LIMIT-EARLY-STOP-001 holdout backfill / Phase 3 DEFECT-CLAROTY-SORTBY-DETERMINISM-001 sort_by determinism holdout / Phase 3 beta.3 S-MCP-TOOL-GATE-001 tool-catalog gating holdout / Phase 3 beta.3 W2 S-MCP-ENVELOPE-DESCRIBE-001 + S-MCP-NULL-ENCODING-001 holdouts / Phase 3 beta.3 W2-arch S-DESCRIBE-EXAMPLE-DEDUP-001 + S-QUERY-TRUE-TOTAL-001 holdouts
-**Total Scenarios:** 140 (134 prior + 6 new: HS-036 × 3 for S-DESCRIBE-EXAMPLE-DEDUP-001 + HS-037 × 3 for S-QUERY-TRUE-TOTAL-001)
-**Total Groups:** 31
+**Phase:** 0 (Multi-Repo Synthesis -- Step 5) / Phase 4.B (Wave 4 Holdout Coverage) / Phase 3 Wave 0 Plugin Migration / Phase 3 DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001 / Phase 3 S-ADR058-OCSF-ROUTING-001 A+W re-gate / Phase 3 Wave A xDome Expansion (S-CLAROTY-VULNS-001 + S-CLAROTY-OT-EVENTS-001) / Phase 3 Wave B xDome Expansion (S-CLAROTY-DEVVULNREL-001) / Phase 3 Wave C xDome Expansion (S-CLAROTY-SERVERS-001 + S-CLAROTY-ORGPOLICY-001) / Phase 3 S-ENGINE-LIMIT-EARLY-STOP-001 holdout backfill / Phase 3 DEFECT-CLAROTY-SORTBY-DETERMINISM-001 sort_by determinism holdout / Phase 3 beta.3 S-MCP-TOOL-GATE-001 tool-catalog gating holdout / Phase 3 beta.3 W2 S-MCP-ENVELOPE-DESCRIBE-001 + S-MCP-NULL-ENCODING-001 holdouts / Phase 3 beta.3 W2-arch S-DESCRIBE-EXAMPLE-DEDUP-001 + S-QUERY-TRUE-TOTAL-001 holdouts / Phase 3 beta.3 W3 S-CLAROTY-OCSF-STATUS-001 + S-CLAROTY-OCSF-TOML-001 + S-JSON-EXTRACT-UDF-001 holdouts
+**Total Scenarios:** 148 (140 prior + 8 new: HS-038 × 3 for S-CLAROTY-OCSF-STATUS-001 + HS-039 × 2 for S-CLAROTY-OCSF-TOML-001 + HS-040 × 3 for S-JSON-EXTRACT-UDF-001)
+**Total Groups:** 34
 **Input Sources:** 9 pass-8 deep synthesis files, cross-repo-dependencies.md, unified-security-posture.md; Wave 4 stories S-4.01–S-4.08, BC-INDEX v4.32, ADR-013 §2.1, D-209, ADR-016 §2.5, ADR-008; FB-IMPL-P1-PO fix-burst-1 2026-05-20 (HS-013..HS-018 authored)
 
 ---
@@ -64,6 +64,9 @@ total_groups: 31
 | HS-031 | [DEFECT-CLAROTY-SORTBY-DETERMINISM-001-HS-001-vulnerabilities-sort-by-desc-tiebreaker.md](DEFECT-CLAROTY-SORTBY-DETERMINISM-001-HS-001-vulnerabilities-sort-by-desc-tiebreaker.md), [DEFECT-CLAROTY-SORTBY-DETERMINISM-001-HS-002-audit-logs-filter-by-sort-by-coexistence.md](DEFECT-CLAROTY-SORTBY-DETERMINISM-001-HS-002-audit-logs-filter-by-sort-by-coexistence.md), [DEFECT-CLAROTY-SORTBY-DETERMINISM-001-HS-003-all-7-tables-sort-by-coverage.md](DEFECT-CLAROTY-SORTBY-DETERMINISM-001-HS-003-all-7-tables-sort-by-coverage.md), [DEFECT-CLAROTY-SORTBY-DETERMINISM-001-HS-004-server-interfaces-composite-pk-sort-order.md](DEFECT-CLAROTY-SORTBY-DETERMINISM-001-HS-004-server-interfaces-composite-pk-sort-order.md) | Claroty xDome sort_by Determinism — 7 Tables Fix (DEFECT-CLAROTY-SORTBY-DETERMINISM-001) — HIDDEN, SINGLE-USE **[CONSUMED 2026-09-02 — D-2429; HS-031 story-level holdout gate PASS (4/4 must-pass; satisfaction 0.90/0.90/0.90/0.95; BC-5.39.001 LOCAL 3-CLEAN passes 10/11/12 on frozen HEAD abd7eeb9f); STRUCTURAL dims PASS (TOML assertions direct artifact read); MCP-non-error dims SETUP-FAILURE (prism-dtu-claroty ships no standalone server binary — DTU only instantiable inside integration-test harnesses; corroborated structurally: valid-JSON/valid-TOML + binary post-dates spec; [process-gap] standalone Claroty DTU server for headless holdout MCP dims, single occurrence, logged not codified); all 4 scenarios single-use; must NOT be reused]** | 4 | P0 | HS-001 vulnerabilities sort_by: adjusted_vulnerability_score DESC first + unique ASC tiebreaker second; DI-019 truncation-relevance (DESC keeps highest-risk; DESC before ASC required); MCP smoke non-error; BC-2.16.015 §PC1 sort-by + EC-016-015-009. HS-002 audit_logs coexistence: BOTH filter_by AND sort_by present in body_template (filter_by must NOT be replaced); timestamp in sort_by; fallback form (timestamp-only) acceptable; BC-2.16.013 §PC1 audit_logs sort-by + EC-016-013-011. HS-003 breadth: grep count of "sort_by" in claroty.sensor.toml ≥ 7; all 7 table categories covered; well-formed arrays; MCP smoke for server_interfaces + org_zones. HS-004 server_interfaces composite PK: sort_by exactly 2 ASC elements with distinct field names (server + interface level); EC-016-019-007 composite PK total-order guarantee; BC-2.16.019 §PC1 + §PC3. |
 | HS-036 | [S-DESCRIBE-EXAMPLE-DEDUP-001-HS-001-no-group-by-class-uid-in-prism-describe-output.md](S-DESCRIBE-EXAMPLE-DEDUP-001-HS-001-no-group-by-class-uid-in-prism-describe-output.md), [S-DESCRIBE-EXAMPLE-DEDUP-001-HS-002-at-least-one-tier3-count-recent-example-after-exclusion.md](S-DESCRIBE-EXAMPLE-DEDUP-001-HS-002-at-least-one-tier3-count-recent-example-after-exclusion.md), [S-DESCRIBE-EXAMPLE-DEDUP-001-HS-003-no-example-query-group-by-targets-synthesized-column.md](S-DESCRIBE-EXAMPLE-DEDUP-001-HS-003-no-example-query-group-by-targets-synthesized-column.md) | prism_describe Synthesized Column Aggregate Exclusion (S-DESCRIBE-EXAMPLE-DEDUP-001) — HIDDEN, SINGLE-USE | 3 | P0 | build_example_with_note selecting class_uid or other synthesized metadata column (_sensor, _client, _source_table, _source_type) as Tier-2 agg_col GROUP BY target; all-excluded tables must fall through to Tier-3 or Tier-4 |
 | HS-037 | [S-QUERY-TRUE-TOTAL-001-HS-001-early-stopped-query-total-available-reflects-upstream-total.md](S-QUERY-TRUE-TOTAL-001-HS-001-early-stopped-query-total-available-reflects-upstream-total.md), [S-QUERY-TRUE-TOTAL-001-HS-002-gate-closed-count-star-total-available-equals-total-rows.md](S-QUERY-TRUE-TOTAL-001-HS-002-gate-closed-count-star-total-available-equals-total-rows.md), [S-QUERY-TRUE-TOTAL-001-HS-003-total-available-wire-integer-gte-returned-count-invariant.md](S-QUERY-TRUE-TOTAL-001-HS-003-total-available-wire-integer-gte-returned-count-invariant.md) | True Upstream Sensor Total in Query Response (S-QUERY-TRUE-TOTAL-001) — HIDDEN, SINGLE-USE | 3 | P0 | total_available reporting total_rows (= limit = 25) instead of true upstream sensor count when any_early_stopped=true and total_count_path declared; gate-closed path must yield total_available == total_rows even when upstream total is larger |
+| HS-038 | [S-CLAROTY-OCSF-STATUS-001-HS-001-device-is-online-boolean-wire-shape.md](S-CLAROTY-OCSF-STATUS-001-HS-001-device-is-online-boolean-wire-shape.md), [S-CLAROTY-OCSF-STATUS-001-HS-002-where-device-is-online-true-predicate-filter.md](S-CLAROTY-OCSF-STATUS-001-HS-002-where-device-is-online-true-predicate-filter.md), [S-CLAROTY-OCSF-STATUS-001-HS-003-prism-describe-device-is-online-boolean-not-status-code.md](S-CLAROTY-OCSF-STATUS-001-HS-003-prism-describe-device-is-online-boolean-not-status-code.md) | Claroty device_is_online Boolean OCSF Vendor-Extension + retired demotion (S-CLAROTY-OCSF-STATUS-001) — HIDDEN, SINGLE-USE | 3 | P0 | device_is_online promoted to vendor-ext Tier-1 Boolean (ADR-058 §K5 D-2522 Option A); retired col demoted to raw_extensions only; WHERE device_is_online = true predicate filter non-error post-fix; prism_describe shows Boolean type not status_code |
+| HS-039 | [S-CLAROTY-OCSF-TOML-001-HS-001-alerts-severity-id-integer-finding-info-uid-string.md](S-CLAROTY-OCSF-TOML-001-HS-001-alerts-severity-id-integer-finding-info-uid-string.md), [S-CLAROTY-OCSF-TOML-001-HS-002-device-uid-tier1-and-vulnerabilities-time-tier1.md](S-CLAROTY-OCSF-TOML-001-HS-002-device-uid-tier1-and-vulnerabilities-time-tier1.md) | Claroty OCSF TOML Field-Mapping Corrections — 4 Issues (S-CLAROTY-OCSF-TOML-001) — HIDDEN, SINGLE-USE | 2 | P0 | finding_info_uid from JSON Number emits string not null (EC-016-013-004 integer-to-string coercion fix); severity_id integer column not absent from wire; device_uid Tier-1 ocsf_field no E-QUERY-038; vulnerabilities time column no E-QUERY-038 |
+| HS-040 | [S-JSON-EXTRACT-UDF-001-HS-001-non-literal-key-e-query-045-a-wire-shape.md](S-JSON-EXTRACT-UDF-001-HS-001-non-literal-key-e-query-045-a-wire-shape.md), [S-JSON-EXTRACT-UDF-001-HS-002-key-too-long-257-bytes-e-query-045-b-wire-shape.md](S-JSON-EXTRACT-UDF-001-HS-002-key-too-long-257-bytes-e-query-045-b-wire-shape.md), [S-JSON-EXTRACT-UDF-001-HS-003-udf-registered-probe-valid-syntax-not-unknown-function.md](S-JSON-EXTRACT-UDF-001-HS-003-udf-registered-probe-valid-syntax-not-unknown-function.md) | json_extract_string ScalarUDF Plan Gate + Registration Probe (S-JSON-EXTRACT-UDF-001) — HIDDEN, SINGLE-USE | 3 | P1 | non-literal key argument → E-QUERY-045 (not "unknown function"); 257-byte literal key → E-QUERY-045 with "257" and "256" in message; 256-byte key accepted; valid dotted literal key 'a.b' not rejected (AC-010); UDF registered probe: no "unknown function json_extract_string" response |
 
 ---
 
@@ -447,6 +450,35 @@ Story-level holdout gate for S-MCP-NULL-ENCODING-001 (beta.3 remediation — Iss
 | HS-QTT-001-002 | `SELECT COUNT(*) FROM claroty_devices` (gate-closed: any_early_stopped=false per ADR-060 §D8.7 Condition A reducing plan); total_available == 1 (== aggregate result rows), is_truncated == false; discriminating: broken always-open gate gives total_available=upstream_count (hundreds/thousands); asserts total_available < 100 as upper-bound check | prism-mcp, prism-spec-engine, prism-dtu-claroty, prism-bin |
 | HS-QTT-001-003 | Hard invariant (two queries: claroty_devices LIMIT 25 + claroty_alerts LIMIT 25): total_available key present in query_context, JSON integer type (not null/absent/string), total_available >= returned_results for each; catches plumbing regressions where total_available becomes null/absent | prism-mcp, prism-spec-engine, prism-dtu-claroty, prism-bin |
 
+### HS-038: Claroty device_is_online Boolean OCSF Vendor-Extension + Retired Demotion (P0) — S-CLAROTY-OCSF-STATUS-001
+
+Story-level holdout gate for S-CLAROTY-OCSF-STATUS-001 (beta.3 W3 — ADR-058 §K5 D-2522 Option A: is_online promoted to vendor-extended OCSF Boolean column device.is_online / Arrow device_is_online; retired col demoted to raw_extensions; ClarotyDevice.is_online Rust field changed to Option<bool>; DTU fixtures seeded). HIDDEN from test-writer and implementer. SINGLE-USE. Claroty DTU required for HS-001 and HS-002 (SETUP-FAILURE clause if DTU unavailable); NO DTU for HS-003 (prism_describe reads TOML at boot). All 3 scenarios P0 must_pass.
+
+| Scenario ID | Short Description | Crates Touched |
+|------------|-------------------|----------------|
+| HS-COS-001-001 | device_is_online as JSON boolean or null in wire output; is_online NOT a standalone column; no Boolean-source status_code; retired col only in raw_extensions; null-not-absent on nullable DTU rows; BC-2.16.003 EC-016-013-034..037; SETUP-FAILURE if DTU unavailable | prism-bin, prism-spec-engine, prism-dtu-claroty |
+| HS-COS-001-002 | WHERE device_is_online = true executes non-error (E-QUERY-038 pre-patch; non-error post-fix); WHERE device_is_online = false also non-error; filter correctness (true rows returned when rows with is_online=true exist); BC-2.16.003 EC-016-013-040; SETUP-FAILURE if DTU unavailable | prism-bin, prism-spec-engine, prism-dtu-claroty |
+| HS-COS-001-003 | prism_describe claroty_devices columns array has device_is_online with type Boolean; no Boolean-type status_code column descriptor; NO DTU required (TOML boot); BC-2.16.003 EC-016-013-038 | prism-bin, prism-spec-engine |
+
+### HS-039: Claroty OCSF TOML Field-Mapping Corrections — 4 Issues (P0) — S-CLAROTY-OCSF-TOML-001
+
+Story-level holdout gate for S-CLAROTY-OCSF-TOML-001 (beta.3 W3 — 4 TOML/coercion issues: Issue 8 finding_info_uid from JSON Number → String coercion EC-016-013-004; Issue 11 six entity-table datetime columns need ocsf_field="time"; Issue 12 device_vulnerability_relations.device_uid needs ocsf_field="device.uid" — no E-QUERY-038; Issue 13 severity_id missing from ClarotyAlert struct + TOML + fixture). HIDDEN from test-writer and implementer. SINGLE-USE. HS-001 requires Claroty DTU (SETUP-FAILURE clause); HS-002 uses live monroe sensor (no DTU for device_vulnerability_relations per BC-2.16.017 §PC5 D-2200). Both scenarios P0 must_pass.
+
+| Scenario ID | Short Description | Crates Touched |
+|------------|-------------------|----------------|
+| HS-COSTOML-001-001 | finding_info_uid as JSON string (not JSON integer/null) in claroty_alerts wire output — Issue 8 EC-016-013-004 integer-to-string coercion; severity_id as JSON integer (not absent) in wire output — Issue 13; SETUP-FAILURE if DTU not runnable or fixture not seeded with severity_id; BC-2.16.003 EC-016-013-004 + EC-016-013-042; BC-2.16.013 | prism-bin, prism-spec-engine, prism-dtu-claroty |
+| HS-COSTOML-001-002 | SELECT device_uid FROM claroty_device_vulnerability_relations succeeds (no E-QUERY-038) — Issue 12 device_uid Tier-1 fix; SELECT time FROM claroty_vulnerabilities succeeds (no E-QUERY-038) — Issue 11 datetime time column Tier-1; live monroe sensor (no DTU per D-2200); BC-2.16.017 EC-016-017-007; BC-2.16.003 EC-016-013-043 | prism-bin, prism-spec-engine, claroty-live |
+
+### HS-040: json_extract_string ScalarUDF Plan Gate + Registration Probe (P1) — S-JSON-EXTRACT-UDF-001
+
+Story-level holdout gate for S-JSON-EXTRACT-UDF-001 (beta.3 W3 — new json_extract_string ScalarUDF registered at engine construction; plan gate fires E-QUERY-045(a) for non-literal key arg and E-QUERY-045(b) for key > 256 bytes; BC-2.11.025 §Postconditions + ADR-066 §B3/§D3/§E/§F). HIDDEN from test-writer and implementer. SINGLE-USE. NO DTU required (plan-gate errors fire before sensor contact; UDF-registration probe uses error-type discrimination). All 3 scenarios P1 must_pass.
+
+| Scenario ID | Short Description | Crates Touched |
+|------------|-------------------|----------------|
+| HS-JEX-001-001 | json_extract_string(col, col_ref) with non-literal key argument → JSON-RPC error -32602 with E-QUERY-045 in message (NOT "unknown function json_extract_string"); pre-patch: E-QUERY-045 absent (gate not implemented); BC-2.11.025 EC-11-025-006; ADR-066 §B3 | prism-bin, prism-query, prism-mcp |
+| HS-JEX-001-002 | json_extract_string with 257-byte literal key → JSON-RPC error -32602 with E-QUERY-045 AND "257" AND "256" in message; 256-byte key (boundary) accepted (no error); BC-2.11.025 EC-11-025-007; ADR-066 §D3 + §F | prism-bin, prism-query, prism-mcp |
+| HS-JEX-001-003 | Valid literal-key call json_extract_string(col, 'a.b'): response is NOT "unknown function json_extract_string" (UDF registered); response is NOT E-QUERY-045 (dotted literal key AC-010 not over-rejected by plan gate); either sensor-error or success is acceptable; BC-2.11.025 §Postconditions UDF-registration + EC-11-025-009 AC-010; ADR-066 §E | prism-bin, prism-query, prism-mcp |
+
 ### ~~HS-020~~: ~~Claroty audit_logs Layer 2 — Dynamic Push-Down~~ — RETIRED before shipping
 
 **RETIRED 2026-08-15:** Single-story design rework collapsed Story B into Story A. HS-020 scenarios HS-AUDITLOG-002-B-001/002 re-keyed to HS-AUDITLOG-001-A-003/004 and moved to HS-019. HS-020 ID reserved per append_only_numbering (DF-030).
@@ -514,13 +546,13 @@ Minimum acceptance: All P0 scenarios PASS. P1 scenarios at least PARTIAL.
 
 ```yaml
 document: holdout-index
-phase: 0_and_4b_and_plugin_migration_and_drift_claroty_and_ocsf_routing_regate_and_wave_a_xdome_and_wave_b_xdome_and_wave_c_xdome_and_engine_limit_backfill_and_defect_sortby_determinism_and_s_rel_agent_version_001_and_beta3_mcp_tool_gate_and_beta3_w2_holdouts_and_beta3_w2arch_holdouts
-step: 5_and_wave4_and_prereq_and_drift_claroty_auditlog_and_hs023_and_hs024_hs025_and_hs026_and_hs027_and_hs028_and_hs029_and_hs030_and_hs031_and_hs032_and_hs033_and_hs034_hs035_and_hs036_hs037
+phase: 0_and_4b_and_plugin_migration_and_drift_claroty_and_ocsf_routing_regate_and_wave_a_xdome_and_wave_b_xdome_and_wave_c_xdome_and_engine_limit_backfill_and_defect_sortby_determinism_and_s_rel_agent_version_001_and_beta3_mcp_tool_gate_and_beta3_w2_holdouts_and_beta3_w2arch_holdouts_and_beta3_w3_holdouts
+step: 5_and_wave4_and_prereq_and_drift_claroty_auditlog_and_hs023_and_hs024_hs025_and_hs026_and_hs027_and_hs028_and_hs029_and_hs030_and_hs031_and_hs032_and_hs033_and_hs034_hs035_and_hs036_hs037_and_hs038_hs039_hs040
 status: complete
-total_scenarios: 140
-total_groups: 31
-p0_scenarios: 121
-p1_scenarios: 19
+total_scenarios: 148
+total_groups: 34
+p0_scenarios: 126
+p1_scenarios: 22
 repos_covered: 9/9_brownfield_plus_3_greenfield
 critical_bugs_verified: 14
 wave4_groups_added: 4
@@ -599,6 +631,24 @@ hs037_authored: true
 hs037_gate_status: pending
 hs037_dtu_required: true
 hs037_dtu_crate: prism-dtu-claroty
+hs038_s_claroty_ocsf_status_001: true
+hs038_authored: true
+hs038_gate_status: pending
+hs038_dtu_required: true
+hs038_dtu_crate: prism-dtu-claroty
+hs038_hs003_dtu_required: false
+hs039_s_claroty_ocsf_toml_001: true
+hs039_authored: true
+hs039_gate_status: pending
+hs039_hs001_dtu_required: true
+hs039_hs001_dtu_crate: prism-dtu-claroty
+hs039_hs002_dtu_required: false
+hs039_hs002_uses_live_sensor: true
+hs040_s_json_extract_udf_001: true
+hs040_authored: true
+hs040_gate_status: pending
+hs040_dtu_required: false
+hs040_priority: P1
 timestamp: 2026-09-17T00:00:00Z
 ```
 
@@ -606,6 +656,7 @@ timestamp: 2026-09-17T00:00:00Z
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.46 | beta3-w3-holdout-authoring | 2026-09-17 | product-owner | Registered HS-038 (3 scenarios for S-CLAROTY-OCSF-STATUS-001 Claroty device_is_online vendor-ext Boolean + retired demotion: HS-COS-001-001 device_is_online Boolean/null wire shape [device_is_online JSON boolean or null; is_online NOT standalone; retired in raw_extensions; null-not-absent; SETUP-FAILURE if DTU unavailable; BC-2.16.003 EC-016-013-034..037], HS-COS-001-002 WHERE device_is_online = true predicate filter [non-error post-fix; pre-patch E-QUERY-038; filter correctness; WHERE false also non-error; SETUP-FAILURE if DTU unavailable; BC-2.16.003 EC-016-013-040], HS-COS-001-003 prism_describe device_is_online Boolean type [no Boolean status_code; NO DTU; BC-2.16.003 EC-016-013-038]). Registered HS-039 (2 scenarios for S-CLAROTY-OCSF-TOML-001 OCSF field-mapping corrections: HS-COSTOML-001-001 finding_info_uid JSON string not integer/null [EC-016-013-004 integer-to-string coercion fix; Issue 8 Value::Number arm; severity_id integer not absent; Issue 13; SETUP-FAILURE if DTU unavailable; BC-2.16.003 EC-016-013-004 + EC-016-013-042; BC-2.16.013], HS-COSTOML-001-002 device_uid Tier-1 no E-QUERY-038 [Issue 12 ocsf_field="device.uid"; SELECT time FROM claroty_vulnerabilities no E-QUERY-038 — Issue 11; live monroe sensor NO DTU per D-2200; BC-2.16.017 EC-016-017-007; BC-2.16.003 EC-016-013-043]). Registered HS-040 (3 scenarios for S-JSON-EXTRACT-UDF-001 json_extract_string ScalarUDF: HS-JEX-001-001 non-literal key E-QUERY-045(a) wire shape [json_extract_string(col, col_ref) → E-QUERY-045 NOT "unknown function"; ADR-066 §B3; BC-2.11.025 EC-11-025-006], HS-JEX-001-002 257-byte key E-QUERY-045(b) wire shape [257-byte → E-QUERY-045 with "257"/"256" in message; 256-byte accepted; ADR-066 §D3+§F; BC-2.11.025 EC-11-025-007], HS-JEX-001-003 UDF registration probe [valid literal-key 'a.b' call: no "unknown function json_extract_string"; no E-QUERY-045 for dotted literal AC-010; NO DTU; BC-2.11.025 §Postconditions + EC-11-025-009; ADR-066 §E]). All 8 HIDDEN SINGLE-USE. P0: HS-038 × 3 + HS-039 × 2 = 5. P1: HS-040 × 3 = 3. total_scenarios 140→148; total_groups 31→34; p0_scenarios 121→126; p1_scenarios 19→22. |
 | 1.45 | beta3-w2arch-holdout-authoring | 2026-09-17 | product-owner | Registered HS-036 (3 scenarios for S-DESCRIBE-EXAMPLE-DEDUP-001 prism_describe synthesized-column aggregate exclusion: HS-DESC-DEDUP-001-001 no GROUP BY class_uid in any tables[*].example_query across all sensors [Claroty as discriminating surface — all Claroty tables have Integer class_uid so pre-patch all use GROUP BY class_uid; post-fix none do; serialized prism_describe JSON; BC-2.10.012 EC-10-033], HS-DESC-DEDUP-001-002 at least one example_query contains NOW() [Tier-3 fallthrough after class_uid exclusion; Claroty Datetime columns → tier3_count >= 1 post-fix; pre-patch = 0; asserts COUNT(*) + NOW() - INTERVAL + WHERE + no GROUP BY; BC-2.10.012 §Tier3], HS-DESC-DEDUP-001-003 universal 5-name prohibition [class_uid + _sensor + _client + _source_table + _source_type excluded across all sensors; Tier-1 non-regression — severity_score tables use WHERE not GROUP BY; BC-2.10.012 EC-10-033]) and HS-037 (3 scenarios for S-QUERY-TRUE-TOTAL-001 true upstream sensor total threading: HS-QTT-001-001 claroty_devices LIMIT=25 total_available > 25 [upstream Claroty {"total": N} with N >> 25; returned_results == 25; is_truncated == true; pre-patch total_available=25; post-fix total_available=N; serialized query_context; BC-2.11.001 EC-11-095; ADR-060 §D8.11], HS-QTT-001-002 gate-closed COUNT(*) total_available == 1 [reducing plan → any_early_stopped=false → gate closed → total_available=total_rows=1; broken always-open gate gives upstream count hundreds/thousands; total_available < 100 upper-bound check; ADR-060 §D8.7 Condition A], HS-QTT-001-003 hard invariant two queries [claroty_devices LIMIT 25 + claroty_alerts LIMIT 25; total_available key present, JSON integer (not null/absent/string), total_available >= returned_results; wire-shape discipline; BC-2.11.001 EC-11-095 MUST-1]). All 6 P0 must_pass HIDDEN SINGLE-USE. DTU NOT required for HS-036; Claroty DTU required for HS-037. total_scenarios 134→140; total_groups 29→31; p0_scenarios 115→121. |
 | 1.44 | beta3-w2-holdout-authoring | 2026-09-16 | product-owner | Registered HS-034 (3 scenarios for S-MCP-ENVELOPE-DESCRIBE-001 prism_describe total_results + virtual field descriptors fix: HS-DESC-001-001 _meta.total_results == tables.length > 0 [safety_envelope::wrap() tables-arm missing; discriminating: pre-patch hardcodes 0; assertions on serialized JSON; BC-2.10.012 EC-10-032], HS-DESC-001-002 all four virtual field names present in columns[*].name [_sensor/_client/_source_table/_source_type; pre-patch only class_uid + _sensor; no-duplicate guard; BC-2.10.012 OQ-003 + BC-2.11.012 §Invariants], HS-DESC-001-003 compound gate: nullable=false on new virtual field column descriptors AND both Issue 3 + Issue 5 fixes self-consistent [BC-2.11.012 §Invariants parity note nullable=false; BC-2.10.012 EC-10-032 + OQ-003]) and HS-035 (3 scenarios for S-MCP-NULL-ENCODING-001 null/list-null encoding fix: HS-NULL-001-001 LOCK-IN regression guard Issue 7a [D-1110 already fixed; WHERE source_ip = 'null' returns 0 rows; null-not-absent BC-2.11.001 EC-11-079], HS-NULL-001-002 Issue 7b null elements filtered from compact JSON-list in raw_extensions [no "null" string element; non-null elements preserved EC-016-013-026; structural validity; BC-2.16.003 EC-016-013-041 new], HS-NULL-001-003 end-to-end chain: IS NULL predicate + null-not-absent + partition coverage [three count queries + projection; WriterBuilder::with_explicit_nulls(true); BC-2.11.001 EC-11-079; BC-2.16.003 EC-016-013-006 amended]). All 6 new scenarios P0 must_pass HIDDEN SINGLE-USE. DTU NOT required for HS-034 (prism_describe reads TOML spec at boot); Claroty DTU required for HS-035. total_scenarios 128→134; total_groups 27→29; p0_scenarios 106→115 (corrects stale 106 to 109 per v1.43 changelog + 6 new). |
 | 1.43 | s-mcp-tool-gate-001-holdout-authoring | 2026-09-16 | product-owner | Registered HS-033 (3 scenarios for S-MCP-TOOL-GATE-001 operations Cargo Feature Gate story: HS-MCP-GATE-001-001 tools/list wire response count == 14 with all LIVE_TOOLS present and zero stubs [get_diagnostics and create_schedule absent; serialized JSON array length + name-set assertions; BC-2.10.017 §Postconditions absent-feature path], HS-MCP-GATE-001-002 list_capabilities not_registered_tools empty array [] on wire in both cross-client (null) and single-client ("holdout-test") modes [result.content[0].text JSON parse; field present, value [], not null, not absent, not 40-element array; EC-10-023; BC-2.10.011 §Postconditions], HS-MCP-GATE-001-003 ops tool invocation returns -32602 "tool not found" NOT -32003 [two-tool anti-special-case: get_diagnostics + create_schedule; serialized JSON-RPC error.code and error.message assertions; discriminator: pre-patch -32003 from registered stub handler vs correct -32602 from rmcp unregistered-tool router; INV-OPERATIONS-FEATURE-GATE; BC-2.10.017 §Postconditions absent-feature path]). All 3 P0 must_pass HIDDEN SINGLE-USE; evaluates against prism binary compiled without --features operations. total_scenarios 125→128; total_groups 26→27; p0_scenarios 106→109. |

@@ -30,12 +30,14 @@ points: 5
 # and plan-gate extension.
 estimated_days: 2
 tdd_mode: strict
-subsystems: [SS-01]
+subsystems: [SS-11]
 # Subsystem anchor justification:
-#   SS-01 (Query Engine) owns this story's scope: the UDFs are registered in
+#   SS-11 (Query Engine) owns this story's scope: the UDFs are registered in
 #     `prism-query engine build_session_context` (same site as json_extract_string)
-#     and the plan-gate extension lives in `prism-query::engine`. SS-01 governs
+#     and the plan-gate extension lives in `prism-query::engine`. SS-11 governs
 #     PrismQL parser, AST, and query execution per ARCH-INDEX.
+# NOTE: D-2549 Finding-5 correction — SS-01 was a stale label; SS-11 is the
+#   canonical Query Engine subsystem per ARCH-INDEX Subsystem Registry.
 target_module: prism-query
 crates_touched: [prism-query]
 behavioral_contracts: []

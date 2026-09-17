@@ -4,7 +4,7 @@ story_id: S-MCP-NULL-ENCODING-001
 title: "Fix null/list null encoding in build_column_array and map_record"
 wave: 2
 epic_id: E-BETA3-REMEDIATION
-version: "1.2"
+version: "1.3"
 status: ready
 producer: story-writer
 phase: 3
@@ -55,7 +55,7 @@ behavioral_contracts:
   - BC-2.16.003
 # BC status: AMENDMENTS ACTIVE (D-2544).
 #
-# BC-2.16.003 v1.32 amendments now active:
+# BC-2.16.003 v1.34 amendments now active:
 #   EC-016-013-006 AMENDED: Path A `build_column_array` returns `None` (Arrow null cell) for
 #     `Value::Null` string input — NOT the literal string "null". Unambiguous as of v1.32.
 #   EC-016-013-041 NEW: `Value::Null` elements in `Value::Array` inputs for string columns
@@ -109,8 +109,10 @@ emission site in `crates/prism-dtu-claroty/src/routes/` MUST emit `null` (not th
 — not just the struct definition — before writing the SAP-2 parity test (AC-003/RG-NULL-003).
 Reference: CLAUDE.md §SAP-2 probe rule 6 (emission-site authority).
 
-> NOTE: BC-2.16.003 v1.32 amendments are now active per D-2544 — EC-016-013-006 (amended)
-> and EC-016-013-041 (new). Spec-First Gate S-7.01 satisfied; story is unblocked for
+> NOTE: BC-2.16.003 v1.34 is the current pin. The D-2544 amendments (EC-016-013-006
+> amended; EC-016-013-041 new) that this story depends on are active and unchanged in v1.34.
+> v1.34 added EC-016-013-042..045 for S-CLAROTY-OCSF-TOML-001; those additions do not
+> affect this story's anchors. Spec-First Gate S-7.01 satisfied; story is unblocked for
 > test-writer dispatch.
 
 ---
@@ -183,7 +185,7 @@ inspection, and `raw_extensions` key lookups all behave correctly.
 
 | BC | Title | Version at Authoring | Scope in This Story |
 |----|-------|---------------------|---------------------|
-| BC-2.16.003 | Column-to-OCSF Mapping | v1.32 | §Edge Cases EC-016-013-006 (amended): `Value::Null` for string column → Arrow null cell (not literal "null" string); §Invariants null-vs-absent rule; EC-016-013-041 (new): null elements in `Value::Array` arm omitted |
+| BC-2.16.003 | Column-to-OCSF Mapping | v1.34 | §Edge Cases EC-016-013-006 (amended): `Value::Null` for string column → Arrow null cell (not literal "null" string); §Invariants null-vs-absent rule; EC-016-013-041 (new): null elements in `Value::Array` arm omitted |
 | BC-2.11.001 | Query MCP Tool | v1.37 (active) | EC-11-079: null-not-absent wire-shape — this story's upstream fix feeds the EC-11-079 guarantee at the MCP serialization layer |
 
 **BC-2.16.003 amendment required before test-writer dispatch:**
@@ -306,7 +308,7 @@ unchanged; regression guard)
 | Artifact | Estimated Tokens | Notes |
 |----------|-----------------|-------|
 | This story file | ~5,000 | |
-| BC-2.16.003 v1.32 (active — primary contract) | ~25,000 | Large file — §EC table, §Coercion Matrix, §Invariants; EC-016-013-006 amended + EC-016-013-041 new |
+| BC-2.16.003 v1.34 (active — primary contract) | ~25,000 | Large file — §EC table, §Coercion Matrix, §Invariants; EC-016-013-006 amended + EC-016-013-041 new |
 | BC-2.11.001 v1.37 (§Postconditions + §Edge Cases EC-11-079 only) | ~8,000 | Read targeted sections only; full file is 44k tokens |
 | `spec_driven_adapter.rs` (`build_column_array` function + String arm context) | ~8,000 | Targeted read of the function block; large file overall |
 | `column_mapping.rs` (`map_record` function) | ~4,000 | Targeted read |
@@ -326,7 +328,7 @@ unchanged; regression guard)
 All tests live in `crates/prism-bin/tests/bc_2_16_003_null_encoding.rs` (new file)
 unless noted otherwise.
 
-**PREREQUISITE MET (D-2544):** BC-2.16.003 v1.32 amendments are active — EC-016-013-006
+**PREREQUISITE MET (D-2544):** BC-2.16.003 v1.34 (current pin) — EC-016-013-006
 (amended) and EC-016-013-041 (new) have reached `status: active`. Spec-First Gate S-7.01
 satisfied; test-writer dispatch is unblocked.
 
@@ -602,6 +604,7 @@ Holdout scenarios are stored in the holdout directory that test-writer/implement
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.3 | 2026-09-17 | Version-only re-pin BC-2.16.003 v1.32→v1.34 (additive amendment EC-016-013-042..045 for S-CLAROTY-OCSF-TOML-001; this story's EC-016-013-006/041 anchors unchanged). No AC/RG/behavioral change. |
 | 1.2 | 2026-09-16 | D-1110 remove-uncertainty pass: (1) Issue 7a corrected — `Value::Null => None` already present in ColumnType::String arm of `build_column_array` (commit `fff6e28ba`, June 2026); RG-NULL-001 reclassified as lock-in regression guard (GREEN immediately, not Red Gate); T-B01 changed from fix to verify-only; density check updated to 3 failing / 4 ACs = 0.75. (2) `arrow-json` version corrected — per-crate pin `"58"` in Cargo.toml (not "workspace pin 58.2.0"); Cargo.lock resolves to 58.2.0. |
 | 1.1 | 2026-09-16 | F3 BC/ADR pin propagation (D-2544): BC-2.16.003 v1.31→v1.32. AMENDMENT PENDING annotation replaced with settled reference to active ECs (EC-016-013-006 amended, EC-016-013-041 new). "EC-016-013-042" alternative ID removed. PREREQUISITE note updated to PREREQUISITE MET. |
 | 1.0 | 2026-09-16 | Initial story decomposition |

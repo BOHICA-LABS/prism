@@ -4,8 +4,8 @@ story_id: S-CLAROTY-OCSF-TOML-001
 title: "Claroty xDome OCSF Field-Mapping Corrections (Issues 8, 11, 12, 13)"
 wave: 3
 epic_id: E-BETA3-REMEDIATION
-version: "1.0"
-status: draft
+version: "1.1"
+status: ready
 producer: story-writer
 phase: 3
 priority: P0
@@ -41,17 +41,21 @@ risk: LOW
 # (<= 3 lines). Issue 13 DTU struct addition is additive (Option<u32> with
 # serde(default) -- no breaking deserialization change).
 behavioral_contracts:
-  # BC status: BC-2.16.003 v1.32 ACTIVE -- covers integer->string coercion
-  # (EC-016-013-004), Tier-1 OCSF field promotion mechanism, and
-  # Column-to-OCSF routing. BC-2.02.005 v1.7 ACTIVE -- governs Claroty-specific
-  # field mapping to OCSF (9 data sources including alerts severity_id).
-  # BC-2.16.017 v1.2 ACTIVE -- governs device_vulnerability_relations table spec.
-  # Story-specific RG anchors (RG-COT-001..009) to be embedded in BC-2.16.003
-  # during PO spec-gate review. Spec-First Gate S-7.01: status remains draft
-  # until story-specific anchors are confirmed in BCs.
-  - BC-2.16.003  # Column-to-OCSF Mapping at Query Time (v1.32) -- primary mechanism
-  - BC-2.02.005  # Claroty xDome Field Mapping to OCSF (v1.7) -- Claroty field anchor
-  - BC-2.16.017  # Claroty device-vulnerability-relations Table (v1.2) -- Issue 12
+  # BC status: BC-2.16.003 v1.34 ACTIVE -- covers EC-016-013-004 (integer->string
+  # coercion), EC-016-013-042 (severity_id Int64), EC-016-013-043/044 (time column
+  # promotion, six entity tables), EC-016-013-045 (device_uid Tier-1 promotion);
+  # Tier-1 OCSF field promotion mechanism; Column-to-OCSF routing.
+  # BC-2.02.005 v1.8 ACTIVE -- governs Claroty-specific field mapping to OCSF
+  # (9 data sources including alerts severity_id).
+  # BC-2.16.017 v1.3 ACTIVE -- governs device_vulnerability_relations table spec;
+  # EC-016-017-007 device_uid Tier-1 promotion.
+  # BC-2.16.013 v1.47 ACTIVE -- DTU-parity authoring contract; covers struct<->TOML
+  # parity gate and optional-field deserialization (AC-005, AC-006).
+  # Spec-First Gate S-7.01: status remains draft until PO review clears.
+  - BC-2.16.003  # Column-to-OCSF Mapping at Query Time (v1.34) -- primary mechanism
+  - BC-2.02.005  # Claroty xDome Field Mapping to OCSF (v1.8) -- Claroty field anchor
+  - BC-2.16.017  # Claroty device-vulnerability-relations Table (v1.3) -- Issue 12
+  - BC-2.16.013  # DTU Clone Authoring Contract (v1.47) -- Issue 13 struct+fixture
 verification_properties:
   - VP-003  # OCSF normalization fidelity -- exercises Tier-1 ocsf_field column path
   - VP-007  # Sensor TOML spec correctness -- TOML spec changes gated by VP-007
@@ -68,9 +72,10 @@ Source documents (read in this order for authoritative scope; do NOT rely on sum
 | Document | Path | Authoritative For |
 |----------|------|-------------------|
 | Delta Analysis (Batch-0 frozen spec) | `.factory/cycles/wave-5-e-demo-fidelity/beta3-remediation-delta-analysis.md` | §Issue 8, §Issue 11, §Issue 12, §Issue 13 — RG list and fix designs |
-| BC-2.16.003 v1.32 | `.factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md` | EC-016-013-004, Tier-1 OCSF promotion mechanism, ocsf_field_to_arrow_name |
-| BC-2.02.005 v1.7 | `.factory/specs/behavioral-contracts/BC-2.02.005-claroty-field-mapping.md` | Claroty OCSF field mapping table (all 9 data sources), severity_id Integer_t |
-| BC-2.16.017 v1.2 | `.factory/specs/behavioral-contracts/BC-2.16.017-claroty-device-vulnerability-relations-table.md` | §PC3 device_uid composite PK, §PC5 no DTU for this table |
+| BC-2.16.003 v1.34 | `.factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md` | EC-016-013-004 (integer->string); EC-016-013-042 (severity_id Int64); EC-016-013-043/044 (time promotion, six entity tables); EC-016-013-045 (device_uid Tier-1); Tier-1 OCSF promotion mechanism; ocsf_field_to_arrow_name |
+| BC-2.02.005 v1.8 | `.factory/specs/behavioral-contracts/BC-2.02.005-claroty-field-mapping.md` | Claroty OCSF field mapping table (all 9 data sources), severity_id Integer_t |
+| BC-2.16.017 v1.3 | `.factory/specs/behavioral-contracts/BC-2.16.017-claroty-device-vulnerability-relations-table.md` | §PC3 device_uid composite PK; EC-016-017-007 device_uid Tier-1 promotion; §PC5 no DTU for this table |
+| BC-2.16.013 v1.47 | `.factory/specs/behavioral-contracts/BC-2.16.013-bundled-sensor-spec-dtu-parity.md` | DTU struct<->TOML parity gate; optional-field deserialization with `#[serde(default)]`; wire-shape assertion requirements (Issue 13) |
 | Claroty sensor TOML | `crates/prism-sensors/specs/claroty.sensor.toml` | Authoritative current column declarations for all affected tables |
 | DTU types | `crates/prism-dtu-claroty/src/types.rs` | ClarotyAlert and ClarotyVulnerability struct definitions |
 | DTU alerts route | `crates/prism-dtu-claroty/src/routes/alerts.rs` | list_alerts handler, static fixture path, generated-records path |
@@ -198,9 +203,10 @@ integer/string type mismatches in alert identifier fields.
 
 | BC | Version Pin | Relevant Clauses |
 |----|-------------|-----------------|
-| BC-2.16.003 | v1.32 | EC-016-013-004 (integer->string coercion); Tier-1 OCSF field promotion via `ocsf_field`; `ocsf_field_to_arrow_name()` naming convention; `ocsf_column_naming = true` routing |
-| BC-2.02.005 | v1.7 | Claroty xDome OCSF field mapping (all 9 data sources); severity_id as Integer_t on OCSF Detection Finding class 2004 |
-| BC-2.16.017 | v1.2 | §PC3 device_uid as composite PK join key; §PC5 no DTU for device_vulnerability_relations (SAP-2 N/A for Issue 12) |
+| BC-2.16.003 | v1.34 | EC-016-013-004 (integer->string coercion); EC-016-013-042 (severity_id Int64 Tier-1); EC-016-013-043/044 (time column promotion, six entity tables); EC-016-013-045 (device_uid Tier-1); Tier-1 OCSF field promotion via `ocsf_field`; `ocsf_field_to_arrow_name()` naming convention; `ocsf_column_naming = true` routing |
+| BC-2.02.005 | v1.8 | Claroty xDome OCSF field mapping (all 9 data sources); severity_id as Integer_t on OCSF Detection Finding class 2004 |
+| BC-2.16.017 | v1.3 | §PC3 device_uid as composite PK join key; EC-016-017-007 device_uid Tier-1 promotion; §PC5 no DTU for device_vulnerability_relations (SAP-2 N/A for Issue 12) |
+| BC-2.16.013 | v1.47 | DTU struct<->TOML parity gate; optional-field deserialization requirements with `#[serde(default)]`; wire-shape assertion for both static-fixture and generated-records paths (Issue 13) |
 
 ## Acceptance Criteria
 
@@ -239,9 +245,10 @@ with a Datetime Arrow type. The raw source column name (`published_date`, `last_
 `last_updated`, `policy_last_updated`) MUST NOT appear as a standalone top-level Arrow
 column; it is promoted out of `raw_extensions` and into `time`.
 
-_(traces to BC-2.16.003 §Postconditions: Tier-1 OCSF field promotion -- a column
-with ocsf_field declared uses ocsf_field_to_arrow_name() as its Arrow field name;
-"time" -> Arrow column "time" of Datetime type)_
+_(traces to BC-2.16.003 EC-016-013-043/044 §Postconditions: Tier-1 OCSF field promotion --
+a column with ocsf_field declared uses ocsf_field_to_arrow_name() as its Arrow field name;
+"time" -> Arrow column "time" of Datetime type; EC-016-013-043/044 cover the six entity-table
+time-column promotions that this AC tests (one EC per table group))_
 
 ### AC-004 — Issue 12: `device_uid` is a queryable Tier-1 column in device_vulnerability_relations
 
@@ -251,9 +258,11 @@ with `device_uid` as a standalone top-level column, not accessible only via
 `WHERE device_uid = 'abc-123'` without any `json_extract_string` or raw_extensions
 workaround.
 
-_(traces to BC-2.16.017 §PC3: device_uid is the composite PK join key for this table
-and must be queryable as a first-class column; BC-2.16.003 §Postconditions: Tier-1
-promotion via ocsf_field = "device.uid" -> Arrow column "device_uid")_
+_(traces to BC-2.16.017 §PC3 + EC-016-017-007: device_uid is the composite PK join key
+for this table and must be queryable as a first-class column; BC-2.16.003 EC-016-013-045
+§Postconditions: Tier-1 promotion via ocsf_field = "device.uid" -> Arrow column "device_uid";
+EC-016-017-007 covers device_uid Tier-1 promotion in BC-2.16.017; EC-016-013-045 covers the
+corresponding mechanism amendment in BC-2.16.003)_
 
 ### AC-005 — Issue 13: `ClarotyAlert` struct deserializes `severity_id` from API response
 
@@ -262,7 +271,7 @@ populate `severity_id` as `Some(3u32)`. A `ClarotyAlert` deserialized from JSON 
 lacks a `severity_id` key entirely MUST produce `severity_id: None` (not a
 deserialization error), courtesy of `#[serde(default)]`.
 
-_(traces to BC-2.16.013 v1.46 §Postconditions: the DTU struct must expose all
+_(traces to BC-2.16.013 v1.47 §Postconditions: the DTU struct must expose all
 TOML-declared columns as deserializable fields; absence of an optional field in the
 response JSON must not cause deserialization failure)_
 
@@ -273,7 +282,7 @@ includes a `"severity_id"` key with a non-null integer value. This MUST hold on 
 the static fixture path (serving `fixtures/alerts.json`) AND the generated-records path.
 Wire-level assertion: `response_json[0]["severity_id"].is_i64()` MUST be true.
 
-_(traces to BC-2.16.013 v1.46 §Postconditions: DTU wire must emit all TOML-declared
+_(traces to BC-2.16.013 v1.47 §Postconditions: DTU wire must emit all TOML-declared
 columns; wire-shape assertion discipline SID-2 requires asserting on serialized JSON
 output, not only pre-serialization Rust structs; both static-fixture and
 generated-records paths must be verified per SAP-2 probe rule 6)_
@@ -285,9 +294,10 @@ A PrismQL query against `claroty_alerts` returns an Arrow schema that includes
 from the DTU MUST return non-null `severity_id` values. The serialized MCP JSON
 response for data rows MUST include `"severity_id"` as a JSON integer.
 
-_(traces to BC-2.02.005 v1.7 §Postconditions: Claroty Detection Finding OCSF field
-mapping includes severity_id as Integer_t; BC-2.16.003 §Postconditions: Tier-1
-column_type = "integer" maps to Arrow Int64; wire-shape assertion discipline SID-2)_
+_(traces to BC-2.02.005 v1.8 §Postconditions: Claroty Detection Finding OCSF field
+mapping includes severity_id as Integer_t; BC-2.16.003 EC-016-013-042 §Postconditions:
+EC-016-013-042 covers severity_id Int64 Tier-1 column addition; Tier-1 column_type =
+"integer" maps to Arrow Int64; wire-shape assertion discipline SID-2)_
 
 ### AC-008 — Regression guard: existing `claroty_alerts` query structure is unchanged
 
@@ -351,10 +361,10 @@ a defect under SAC-1.**
 | Context Source | Estimated Tokens |
 |---------------|-----------------|
 | This story spec | ~4,500 |
-| BC-2.16.003 v1.32 (Column-to-OCSF Mapping) | ~6,000 |
-| BC-2.02.005 v1.7 (Claroty field mapping) | ~3,500 |
-| BC-2.16.017 v1.2 (device_vulnerability_relations) | ~2,500 |
-| BC-2.16.013 v1.46 (DTU-parity authoring contract) | ~3,000 |
+| BC-2.16.003 v1.34 (Column-to-OCSF Mapping) | ~6,000 |
+| BC-2.02.005 v1.8 (Claroty field mapping) | ~3,500 |
+| BC-2.16.017 v1.3 (device_vulnerability_relations) | ~2,500 |
+| BC-2.16.013 v1.47 (DTU-parity authoring contract) | ~3,000 |
 | `claroty.sensor.toml` (1,695 lines) | ~6,000 |
 | `crates/prism-bin/src/spec_driven_adapter.rs` | ~4,500 |
 | `crates/prism-dtu-claroty/src/types.rs` | ~2,500 |
@@ -565,10 +575,18 @@ BC-2.16.003 §Invariants:
    with `ocsf_field` declared is Tier-1. Arrow field name comes from
    `ocsf_field_to_arrow_name()` only. Never bypass.
 
-2. **`#[non_exhaustive]` on `ClarotyAlert` (CLAUDE.md §Conventions):** The struct
-   already carries `#[non_exhaustive]`; adding a field does not require updating
-   `EXPECTED_SYMBOLS` (that gate checks for unregistered NEW public types, not for
-   new fields on existing types). Confirm attribute presence before committing.
+2. **`#[non_exhaustive]` on `ClarotyAlert` (CLAUDE.md §Conventions):** D-1110 code
+   inspection confirms `ClarotyAlert` does NOT currently carry `#[non_exhaustive]`
+   (unlike the newer `ClarotyDeviceAlertRelation` which does). Phase B task B-1 must
+   determine whether the `prism-dtu-claroty` crate is in scope for the
+   `EXPECTED_SYMBOLS` gate (run `python3 scripts/check-non-exhaustive-per-symbol.py
+   --count` and check the manifest). If in scope, add `#[non_exhaustive]` to
+   `ClarotyAlert` AND update `EXPECTED_SYMBOLS` in the same commit. If out of scope
+   for the gate, add `#[non_exhaustive]` as a best-practice annotation only (no
+   EXPECTED_SYMBOLS change needed — the gate is an equality check that would fail on
+   an unregistered annotation if prism-dtu-claroty symbols are included). Either way,
+   adding a FIELD to an existing type does not change the EXPECTED_SYMBOLS count
+   (the gate tracks types, not fields).
 
 3. **`#[serde(default)]` on optional DTU fields:** All optional DTU response struct
    fields added in this story MUST use `#[serde(default)]` so that live API responses
@@ -643,7 +661,7 @@ Emit-site authority rule applied: `crates/prism-dtu-claroty/src/routes/alerts.rs
 |-------|--------|-----------|-----------------|--------------|-----------|---------------|
 | `alerts` | `id` | string | `ClarotyAlert.id` | `u32` | JSON integer | INTENTIONAL MISMATCH -- EC-016-013-004; Issue 8 fix verifies coercion fires |
 | `alerts` | `severity_id` (new) | integer | `ClarotyAlert.severity_id` | ABSENT | ABSENT | BLOCKER -- struct field absent; Phase B adds it before Phase C-5 |
-| `vulnerabilities` | `published_date` | datetime | `ClarotyVulnerability.published_date` | `Option<String>` | ISO-8601 string | PASS -- compatible with datetime + iso8601 chain (arm (b) per SAP-2) |
+| `vulnerabilities` | `published_date` | datetime | `ClarotyVulnerability.published_date` | `Option<String>` | ISO-8601 string | PASS -- arm (c): no `timestamp_formats` key declared; resolves to implicit ["iso8601"] default via `effective_formats` (ADR-028 §D8-B); compatible |
 | `device_vulnerability_relations` | `device_uid` | string | N/A (no DTU) | N/A | N/A | N/A -- D-2200, BC-2.16.017 §PC5 |
 | `organization_zones` | `last_update` | datetime | N/A (no DTU) | N/A | N/A | N/A |
 | `organization_zone_policies` | `last_updated` | datetime | N/A | N/A | N/A | N/A |
@@ -663,4 +681,5 @@ either PASS or N/A (no DTU for entity_management tables per D-2200).
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.1 | 2026-09-17 | story-writer | D-1110 remove-uncertainty: CONFIRMED severity_id absent from ClarotyAlert struct (SAP-2 BLOCKER confirmed); CONFIRMED all 6 Issue-11 column names; CONFIRMED device_uid Tier-2 gap; CONFIRMED alerts.id u32 integer. CORRECTED: Architecture Compliance Rule 2 (struct does NOT carry #[non_exhaustive] per code inspection); CORRECTED: published_date SAP-2 arm label (c) not (b). STEP 2 re-pins: BC-2.16.003 v1.32->v1.34, BC-2.02.005 v1.7->v1.8, BC-2.16.017 v1.2->v1.3, BC-2.16.013 v1.46->v1.47. Added BC-2.16.013 to frontmatter behavioral_contracts and §Authority/§Behavioral Contracts tables. AC traces updated: AC-003->EC-016-013-043/044, AC-004->EC-016-017-007+EC-016-013-045, AC-005/006->BC-2.16.013 v1.47, AC-007->BC-2.02.005 v1.8+EC-016-013-042. Removed pending-PO caveats from frontmatter comments. |
 | 1.0 | 2026-09-16 | story-writer | Initial draft from beta3-remediation-delta-analysis.md Batch-0 frozen spec (issues 8/11/12/13); SAP-2 parity confirmation embedded; SAC-1 RG list (RG-COT-001..009) included; density check 1.125 |

@@ -4,8 +4,8 @@ story_id: S-CLAROTY-OCSF-STATUS-001
 title: "Fix Claroty devices.is_online OCSF vendor-extension mapping and devices.retired status_code demotion"
 wave: 3
 epic_id: E-BETA3-REMEDIATION
-version: "1.0"
-status: draft
+version: "1.1"
+status: ready
 producer: story-writer
 phase: 3
 priority: P0
@@ -63,11 +63,12 @@ blocks:
 #   land first so REMEDIATION-001 does not need to re-work those columns.
 behavioral_contracts:
   - BC-2.16.003
-# BC status: ACTIVE v1.32 (per BC-INDEX current pin).
+# BC status: ACTIVE v1.34 (per BC-INDEX current pin).
 #   BC-2.16.003 v1.28 added EC-016-013-034..039 anchored to S-CLAROTY-OCSF-STATUS-001
 #   RG-COS-001..006 and RG-COS-008; BC-2.16.003 v1.29 added EC-016-013-040 anchored to
 #   RG-COS-007 and restructured EC-016-013-039 for canonical RG-COS-006/RG-COS-008
-#   separation. All 8 RG-COS anchors are present in BC-2.16.003 v1.32.
+#   separation. All 8 RG-COS anchors are present in BC-2.16.003 v1.34.
+#   v1.34 adds EC-016-013-042..045 (unrelated to this story); EC-016-013-034..040 semantics unchanged.
 #   Spec-First Gate S-7.01 satisfied: behavioral_contracts is non-empty with canonical
 #   BC-S.SS.NNN pattern.
 verification_properties: []
@@ -85,7 +86,7 @@ this story's decisions and mandate anchors. Read §K5 "§K5 D-2522 Option A (rat
 Amendment Notes — `retired` Demotion to raw_extensions" in full before implementing.
 Path: `.factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md`
 
-**BC-2.16.003 v1.32** (Column-to-OCSF Mapping at Query Time — §Postconditions EC-016-013-034
+**BC-2.16.003 v1.34** (Column-to-OCSF Mapping at Query Time — §Postconditions EC-016-013-034
 through EC-016-013-040) governs the full behavioral contract for this story. The 8
 EC clauses covering `is_online` Boolean passthrough, `retired` raw_extensions demotion,
 spec-validity, prism_describe shape, WHERE predicate, and SAP-2 DTU parity are the
@@ -172,7 +173,7 @@ violation in beta.2 is resolved.
 
 | BC | Title | Version at Authoring | Scope in This Story |
 |----|-------|---------------------|---------------------|
-| BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | v1.32 | §Postconditions EC-016-013-034..040: `is_online` Boolean passthrough (RG-COS-001..003), `retired` raw_extensions demotion (RG-COS-004), prism_describe shape (RG-COS-005), TOML spec-validity (RG-COS-006), WHERE predicate (RG-COS-007), SAP-2 DTU parity (RG-COS-008) |
+| BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | v1.34 | §Postconditions EC-016-013-034..040: `is_online` Boolean passthrough (RG-COS-001..003), `retired` raw_extensions demotion (RG-COS-004), prism_describe shape (RG-COS-005), TOML spec-validity (RG-COS-006), WHERE predicate (RG-COS-007), SAP-2 DTU parity (RG-COS-008) |
 
 ---
 
@@ -410,7 +411,7 @@ by the test-writer BEFORE the implementer begins any TOML or DTU changes. See §
 | Artifact | Estimated Tokens | Notes |
 |----------|-----------------|-------|
 | This story file | ~14,000 | |
-| BC-2.16.003 v1.32 — EC-016-013-034..040 + §Postconditions OCSF routing clauses | ~10,000 | Load §Postconditions + EC-016-013-034..040; skip unrelated EC rows |
+| BC-2.16.003 v1.34 — EC-016-013-034..040 + §Postconditions OCSF routing clauses | ~10,000 | Load §Postconditions + EC-016-013-034..040; skip unrelated EC rows |
 | ADR-058 §K5 (§K5 D-2522 Amendment Notes + §K5 mandate table) | ~8,000 | Load §K5 only; skip earlier §A..§J sections |
 | `crates/prism-sensors/specs/claroty.sensor.toml` (devices table) | ~12,000 | Load `[[claroty_devices]]` section only (~120 lines) |
 | `crates/prism-bin/src/spec_driven_adapter.rs` (ColumnType::Boolean arm in build_column_array) | ~8,000 | Load `build_column_array` function only; full file is ~800 lines |
@@ -767,7 +768,7 @@ No new crate dependencies are introduced by this story.
 
 ### Files NOT to touch
 
-- `.factory/specs/behavioral-contracts/BC-2.16.003-*` — FROZEN at v1.32; implementer MUST NOT modify
+- `.factory/specs/behavioral-contracts/BC-2.16.003-*` — FROZEN at v1.34; implementer MUST NOT modify
 - `.factory/specs/architecture/decisions/ADR-058-*` — FROZEN at v2.44; implementer MUST NOT modify
 - `crates/prism-bin/src/spec_driven_adapter.rs` — no production code change needed; read-to-confirm only
 - `crates/prism-spec-engine/src/column_mapping.rs` — no code change needed; TOML drives routing
@@ -799,4 +800,5 @@ Holdout scenarios are stored in the holdout directory that test-writer/implement
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.1 | 2026-09-17 | D-1110 remove-uncertainty pass: all DTU/spec-engine symbol claims CONFIRMED against live code (ClarotyDevice.is_online current type bool confirmed; load_devices_fixture at routes/devices.rs confirmed; fixtures/devices.json path confirmed; parse_and_validate_spec_toml, ocsf_field_to_arrow_name, validate_ocsf_field_path all confirmed; no corrections). Re-pinned BC-2.16.003 v1.32 → v1.34 throughout (6 live occurrences in frontmatter comment, §Authority, §Behavioral Contracts table, §Token Budget, Files-NOT-to-touch; §History rows left as historical). v1.34 adds EC-016-013-042..045 unrelated to this story; EC-016-013-034..040 semantics unchanged. |
 | 1.0 | 2026-09-17 | Initial story decomposition from Batch-0 frozen spec (ADR-058 §K5 D-2522 Option A ratified v2.37+; BC-2.16.003 v1.28+ EC-016-013-034..040). 8 ACs per ADR-058 §K5 mandate table RG-COS-001..008; 8 Red Gate tests enumerated; F11 DTU fixture obligation captured (T-F01..T-F03 tasks; files: types.rs, fixtures/devices.json, routes/devices.rs). Issues 9+10 split from S-CLAROTY-OCSF-REMEDIATION-001 per architect recommendation (delta-analysis §Part 4 §Item 3). |
