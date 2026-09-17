@@ -3,7 +3,7 @@ document_type: verification-property
 level: L4
 vp_id: "VP-162"
 title: "json_extract_string_impl — Null Safety and Panic Freedom (Kani)"
-version: "1.5"
+version: "1.6"
 status: draft
 producer: architect
 phase: P0
@@ -102,7 +102,7 @@ pub(crate) fn json_extract_string_impl(
 // crates/prism-query/src/proofs/vp162_json_extract_null_safety.rs
 
 #[cfg(kani)]
-mod vp162_proofs {
+mod kani_proofs {
     use crate::json_extract_udf::json_extract_string_impl;
 
     /// VP-162: null safety and panic freedom for json_extract_string_impl.
@@ -232,6 +232,7 @@ extraction logic is safe for all possible input string values.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.6 | 2026-09-17 | architect | Errata (additive/errata post-freeze lane; no property/mandate change). §Kani Proof Harness: renamed inner module `mod vp162_proofs` → `mod kani_proofs` to align with sibling proof module convention (`proofs::<module>::kani_proofs::<harness>` invocation template used by VP-014 and VP-015). Code already renamed at @9ce8642e; spec now matches implementation. F-JEX-P1-003 closure. |
 | 1.5 | 2026-09-17 | architect | Errata (additive/errata post-freeze lane; no property/mandate change). §Kani Proof Harness: corrected stale `super::super::json_extract_udf::json_extract_string_impl` → `crate::json_extract_udf::json_extract_string_impl`. `super::super` from `crates/prism-query/src/proofs/` resolves to `crate::proofs`, not the crate root; `json_extract_udf` is declared at crate-root scope in `lib.rs`. Corrected to match VP-014/VP-015 `crate::` convention and the compiling implementation. |
 | 1.4 | 2026-09-17 | architect | Errata (additive/errata post-freeze lane; no behavioral/contract/mandate change). §Coverage Scope effectful-wrapper method name corrected: `invoke_batch` → `invoke_with_args` — DataFusion 46.0 deprecated `ScalarUDFImpl::invoke_batch`; workspace is pinned to datafusion 53.1 which exposes `invoke_with_args`. Same errata class corrected in ADR-066 §E this burst. |
 | 1.3 | 2026-09-16 | architect | Re-gate pass 10 fix. Consistency F-2 (LOW): `source_invariant: null` added to frontmatter — VP-162 §Source Traceability explicitly anchors its 256-byte key-length precondition to ADR-066 §D3 (CWE-400), not to any DI-NNN workspace invariant; per VP-INDEX §Properties convention, a VP with no DI-NNN invariant must carry `source_invariant: null`. |

@@ -3,7 +3,7 @@ document_type: story
 story_id: S-JSON-EXTRACT-UDF-001
 title: "Minimal json_extract_string ScalarUDF with Literal-Key Plan Gate (E-QUERY-045)"
 level: "L4"
-version: "1.5"
+version: "1.6"
 status: ready
 producer: story-writer
 timestamp: "2026-09-17T00:00:00Z"
@@ -95,12 +95,12 @@ before implementing.
 governs the full behavioral contract. The 11 edge cases (EC-11-025-001..011) are the
 authoritative acceptance criteria and provide canonical test names for RG-JEX-001..011.
 
-**VP-162 v1.5** (`verification-properties/vp-162-json-extract-string-null-safety.md`)
+**VP-162 v1.6** (`verification-properties/vp-162-json-extract-string-null-safety.md`)
 defines the Kani proof target (`json_extract_string_impl` pure function). The Kani harness
 files live in `crates/prism-query/src/proofs/vp162_json_extract_null_safety.rs` per VP-162
 §Kani Proof Harness. The proof is dispatched in Phase 5 (formal-verify), not Phase 3.
 
-> NOTE: ADR-066 v1.6, BC-2.11.025 v1.9, and VP-162 v1.5 are FROZEN per beta3 spec-gate.
+> NOTE: ADR-066 v1.6, BC-2.11.025 v1.9, and VP-162 v1.6 are FROZEN per beta3 spec-gate.
 > These spec files MUST NOT be amended by the implementer — any spec discrepancy routes
 > to product-owner/architect via the orchestrator.
 
@@ -379,7 +379,7 @@ test — a synthetic-AST-only path for either gate is a P2 finding per SAP-3.
 | This story spec | ~6,000 |
 | BC-2.11.025 v1.9 (full contract) | ~8,000 |
 | ADR-066 v1.6 (§A–§H) | ~9,000 |
-| VP-162 v1.5 (Kani harness) | ~3,500 |
+| VP-162 v1.6 (Kani harness) | ~3,500 |
 | `crates/prism-query/src/engine.rs` (registration + plan-gate sections) | ~4,000 |
 | `crates/prism-core/src/error.rs` (existing error variants for context) | ~2,000 |
 | `crates/prism-query/src/ast.rs` (ScalarFunc enum — relevant section) | ~1,000 |
@@ -537,7 +537,7 @@ from implementing this story.
 | `json_extract_string_impl` MUST be a `pub(crate)` pure function in `json_extract_udf.rs` — no DataFusion or Arrow types in its signature | ADR-066 §B1 + VP-162 §Proof Target | VP-162 Kani harness provability; security review T-14 |
 | `prism-query` MUST NOT gain a dependency on `prism-bin` | dependency-graph.md §Dependency Rules Rule 2 (Level 6 / Level 7 ordering) | `cargo tree -p prism-query` must show no `prism-bin` edge post-merge |
 | No `unsafe` blocks in `json_extract_udf.rs` or `plan_gates.rs` additions | CLAUDE.md §Conventions (error taxonomy + no-unwrap rule) | Security review T-14 + `just check` clippy |
-| VP-162 Kani harness file created alongside implementation (Phase 3 T-06) | VP-162 v1.5 §Kani Proof Harness | Phase 5 formal-verify dispatch; harness must compile clean under `cargo kani -p prism-query` before merge |
+| VP-162 Kani harness file created alongside implementation (Phase 3 T-06) | VP-162 v1.6 §Kani Proof Harness | Phase 5 formal-verify dispatch; harness must compile clean under `cargo kani -p prism-query` before merge |
 
 ---
 
@@ -591,6 +591,7 @@ If any of these appear, the build MUST fail (checked by `cargo tree -p prism-que
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.6 | 2026-09-17 | state-manager | D-2556 LOCAL pass CLEAN(PR-merge) errata pin sync. VP-162 v1.5→v1.6 authority pins updated in §Authority, FROZEN NOTE, Token Budget table, and Architecture Compliance Rules (TD-VSDD-060 sibling-site sweep; F-JEX-P1-003: §Kani Proof Harness inner module renamed vp162_proofs→kani_proofs; sibling convention + code rename @9ce8642e). Historical changelog rows preserved verbatim. |
 | 1.5 | 2026-09-17 | story-writer | LOW-1 (LOCAL pass): AC-006 / T-09 / Architecture Compliance Rules gate-ordering reconciled to BC-2.11.025 v1.9 (stale E-QUERY-041/042/043 pre-execution enumeration corrected; temporal in-pipeline per ADR-052 §D4). BC-2.11.025 body-pin updated v1.8 → v1.9 in §Authority, FROZEN NOTE, Behavioral Contracts table, Token Budget, and T-16 PR description (POL-8 bc_array_changes_propagate_to_body_and_acs; frontmatter pin left for state-manager). RG-JEX-006 gate mapping unchanged — gate still asserts fire-before-execution. |
 | 1.4 | 2026-09-17 | state-manager | D-2553 LOCAL re-gate CLEAN(PR-merge) errata pin sync. VP-162 v1.4→v1.5 authority pins updated in §Authority, FROZEN NOTE, Token Budget table, and Architecture Compliance Rules (TD-VSDD-060 sibling-site sweep; v1.3 cite in Architecture Compliance Rules also corrected — stale from D-2551 sweep miss). Historical changelog rows preserved verbatim. |
 | 1.3 | 2026-09-17 | story-writer | F-2 (LOCAL pass-1): AC-009 + EC-11-025-010 aligned to ratified BC-2.11.025/ADR-066 silent-null-propagation contract; type_mismatch warn/catalog obligation struck (precedence rule 1: BC supersedes on contract semantics; ADR-066 §D1 purity). T-12 rewritten as purity-gate verification. SAP-1 Architecture Compliance row removed — no emissions exist in this story. |

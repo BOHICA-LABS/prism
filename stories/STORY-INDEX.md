@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "3.049"
+version: "3.050"
 status: draft
 producer: state-manager
 timestamp: 2026-09-17T00:00:00Z
 phase: 3
 total_stories: 354
+# D-2556 — STORY-INDEX v3.049→v3.050: S-JSON-EXTRACT-UDF-001 v1.5→v1.6 pin sync (D-2556 LOCAL pass CLEAN(PR-merge) fix-burst; VP-162 v1.5→v1.6 errata pin sweep in §Authority/FROZEN NOTE/Token Budget/Architecture Compliance Rules; F-JEX-P1-003 kani_proofs module rename; total_stories 354 UNCHANGED).
 # D-2554 — STORY-INDEX v3.048→v3.049: S-JSON-EXTRACT-UDF-001 v1.4→v1.5 pin sync (D-2554 LOCAL pass CLEAN(PR-merge) fix-burst; BC-2.11.025 v1.8→v1.9; total_stories 354 UNCHANGED).
 # D-2553 — STORY-INDEX v3.047→v3.048: S-JSON-EXTRACT-UDF-001 v1.3→v1.4 pin sync (D-2553 LOCAL re-gate CLEAN(PR-merge); VP-162 v1.4→v1.5 errata pin sweep in §Authority/FROZEN NOTE/Token Budget/Architecture Compliance Rules; v1.3 stale cite in Architecture Compliance Rules also corrected; total_stories 354 UNCHANGED).
 # D-2552 — STORY-INDEX v3.046→v3.047: S-JSON-EXTRACT-UDF-001 v1.2→v1.3 pin sync (LOCAL adversary pass-1 fix-burst; F-2 MED AC-009/EC-11-025-010 aligned BC silent-null-propagation + ADR-066 §D1 purity; story-writer bump; total_stories 354 UNCHANGED).
@@ -1129,7 +1130,7 @@ All 8 D-1889 CRITICALs are now tracked artifacts. Stories below cover the sensor
 | S-DEMO-CLAROTY-HARNESS-DAR-001 | prism-dtu-harness: Add POST /api/v1/device_alert_relations/ to Claroty in-process clone (closes INV-HARNESS-ROUTE-PARITY for device_alert_relations) [draft v1.0] | prism-dtu-harness | 1 (BC-2.16.013) | -- | 2 | S-DEMO-CLAROTY-DAR-001 |
 | S-ADR058-OCSF-COERCION-001 | ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission [merged v1.47] | prism-spec-engine,prism-bin | 3 (BC-2.16.003, BC-2.02.011, BC-2.16.002) | VP-017, VP-016 | 5 | -- |
 | S-ADR058-OCSF-ROUTING-001 | ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation [MERGED v1.57] | prism-spec-engine,prism-bin,prism-mcp,prism-ocsf,prism-sensors | 4 (BC-2.16.003, BC-2.16.002, BC-2.01.013, BC-2.11.016) | VP-017, VP-016 | 8 | S-ADR058-OCSF-COERCION-001 |
-| S-JSON-EXTRACT-UDF-001 | DataFusion json_extract_string ScalarUDF — Literal-Key-Only JSON String Extraction with Plan Gate (E-QUERY-045); BLOCKS S-JSON-EXTRACT-TYPED-001 + S-JSON-EXTRACT-NESTED-001 [ready v1.5; D-2554; RG-JEX-001..011; SAC-1 compliant; DataFusion 53.1 invoke_with_args; security-reviewer pass mandated] | prism-query, prism-core | 2 (BC-2.11.025 v1.9, ADR-066 v1.6) | VP-162 | 5 | S-ADR058-OCSF-ROUTING-001 |
+| S-JSON-EXTRACT-UDF-001 | DataFusion json_extract_string ScalarUDF — Literal-Key-Only JSON String Extraction with Plan Gate (E-QUERY-045); BLOCKS S-JSON-EXTRACT-TYPED-001 + S-JSON-EXTRACT-NESTED-001 [ready v1.6; D-2556; RG-JEX-001..011; SAC-1 compliant; DataFusion 53.1 invoke_with_args; security-reviewer pass mandated] | prism-query, prism-core | 2 (BC-2.11.025 v1.9, ADR-066 v1.6) | VP-162 v1.6 | 5 | S-ADR058-OCSF-ROUTING-001 |
 | S-ADR058-DTU-PARITY-MIGRATION-001 | DTU Parity Test Migration for ADR-058 Stage 2 OCSF Field-Path Routing [draft v1.0] | prism-dtu-claroty,prism-dtu-crowdstrike,prism-dtu-armis,prism-dtu-cyberint,prism-bin | 2 (BC-2.16.003, BC-2.01.013) | -- | 5 | -- |
 | S-OCSF-FIDELITY-CROWDSTRIKE-001 | CrowdStrike OCSF Schema Validation and Correction (ADR-058 §K Methodology) [draft v0.2] | prism-sensors,prism-ocsf | 0 (pending PO authorship) | -- | tbd | -- |
 | S-OCSF-FIDELITY-CYBERINT-001 | Cyberint OCSF Schema Validation and Correction (ADR-058 §K Methodology) [draft v0.2] | prism-sensors,prism-ocsf | 0 (pending PO authorship) | -- | tbd | -- |
