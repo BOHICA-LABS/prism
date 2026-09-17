@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.46"
+version: "1.47"
 status: active
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: "2026-05-20"
-modified: "2026-09-03"  # v1.46: LOW-002 closure — §Sort-by postcondition RG-002/RG-009 coupling paragraph corrected; RG-009 was hardened to strictly enforce timestamp-only canonical (sort_by len==1, id absent); EC-016-013-011 Test coupling note corrected to match
+modified: "2026-09-17"  # v1.47: Issue 13 severity_id DTU parity amendments — "carries no severity field" rationale updated (STRING severity absent; NUMERIC severity_id additive); ClarotyAlert struct + DTU wire MUST anchors added (AC-005/RG-COT-003, AC-006/RG-COT-004)
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -321,11 +321,23 @@ per ADR-053 §D5.
     exclusion is documented here. Any story that adds columns to this table MUST amend this BC
     and update this exclusion count before the implementing PR merges.
     **Table rationale:** The xDome `alerts` surface (the 20-value `Alert__fields_enum`, verified
-    against the authoritative OpenAPI) carries no `severity` field. Risk and severity signal for
-    the Claroty sensor surface resides exclusively on `device_alert_relations` rows, via
-    `device_risk_score`, `network_signature_severity`, `network_signature_confidence`, and
-    `malicious_ip_severity`. This table is therefore both the alert→device investigation path
-    and the sole prioritization source for the Claroty sensor surface.
+    against the authoritative OpenAPI) carries no STRING `severity` field (Gap-CL-005 removal,
+    2026-05-29 — NOT reversed). The live API DOES return a NUMERIC `severity_id` (integer 1-5)
+    on alert objects; this is a DISTINCT field now contracted as a Tier-1 Integer column per
+    beta.3 live-test triage Issue 13 (S-CLAROTY-OCSF-TOML-001). MUST: `ClarotyAlert.severity_id:
+    Option<u32>` with `#[serde(default)]` declared in `crates/prism-dtu-claroty/src/types.rs`
+    so that deserialization of JSON `{"severity_id": 3, ...}` yields `severity_id = Some(3)` and
+    absence of the key yields `severity_id = None` without a deserialization error — S-CLAROTY-OCSF-TOML-001
+    AC-005 + RG-COT-003 (`test_cot_rg003_claroty_alert_severity_id_deserializes_from_json`). MUST:
+    the DTU Claroty alerts route handler emits `"severity_id"` in the JSON wire response for each
+    alert object on BOTH the static fixture path (serving `crates/prism-dtu-claroty/fixtures/alerts.json`)
+    AND the generated-records path; wire-level assertion `response_json[0]["severity_id"].is_i64()`
+    MUST be true (SAP-2 probe rule 6 — both paths verified) — S-CLAROTY-OCSF-TOML-001 AC-006 +
+    RG-COT-004 (`test_cot_rg004_dtu_alerts_static_fixture_emits_severity_id`). Risk signal from
+    `device_alert_relations` rows via `device_risk_score`, `network_signature_severity`,
+    `network_signature_confidence`, and `malicious_ip_severity` remains an important device-level
+    risk supplement (not replaced by `severity_id`). This table is both the alert→device investigation
+    path and the device-level severity-signal source for the Claroty sensor surface.
     **URL grounding (ADR-028 §D1) — pending story merge:** `crates/prism-dtu-claroty/src/clone.rs`
     `build_router()` to register `POST /api/v1/device_alert_relations/`. Route does not yet
     exist on develop as of 2026-08-11 (see §Known Gaps DTU-EXT-006). Gap closes on merge of
@@ -722,6 +734,7 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.47 | S-CLAROTY-OCSF-TOML-001-bc-semantic-amendments | 2026-09-17 | product-owner | Issue 13 (S-CLAROTY-OCSF-TOML-001 AC-005/AC-006, beta.3 live-test triage): §Postconditions §1 `device_alert_relations` table rationale rewritten to distinguish (a) the STRING `severity` field (absent per Gap-CL-005, 2026-05-29 — NOT reversed) from (b) the NUMERIC `severity_id` field (integer 1-5, newly contracted as Tier-1 Integer column per Issue 13). Two new MUSTs added: (1) `ClarotyAlert.severity_id: Option<u32>` with `#[serde(default)]` in `crates/prism-dtu-claroty/src/types.rs` — anchored to S-CLAROTY-OCSF-TOML-001 AC-005 + RG-COT-003 (`test_cot_rg003_claroty_alert_severity_id_deserializes_from_json`); (2) DTU Claroty alerts route handler MUST emit `severity_id` in JSON wire response on BOTH static fixture path AND generated-records path, with wire-level assertion `response_json[0]["severity_id"].is_i64()` (SAP-2 probe rule 6) — anchored to S-CLAROTY-OCSF-TOML-001 AC-006 + RG-COT-004 (`test_cot_rg004_dtu_alerts_static_fixture_emits_severity_id`). TD-VSDD-097: (1) Sibling pair — BC-2.02.005 is the companion alerts-field-mapping BC; amended from v1.7 to v1.8 in the same burst (Issue 13 additive gap-CL-005 disambiguation). CLEAR. (2) Downstream copy target — `device_alert_relations` table rationale text is not verbatim-copied in any downstream artifact; §Postconditions §1 prose is not reproduced in the story body. CLEAR. (3) Mandate anchor — both new MUSTs carry real story ID (S-CLAROTY-OCSF-TOML-001) and named Red Gate test functions. CLEAR. |
 | 1.46 | LOW-002-coupling-paragraph-accuracy-fix | 2026-09-03 | product-owner | LOW-002 closure: corrected inaccurate "No test change is required by this BC amendment" statement in §Sort-by postcondition RG-002/RG-009 coupling paragraph, and corrected matching stale "no test change required" text in EC-016-013-011 §Test coupling note. Ground truth: RG-009 (`test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback`) was HARDENED when the timestamp-only canonical was adopted — its assertion was tightened from accept-either-form to strictly enforce timestamp-only (asserts sort_by len==1, sole element timestamp asc, and `id` ABSENT); the retired compound form now fails RG-009, making it a regression guard against the live-proven-broken compound sort. RG-002 (`test_rg_audit_logs_sort_by_in_request_body`) asserts sort_by presence + filter_by coexistence; its logic is unchanged. No story, code, or TOML files touched. TD-VSDD-097: (1) Sibling pair — EC-016-013-011 is directly cross-referenced from the coupling paragraph ("See EC-016-013-011") and carried the same stale claim; corrected in the same burst. (2) Downstream copy target — coupling paragraph text is not verbatim-copied in any downstream artifact; CLEAR. (3) No new MUSTs introduced; no mandate anchor required. |
 | 1.45 | adopt-audit-logs-timestamp-only-canonical-sort | 2026-09-02 | product-owner | Live-validation outcome (2026-09-02) confirms the v1.44 fallback branch: `id` in `sort_by` returns 0 rows on xDome audit_log (HTTP 200, empty result set) for both ascending and descending variants; `id` is not in the documented `SortClause`/`GetAuditLogParameters` sortable field set (`category`, `action`, `user_display_name`, `note`, `timestamp`, `details`). The compound form `[{"field":"timestamp","order":"asc"},{"field":"id","order":"asc"}]` is RETIRED for `audit_logs` (live-proven-broken). Anchoring story: `DEFECT-CLAROTY-SORTBY-DETERMINISM-001`. Changes: (1) **§Sort-by postcondition** rewritten — timestamp-only `[{"field":"timestamp","order":"asc"}]` is now THE canonical sort form; compound form status changed to RETIRED; decision-logic block removed (fallback branch was the only live outcome); live-validation outcome and accepted-residual non-determinism documented; filter-by coexistence requirement retained. (2) **EC-016-013-011** rewritten — timestamp-only canonical form asserted; live finding cited; accepted residual documented; test-coupling note updated (both RG-002 and RG-009 already accept timestamp-only; no test change required). (3) **§Bounded push-down `body_template` literal** updated from compound to timestamp-only form; parenthetical referencing `id` tiebreaker caveat removed. TD-VSDD-097: (1) Sibling pair — BC-2.01.013 has no parallel `audit_logs` sort contract (Claroty-specific); CLEAR. (2) Downstream copy target — `claroty.sensor.toml` `audit_logs` `body_template` is the downstream copy target; NOT touched per task scope (implementer owns TOML in the same story burst). (3) Mandate anchor — `sort_by` MUST anchored to `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` RG-002 (`test_rg_audit_logs_sort_by_in_request_body`) + RG-009 (`test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback`). |
 | 1.44 | defect-claroty-sortby-determinism-obs1-fix | 2026-09-02 | product-owner | OBS-1 closure: §Sort-by postcondition and EC-016-013-011 corrected to encode the silent-ignore failure path. Prior text assumed xDome would reject an unknown `id` sort field with a 4xx response (triggering the fallback), which contradicts the `GetAuditLogParameters.sort_by` contract (`SortClause` schema — free-form string field, no enum, no `additionalProperties: false`). Because `SortClause` performs no server-side field-name validation, xDome silently ignores an unknown field and returns HTTP 200 while the effective sort remains `timestamp asc` only, leaving non-determinism undetected by any HTTP-status check. Three substantive changes: (1) **Live-validation gate** updated — the implementer MUST assert OBSERVED ORDERING DETERMINISM (stable, gap/dup-free page boundary, or compound sort demonstrably distinct from timestamp-only), NOT merely a 2xx response. (2) **Decision logic** made explicit — IF `id` is honored (compound sort creates total order distinct from timestamp-only) → keep compound form; IF `id` is rejected (4xx) OR silently ignored (ordering indistinguishable from timestamp-only) → adopt `[{"field":"timestamp","order":"asc"}]` fallback AND document RESIDUAL non-determinism: `audit_logs` exposes no unique sortable tiebreaker in its documented `SortClause`/`GetAuditLogParameters` field set (`category`, `action`, `user_display_name`, `note`, `timestamp`, `details`); full total-ordering is not achievable via the API contract; 7-day time-window filter bounds the blast radius; residual accepted, not a defect. (3) **RG-002 parameterization** noted — RG-002 (`test_rg_audit_logs_sort_by_in_request_body`) accepts either form; if fallback adopted, preferred-form language in this postcondition and EC-016-013-011 MUST move to fallback in same amendment. EC-016-013-011 updated in parallel to reflect silent-ignore path and residual non-determinism. TD-VSDD-097: (1) Sibling pair — BC-2.01.013 has no parallel `audit_logs` sort contract (Claroty-specific); CLEAR. (2) Downstream copy target — `claroty.sensor.toml` `audit_logs` `body_template` is downstream; not in scope per task constraint (TOML NOT touched). (3) Mandate anchor — observed-ordering-determinism MUST anchored to `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` RG-009 (`test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback`). |

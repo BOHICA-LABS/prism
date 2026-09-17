@@ -11,6 +11,24 @@ Current checkpoint lives in `.factory/STATE.md §Session Resume Checkpoint`.
 
 ---
 
+## Archived: D-2547 — 2026-09-17; STATE v10.053 — F3 W2-arch MATERIALIZATION COMPLETE
+
+**RESUME IN ONE BREATH (D-2547):** Prism at develop@561d8bac — PIPELINE IN-PROGRESS (F3 W2-arch MATERIALIZATION COMPLETE 2026-09-17; STATE v10.053). (a) POSITION: Phase 3, cycle wave-5-e-demo-fidelity, F3 story materialization — W1+W2+W2-arch DONE, W3 pending. Batch-0 spec-gate CLOSED (D-2541). All 5 beta.3 W1+W2+W2-arch stories READY: S-MCP-TOOL-GATE-001 v1.2, S-MCP-ENVELOPE-DESCRIBE-001 v1.2, S-MCP-NULL-ENCODING-001 v1.2, S-DESCRIBE-EXAMPLE-DEDUP-001 v1.1, S-QUERY-TRUE-TOTAL-001 v1.2. HOLDOUT-INDEX v1.45 (140 scenarios; HS-036/037 authored). ADDITIVE POST-FREEZE: BC-2.10.012 v1.11 / BC-2.11.001 v1.38 / ADR-060 v1.28. FIRST NEXT ACTIONS: W3 materialization (S-CLAROTY-OCSF-STATUS-001 with F11 DTU fixture seeds; S-CLAROTY-OCSF-TOML-001; S-JSON-EXTRACT-UDF-001 v0.1 stub) → W4/W5 facade (S-BETA3-RELEASE-001 — HUMAN ACTION: RELEASE_PROMOTE_TOKEN PAT required before W4; S-ONBOARDING-DOCS-001). (b) CONVERGENCE COUNTER: N/A — Batch-0 CLOSED; F3 materialization has no active adversarial streak. (c) IN-FLIGHT: none. (d) PENDING DECISIONS / BLOCKERS: none blocking. (e) WIP BRANCHES: none. (f) RESUME COMMAND: /vsdd-factory:rehydrate-wave → /vsdd-factory:next-step.
+
+**RESUME STEP 0 (D-2547):** `CronList` → re-arm heartbeat cron b98bd9dc (8,23,38,53 * * * *) if absent/expired (.factory/ops/vsdd-heartbeat-autorecovery.md).
+
+**RESUME NEXT-ACTION (D-2547):**
+- W3 materialization: S-CLAROTY-OCSF-STATUS-001 (issues 9,10; ADR-058 v2.44 §K5; RG-COS-001..008; F11 OBLIGATION: seed is_online false+absent/null DTU fixtures at materialization time); S-CLAROTY-OCSF-TOML-001 (issues 8,11,12,13); S-JSON-EXTRACT-UDF-001 (issue 20 / 5pts; BC-2.11.025 v1.8+ADR-066 v1.5+VP-162 v1.3 — v0.1 stub, no D-1110 required per scope).
+- W4/W5 facade: S-BETA3-RELEASE-001 (issues 14,15 / 2pts; HUMAN ACTION: RELEASE_PROMOTE_TOKEN PAT before W4 — REQUIRED); S-ONBOARDING-DOCS-001 (issues 16-19 / 2pts).
+
+**BETA.3 CYCLE CONTEXT (D-2547):** 20 issues from beta.2 Monroe live-test (D-2520) → 10 stories + 3 fast-follow stubs (D-2521). Batch-0 spec FROZEN (D-2541): ADR-066 v1.5, VP-162 v1.3, BC-2.11.025 v1.8, ADR-060 v1.27, ADR-058 v2.43 (v2.44 additive post-freeze D-2544), BC-2.11.001 v1.37 (v1.38 additive post-freeze D-2547), BC-2.16.003 v1.31 (v1.32 additive post-freeze D-2544), BC-2.10.012 v1.10 (v1.11 additive post-freeze D-2547), ADR-060 v1.27 (v1.28 additive post-freeze D-2547), error-taxonomy v2.88; BC-INDEX v10.24, ARCH-INDEX v2.399, VP-INDEX v2.26. Canonical RG sets FROZEN: RG-JEX-001..011, RG-QTT-001..011, RG-COS-001..008. is_online = OPTION A (device_is_online vendor-extension Boolean; pure-TOML). F3 materialization → Batch-1 TDD delivery → W4 beta.3 release BOHICA-LABS.
+
+**HEADS (D-2547):** develop HEAD `561d8baccc` (UNCHANGED; RECONCILIATION-PENDING: +2 out-of-session; #284 @daac70dc7; #287 @561d8bacc; tag v1.0.0-nightly.20260910). `main`: `bdf24cec8` (stub). `factory-artifacts`: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053). Open PRs: #292 (ci clippy all-targets), #291 (dev-setup protoc), #288 (dtu embed fixtures), #282 (dependabot taiki-e); PR #255 (OBSOLETE — verify/close); Dependabot: #266–#274 (UNTRIAGED).
+
+**NOTE: Superseded by D-2548 — F3 W3 SPEC-AUTHORING + BC-AMENDMENT CHECKPOINT (mid-materialization; stories DRAFT); STORY-INDEX v3.043 total 352; BC-INDEX v10.25; STATE v10.053→v10.054.**
+
+---
+
 ## Archived: D-2545 — 2026-09-16; STATE v10.051 — SESSION-WRAP-PAUSE; PIPELINE PAUSED
 
 **RESUME IN ONE BREATH (D-2545):** Prism at develop@561d8bac — PIPELINE PAUSED (SESSION-WRAP-PAUSE 2026-09-16; STATE v10.051). (a) POSITION: Phase 3, cycle wave-5-e-demo-fidelity, F3 story materialization. Batch-0 spec-gate CLOSED (D-2541). FIRST NEXT ACTIONS ON RESUME (from D-2544 ledger): (1) W1 S-MCP-TOOL-GATE-001 (spec-corrected v1.1; D-1110 scan DONE): → product-owner holdout scenarios (2-4 hidden) → status draft→ready. (2) W2 S-MCP-ENVELOPE-DESCRIBE-001 (draft; BC-2.10.012 v1.10 + ADR-058 v2.44 ACTIVE): → story-writer propagate BC/ADR pins into body → remove-uncertainty (D-1110) → holdout → ready. (3) W2 S-MCP-NULL-ENCODING-001 (draft; BC-2.16.003 v1.32 ACTIVE): → story-writer propagate BC pin → remove-uncertainty → holdout → ready. Then materialize: W2-arch, W3, W4/W5 facade. (b) CONVERGENCE: N/A — Batch-0 CLOSED; no active streak. (c) IN-FLIGHT: none. (d) PENDING DECISIONS / BLOCKERS: none blocking. (e) WIP BRANCHES: none. (f) RESUME COMMAND: /vsdd-factory:rehydrate-wave → /vsdd-factory:next-step.

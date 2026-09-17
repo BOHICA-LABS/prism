@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.7"
+version: "1.8"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -19,7 +19,7 @@ extracted_from: ".factory/specs/prd.md"
 scheduled_amendment_in: null
 amendment_lifecycle: null
 introduced: cycle-1
-modified: "2026-08-12"
+modified: "2026-09-17"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -49,7 +49,8 @@ removal_reason: null
 ## Postconditions
 - Claroty `device_name` maps to OCSF `device.name` (grounded: `claroty.sensor.toml` `devices` table `device_name` column, `ocsf_field = "device.name"`, per `fix/claroty-live-api-fidelity` / F-CLARO-P2-HIGH-001)
 - Claroty `ip_list` (array column) is extracted via `source_path = "$.ip_list[*]"` (ENRICH-1 wildcard); no `ocsf_field` is declared — extracted values land in `raw_extensions`, not OCSF `device.ip`. Routing `ip_list` → `device.ip` is a follow-up pending array→ocsf_field column-grammar support (ENRICH-1 scope; see §ip_list→device.ip follow-up below).
-- Claroty alerts carry no severity column: the `severity` field was removed in the Gap-CL-005 fix (2026-05-29); no `severity` field exists in the Claroty xDome alerts API or DTU `ClarotyAlert` struct. Severity signal for Claroty resides on `device_alert_relations` rows via `device_risk_score`, `network_signature_severity`, `network_signature_confidence`, and `malicious_ip_severity` (BC-2.16.013 §Postconditions §1).
+- Claroty alerts carry no STRING `severity` column: the string `severity` field was removed in the Gap-CL-005 fix (2026-05-29) because it was absent from the Claroty xDome alerts API and the DTU `ClarotyAlert` struct. Gap-CL-005 is NOT reversed. Severity-related device-context signal for the Claroty sensor resides on `device_alert_relations` rows via `device_risk_score`, `network_signature_severity`, `network_signature_confidence`, and `malicious_ip_severity` (BC-2.16.013 §Postconditions §1); this remains unchanged.
+- Claroty alerts DO expose a NUMERIC `severity_id` column (OCSF Detection Finding class 2004, `severity_id` Integer_t): the live Claroty xDome API returns `severity_id` (integer 1-5) on alert objects — this is a DISTINCT field from the removed string `severity`. Per beta.3 live-test triage (Issue 13): `ClarotyAlert.severity_id: Option<u32>` with `#[serde(default)]` is added to the DTU struct; `ocsf_field = "severity_id"`, `column_type = "integer"` in `claroty.sensor.toml` alerts table; `ocsf_field_to_arrow_name("severity_id") = "severity_id"` (no dots → no transformation); Arrow type Int64; Tier-1 column under `ocsf_column_naming = true`. MUST: `severity_id` Integer Tier-1 Arrow column present in `claroty_alerts` query output and serialized MCP JSON response contains `"severity_id"` as a JSON integer — S-CLAROTY-OCSF-TOML-001 AC-007 + RG-COT-005 (`test_cot_rg005_claroty_alerts_severity_id_in_arrow_output`).
 - Claroty OT-specific fields (e.g., `zone`, `protocol`, `firmware_version`) are preserved in `raw_extensions`
 - Each of the 9 Claroty sources maps to an appropriate OCSF event class (alerts to Security Finding, devices to Inventory Info, vulnerabilities to Vulnerability Finding)
 
@@ -101,6 +102,7 @@ The `ip_list` column uses `source_path = "$.ip_list[*]"` (ENRICH-1 wildcard arra
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.8 | s-claroty-ocsf-toml-001-issue13-severity-id-amendment | 2026-09-17 | product-owner | **Issue 13 severity_id closure — S-CLAROTY-OCSF-TOML-001 AC-007 + RG-COT-005.** §Postconditions: (1) "no severity column" bullet clarified to distinguish removed STRING `severity` (Gap-CL-005 unchanged — NOT reversed) from newly contracted NUMERIC `severity_id` (OCSF Detection Finding 2004 `severity_id` Integer_t; beta.3 live-test triage Issue 13); (2) `severity_id` Integer Tier-1 MUST added — `ClarotyAlert.severity_id: Option<u32>` with `#[serde(default)]`; `ocsf_field = "severity_id"`; `column_type = "integer"`; Arrow Int64 Tier-1; `ocsf_field_to_arrow_name("severity_id") = "severity_id"` (no transformation); anchored to S-CLAROTY-OCSF-TOML-001 AC-007 + RG-COT-005 (`test_cot_rg005_claroty_alerts_severity_id_in_arrow_output`). **TD-VSDD-097 three-dimension discharge:** (1) Dim-1 sibling pair — no named split-event twin for this BC; BC-2.16.013 is the DTU-parity sibling (amended same burst at v1.47) carrying the `ClarotyAlert` struct and wire-emission MUSTs (AC-005/RG-COT-003 and AC-006/RG-COT-004); CLEAR. (2) Dim-2 downstream copy target — the "no severity" rationale is prose in BC-2.16.013 §Postconditions §1 Table rationale; updated in the same burst (BC-2.16.013 v1.47); CLEAR. (3) Dim-3 mandate anchor — `severity_id` MUST anchored to S-CLAROTY-OCSF-TOML-001 AC-007 + RG-COT-005; no unanchored MUSTs; CLEAR. BC-INDEX NOT touched (state-manager handles). |
 | 1.7 | claroty-live-api-fidelity-bc-amendment | 2026-08-12 | product-owner | F-CLARO-P2-HIGH-001 closure (human-authorized spec-amendment-to-match-code per CLAUDE.md §Source-of-Truth Precedence rule 7). §Postconditions: (1) `device_name` → `device.hostname` corrected to `device_name` → `device.name`, grounded in `claroty.sensor.toml` `devices` table `device_name` column `ocsf_field = "device.name"` on `fix/claroty-live-api-fidelity`. (2) `device IP fields → device.ip` corrected to `ip_list` extracted via `source_path = "$.ip_list[*]"` (ENRICH-1 wildcard) landing in `raw_extensions` (no `ocsf_field` declared); follow-up subsection added documenting the `ip_list` → `device.ip` gap and ENRICH-1 scope. (3) `alert severity → severity_id` corrected: severity column absent since Gap-CL-005 fix (2026-05-29); severity signal resides on `device_alert_relations` rows. §Canonical Test Vectors: TV-BC-2.02.005-001 updated from stale alert-record/`device.hostname`/`severity_id` scenario to device-record scenario asserting `device.name` set from `device_name` and `ip_list` in `raw_extensions`. §Traceability: added Capability Anchor Justification row (CAP-003 "OCSF Normalization", verbatim per capabilities.md §CAP-003). Origin: adversary PR-LEVEL pass 2 finding F-CLARO-P2-HIGH-001; backport row S-DEMO-CLAROTY-LIVE-DRIFT-BACKPORT-001. |
 | 1.6 | wave-a-spec-evolution-fix-burst-38 | 2026-07-24 | product-owner | F-WASE-P49-LOW-001 sibling-sweep extension: `scheduled_amendment_in` cleared (ADR-023 amendment completed in v1.5 PLUGIN-MIGRATION-001-G, 2026-05-27); set to `null`; added `amendment_lifecycle: null` per BC-2.01.006 cleared-state convention. |
 | 1.5 | PLUGIN-MIGRATION-001-G | 2026-05-27 | product-owner | AC-002 amendment: removed PENDING AMENDMENT banner; added Amendment Note to Description; updated mechanism language from deleted `prism-ocsf/src/mappers/claroty.rs` to SpecDrivenMapper + ocsf_field TOML annotations; updated Description to remove adapter reference; bumped status draft→active; removed amendment_lifecycle: pending. |
