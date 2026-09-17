@@ -1504,14 +1504,6 @@ async fn test_jex_rg012_b_where_key_too_long_rejected_e_query_045_b() {
 
     let result = engine.execute(&query, QueryOptions::default()).await;
 
-    // SID-2: assert the full composed error Display (key_len + max_len fields).
-    let expected_display = format!(
-        "E-QUERY-045: json_extract_string key exceeds maximum length: \
-         key is {key_len} bytes, maximum is {max_len} bytes.",
-        key_len = 257,
-        max_len = 256
-    );
-
     match result {
         Err(PrismError::JsonExtractKeyTooLong { key_len, max_len }) => {
             assert_eq!(
@@ -1522,11 +1514,22 @@ async fn test_jex_rg012_b_where_key_too_long_rejected_e_query_045_b() {
                 max_len, 256,
                 "RG-JEX-012-b: max_len must be 256. Got: {max_len}"
             );
-            // Wire-shape: full composed Display matches MCP INVALID_PARAMS message.
+            // SID-2: assert spec-verbatim E-QUERY-045(b) substrings (same approach as RG-JEX-007).
+            // Spec: "E-QUERY-045: json_extract_string key is {key_len} bytes, which exceeds the
+            //        {max_len}-byte maximum (CWE-400)." — error-taxonomy.md §E-QUERY-045(b),
+            //        BC-2.11.025 §Error Cases, ADR-066 §F.
             let display = format!("{}", PrismError::JsonExtractKeyTooLong { key_len, max_len });
-            assert_eq!(
-                display, expected_display,
-                "RG-JEX-012-b wire-shape: Display must match MCP INVALID_PARAMS message. \
+            assert!(
+                display.starts_with("E-QUERY-045:"),
+                "RG-JEX-012-b wire-shape: error must start with 'E-QUERY-045:'. Got: {display:?}"
+            );
+            assert!(
+                display.contains("257 bytes"),
+                "RG-JEX-012-b wire-shape: Display must contain '257 bytes'. Got: {display:?}"
+            );
+            assert!(
+                display.contains("256-byte maximum (CWE-400)"),
+                "RG-JEX-012-b wire-shape: Display must contain '256-byte maximum (CWE-400)'. \
                  Got: {display:?}"
             );
         }
