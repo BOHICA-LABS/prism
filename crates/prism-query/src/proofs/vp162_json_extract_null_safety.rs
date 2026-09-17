@@ -22,7 +22,7 @@
 //! implementation so the proof is ready for Phase 5 dispatch without a separate
 //! story. The harness must compile under `cargo kani -p prism-query` before merge.
 //!
-//! VP-162 v1.4; ADR-066 §D1; BC-2.11.025 postcondition §Null column (AC-004).
+//! VP-162 v1.5; ADR-066 §D1; BC-2.11.025 postcondition §Null column (AC-004).
 //! Story: S-JSON-EXTRACT-UDF-001 T-06.
 
 // Implementer note: VP-162 §Kani Proof Harness specifies

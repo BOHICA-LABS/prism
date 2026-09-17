@@ -2868,6 +2868,9 @@ fn collect_predicate_columns_with_bareness(
 // E-QUERY-045 plan-time json_extract_string literal-key gate (S-JSON-EXTRACT-UDF-001)
 // ---------------------------------------------------------------------------
 
+/// Maximum allowed key length in UTF-8 bytes per ADR-066 §D3 (CWE-400).
+const JSON_EXTRACT_MAX_KEY_BYTES: usize = 256;
+
 /// Plan-time literal-key gate for `json_extract_string` — E-QUERY-045 (BC-2.11.025).
 ///
 /// Walks the parsed AST for `ScalarFunc::JsonExtractString` call nodes and validates
@@ -2895,9 +2898,6 @@ fn collect_predicate_columns_with_bareness(
 ///
 /// ADR-066 §B3 + §D3 + §F; BC-2.11.025 §Plan-time literal-key gate;
 /// S-JSON-EXTRACT-UDF-001 AC-006 (RG-JEX-006) + AC-007 (RG-JEX-007).
-/// Maximum allowed key length in UTF-8 bytes per ADR-066 §D3 (CWE-400).
-const JSON_EXTRACT_MAX_KEY_BYTES: usize = 256;
-
 pub(crate) fn check_json_extract_key_literal(ast: &crate::ast::Ast) -> Result<(), PrismError> {
     use crate::ast::{Ast, SqlStatement};
     match ast {
