@@ -6,11 +6,16 @@
 //! Proptest proofs (VP-031) run under `#[cfg(test)]` and are RED by design
 //! until S-3.02 implementation is complete (todo!() bodies).
 //!
-//! | Proof module        | VP ID  | Method   | Property                                        |
-//! |---------------------|--------|----------|-------------------------------------------------|
-//! | `vp014_size_limit`  | VP-014 | Kani     | Queries > MAX_QUERY_SIZE always return Err      |
-//! | `vp015_depth_limit` | VP-015 | Kani     | Nesting depth > 64 always returns Err           |
-//! | `vp031_pushdown`    | VP-031 | Proptest | REQUIRED columns always produce PushDown        |
+//! | Proof module                       | VP ID  | Method   | Property                                                      |
+//! |------------------------------------|--------|----------|---------------------------------------------------------------|
+//! | `vp014_size_limit`                 | VP-014 | Kani     | Queries > MAX_QUERY_SIZE always return Err                    |
+//! | `vp015_depth_limit`                | VP-015 | Kani     | Nesting depth > 64 always returns Err                         |
+//! | `vp031_pushdown`                   | VP-031 | Proptest | REQUIRED columns always produce PushDown                      |
+//! | `vp025_cache_key`                  | VP-025 | Kani     | Cache key derivation is deterministic                         |
+//! | `vp012_depth_limit`                | VP-012 | Kani     | Alias graph depth limit enforced on expansion                 |
+//! | `vp013_cycle_detection`            | VP-013 | Kani     | Alias cycle detection halts expansion                         |
+//! | `vp037_alias_no_panic`             | VP-037 | Proptest | Alias expansion never panics on arbitrary alias graphs        |
+//! | `vp162_json_extract_null_safety`   | VP-162 | Kani     | json_extract_string null-safety; any_vec symbolic, unwind 8/4 |
 //!
 //! ## Canonical Kani invocation flags (Section D harmonization)
 //!
