@@ -2843,6 +2843,47 @@ fn collect_predicate_columns_with_bareness(
 }
 
 // ---------------------------------------------------------------------------
+// E-QUERY-045 plan-time json_extract_string literal-key gate (S-JSON-EXTRACT-UDF-001)
+// ---------------------------------------------------------------------------
+
+/// Plan-time literal-key gate for `json_extract_string` — E-QUERY-045 (BC-2.11.025).
+///
+/// Walks the parsed AST for `ScalarFunc::JsonExtractString` call nodes and validates
+/// that the second argument (the key) is a string literal that satisfies both:
+/// (a) It IS a `Expr::Literal(Literal::String(_))` — not a column reference or expression;
+///     violation returns `Err(PrismError::JsonExtractNonLiteralKey)` (E-QUERY-045(a)).
+/// (b) Its UTF-8 byte length is ≤ 256 bytes (CWE-400 cap);
+///     violation returns `Err(PrismError::JsonExtractKeyTooLong { key_len, max_len: 256 })`
+///     (E-QUERY-045(b)).
+///
+/// # Gate ordering
+///
+/// MUST fire AFTER the E-QUERY-037/038/039/041/042/043 gates and BEFORE `ctx.sql()`
+/// (DataFusion plan + execution). This ordering is enforced by the caller
+/// (materialization pipeline) and verified by RG-JEX-006 (AC-006; SAP-3 reachability).
+///
+/// # SAP-3 reachability
+///
+/// This gate MUST be exercised via a real PQL query string through the `prism_query`
+/// public API — not only from a synthetic AST injection (AC-006 SAP-3 cite).
+///
+/// BC-5.38.005 self-check: "If I include this real implementation, will the test for this
+/// function pass trivially without any implementer work?" — YES (RG-JEX-006 + RG-JEX-007
+/// directly test this gate). MUST remain `todo!()`.
+///
+/// ADR-066 §B3 + §D3 + §F; BC-2.11.025 §Plan-time literal-key gate;
+/// S-JSON-EXTRACT-UDF-001 AC-006 (RG-JEX-006) + AC-007 (RG-JEX-007).
+// dead_code at stub stage: called from the materialization pipeline (T-08/T-09 in engine.rs)
+// which is behind todo!(). Will be wired in S-JSON-EXTRACT-UDF-001 T-08/T-09.
+#[allow(dead_code)]
+pub(crate) fn check_json_extract_key_literal(_ast: &crate::ast::Ast) -> Result<(), PrismError> {
+    todo!(
+        "check_json_extract_key_literal gate not yet implemented — \
+         S-JSON-EXTRACT-UDF-001 T-09 (ADR-066 §B3 + §D3)"
+    )
+}
+
+// ---------------------------------------------------------------------------
 // E-QUERY-038 plan-time column gate (S-DEMO-PRISMQL-ONBOARDING-001-B)
 // ---------------------------------------------------------------------------
 

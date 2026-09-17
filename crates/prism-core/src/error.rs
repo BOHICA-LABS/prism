@@ -1653,6 +1653,52 @@ pub enum PrismError {
     #[error("E-QUERY-043: IN subquery in projection position is not supported. {hint}")]
     ExprInSubqueryProjectionNotSupported { hint: String },
 
+    // E-QUERY-045 — json_extract_string literal-key plan gate (ADR-066 §B3 + §D3 + §F)
+    //
+    // Fired by `check_json_extract_key_literal` BEFORE DataFusion execution (plan time).
+    // Gate fires after E-QUERY-037/038/039/041/042/043 gates per ADR-066 §B3.
+    //
+    // Two sub-cases (a) and (b); both map to JSON-RPC -32602 (INVALID_PARAMS):
+    // caller-resolvable by correcting the key argument.
+    //
+    // POL-24: error messages MUST match ADR-066 §F byte-for-byte (verbatim message templates).
+    // The `{key_len}` and `{max_len}` format specifiers in variant (b) are substituted by
+    // the `#[error(...)]` derive at display time.
+    //
+    // Reference: ADR-066 §B3 + §D3 + §F; BC-2.11.025 §Error Cases E-QUERY-045(a)(b);
+    //            S-JSON-EXTRACT-UDF-001 AC-006 (RG-JEX-006) + AC-007 (RG-JEX-007).
+    /// E-QUERY-045(a): `json_extract_string` second argument is not a string literal.
+    ///
+    /// Fired when `json_extract_string(col, expr)` is parsed with a non-literal
+    /// second argument (e.g., a column reference). Dynamic key expressions bypass
+    /// the 256-byte CWE-400 cap and the literal-key injection prevention contract.
+    ///
+    /// Maps to JSON-RPC `-32602 INVALID_PARAMS` — caller-resolvable by supplying a
+    /// literal string key (e.g., `json_extract_string(col, 'key_name')`).
+    ///
+    /// ADR-066 §B3 + §F; BC-2.11.025 §Error Cases E-QUERY-045(a); AC-006 (RG-JEX-006).
+    #[error(
+        "E-QUERY-045: json_extract_string requires a literal string key (e.g., \
+         json_extract_string(col, 'key_name')). Dynamic key expressions are not supported."
+    )]
+    JsonExtractNonLiteralKey,
+
+    /// E-QUERY-045(b): `json_extract_string` literal key exceeds the 256-byte cap (CWE-400).
+    ///
+    /// Fired when the second argument is a string literal but its UTF-8 byte length
+    /// exceeds 256. The 256-byte cap prevents unbounded key allocation per CWE-400.
+    /// Plan-time enforcement means zero per-row runtime overhead.
+    ///
+    /// Maps to JSON-RPC `-32602 INVALID_PARAMS` — caller-resolvable by using a
+    /// shorter key (≤ 256 UTF-8 bytes).
+    ///
+    /// ADR-066 §D3 + §F; BC-2.11.025 §Error Cases E-QUERY-045(b); AC-007 (RG-JEX-007).
+    #[error(
+        "E-QUERY-045: json_extract_string key is {key_len} bytes, which exceeds the \
+         {max_len}-byte maximum (CWE-400)."
+    )]
+    JsonExtractKeyTooLong { key_len: usize, max_len: usize },
+
     // -------------------------------------------------------------------------
     // Catch-all for unexpected internal errors
     // -------------------------------------------------------------------------

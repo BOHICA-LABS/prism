@@ -453,6 +453,31 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             (codes::INVALID_PARAMS, format!("{err}"))
         }
 
+        // E-QUERY-045(a): json_extract_string non-literal key → -32602 INVALID_PARAMS.
+        //
+        // Fired by the plan-time `check_json_extract_key_literal` gate when the second
+        // argument to `json_extract_string(col, expr)` is not a string literal. The gate
+        // fires before DataFusion execution (ADR-066 §B3).
+        //
+        // MUST be explicit: without this arm the variant falls through to catch-all
+        // `-32000 INTERNAL_ERROR`, hiding the caller-actionable injection prevention gate.
+        //
+        // Reference: ADR-066 §B3 + §F; BC-2.11.025 §Error Cases E-QUERY-045(a);
+        //            S-JSON-EXTRACT-UDF-001 AC-006.
+        PrismError::JsonExtractNonLiteralKey => (codes::INVALID_PARAMS, format!("{err}")),
+
+        // E-QUERY-045(b): json_extract_string key exceeds 256-byte cap → -32602 INVALID_PARAMS.
+        //
+        // Fired by the plan-time `check_json_extract_key_literal` gate when the second
+        // argument is a literal string key longer than 256 UTF-8 bytes (CWE-400 cap).
+        //
+        // MUST be explicit: without this arm the variant falls through to catch-all
+        // `-32000 INTERNAL_ERROR`, hiding the caller-actionable key-length error.
+        //
+        // Reference: ADR-066 §D3 + §F; BC-2.11.025 §Error Cases E-QUERY-045(b);
+        //            S-JSON-EXTRACT-UDF-001 AC-007.
+        PrismError::JsonExtractKeyTooLong { .. } => (codes::INVALID_PARAMS, format!("{err}")),
+
         // E-INT-001: Internal invariant violated → -32000 Internal
         // Detail is suppressed — audit log has it.
         PrismError::Internal { .. } => (codes::INTERNAL_ERROR, "Internal error".to_owned()),
@@ -2393,6 +2418,64 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         // ── Catch-all: unknown variants → "upstream_error" (legal BC category) ──
         // "upstream_error" is the safest legal fallback for variants that don't fit
         // the specific categories above (non_exhaustive catch-all).
+        // E-QUERY-045(a): json_extract_string non-literal key — category "validation".
+        //
+        // original_params_valid: false — the second argument must be a literal string;
+        // a column reference or expression is structurally invalid per ADR-066 §B3.
+        // suggestion: hints analyst to use literal key form (ADR-066 §F message context).
+        // ec_code_override: None — Display starts with "E-QUERY-045:" so inference path
+        // correctly derives "E-QUERY-045".
+        //
+        // Reference: ADR-066 §B3 + §F; BC-2.11.025 §Error Cases E-QUERY-045(a);
+        //            S-JSON-EXTRACT-UDF-001 AC-006.
+        PrismError::JsonExtractNonLiteralKey => VariantMeta {
+            category: "validation",
+            suggestion: "Use a literal string key: json_extract_string(col, 'key_name').",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: false,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+            near_text: None,
+            reference_pointer: None,
+            valid_operators_for_type: None,
+            how_to_fix: None,
+            available_columns: None,
+            did_you_mean: None,
+            normalized_pql: None,
+        },
+
+        // E-QUERY-045(b): json_extract_string key exceeds 256-byte cap — category "validation".
+        //
+        // original_params_valid: false — key length > 256 bytes violates the CWE-400 cap;
+        // caller must shorten the key to ≤ 256 UTF-8 bytes.
+        // suggestion: directs analyst to reduce key length.
+        // ec_code_override: None — Display starts with "E-QUERY-045:" so inference path
+        // correctly derives "E-QUERY-045".
+        //
+        // Reference: ADR-066 §D3 + §F; BC-2.11.025 §Error Cases E-QUERY-045(b);
+        //            S-JSON-EXTRACT-UDF-001 AC-007.
+        PrismError::JsonExtractKeyTooLong { .. } => VariantMeta {
+            category: "validation",
+            suggestion: "Reduce the json_extract_string key to 256 UTF-8 bytes or fewer.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: false,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+            near_text: None,
+            reference_pointer: None,
+            valid_operators_for_type: None,
+            how_to_fix: None,
+            available_columns: None,
+            did_you_mean: None,
+            normalized_pql: None,
+        },
+
         _ => VariantMeta {
             category: "upstream_error",
             suggestion: "See audit log for details.",

@@ -55,3 +55,9 @@ pub mod vp013_cycle_detection;
 // VP-037: Alias expansion never panics on arbitrary alias graphs.
 // Proptest coverage layer (fuzz target lives in fuzz/fuzz_targets/).
 pub mod vp037_alias_no_panic;
+
+// VP-162: json_extract_string_impl null-safety property (BC-2.11.025 AC-004).
+// Two Kani harnesses: vp162_json_extract_string_null_safety (panic-free) +
+// vp162_b_none_input_is_none_output (None input → None output invariant).
+// Authored in Phase 3 (S-JSON-EXTRACT-UDF-001 T-06); dispatched Phase 5.
+pub mod vp162_json_extract_null_safety;
