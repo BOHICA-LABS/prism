@@ -27,13 +27,13 @@
 
 // Implementer note: VP-162 §Kani Proof Harness specifies
 // `use super::super::json_extract_udf::json_extract_string_impl;` inside
-// `mod vp162_proofs`. From a file at `src/proofs/<name>.rs`, `super::super`
+// `mod kani_proofs`. From a file at `src/proofs/<name>.rs`, `super::super`
 // resolves to `crate::proofs`, not the crate root — `json_extract_udf` lives
 // at the crate root. Using the absolute `crate::` path instead, matching the
 // VP-014 / VP-015 import convention in this module.
 
 #[cfg(kani)]
-mod vp162_proofs {
+mod kani_proofs {
     use crate::json_extract_udf::json_extract_string_impl;
 
     /// VP-162: null safety and panic freedom for json_extract_string_impl.
