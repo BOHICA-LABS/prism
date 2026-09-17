@@ -5,7 +5,7 @@ title: "v1 Column Naming: OCSF Field-Path Routing with Underscore-Flattened Arro
 status: accepted
 date: "2026-08-11"
 modified: "2026-09-16"
-version: "2.43"
+version: "2.44"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-10, SS-16]
 supersedes: null
@@ -449,8 +449,10 @@ source-key list to understand what fields are inside (e.g., `alert_class`).
 all columns are emitted as individual descriptors with `ColumnDescriptor.name = col.name`.
 
 **Synthesized column discoverability (OQ-003):** When `ocsf_column_naming = true`, `prism_describe`
-MUST also emit `ColumnDescriptor` entries for the two unconditionally synthesized Arrow columns
-appended by `pipeline_result_to_record_batch` to every spec-driven RecordBatch:
+MUST also emit `ColumnDescriptor` entries for all five unconditionally synthesized and virtual
+Arrow columns appended to every spec-driven RecordBatch — two synthesized by
+`pipeline_result_to_record_batch` (`class_uid`, `_sensor`) and three virtual fields injected by
+`inject_virtual_fields` (BC-2.11.012) (`_client`, `_source_table`, `_source_type`):
 
 - `class_uid`: `name = "class_uid"`, `col_type = prism_core::column::ColumnType::Integer`,
   `nullable = false`, `description = "OCSF event class identifier derived from sensor TOML
@@ -458,16 +460,28 @@ appended by `pipeline_result_to_record_batch` to every spec-driven RecordBatch:
   (alerts, device_alert_relations), 5001 for inventory_info (devices)."`
 - `_sensor`: `name = "_sensor"`, `col_type = prism_core::column::ColumnType::String`,
   `nullable = false`, `description = "Sensor identifier. Value: <sensor_id> (e.g., 'claroty')."`
+- `_client`: `name = "_client"`, `col_type = prism_core::column::ColumnType::String`,
+  `nullable = false`, `description = "Client/tenant identifier injected by virtual field
+  pipeline (BC-2.11.012)."`
+- `_source_table`: `name = "_source_table"`, `col_type = prism_core::column::ColumnType::String`,
+  `nullable = false`, `description = "Source table name injected by virtual field pipeline
+  (BC-2.11.012)."`
+- `_source_type`: `name = "_source_type"`, `col_type = prism_core::column::ColumnType::String`,
+  `nullable = false`, `description = "Source type identifier injected by virtual field pipeline
+  (BC-2.11.012)."`
 
 These descriptors are appended AFTER the Tier-1 column descriptors (and after the single
 `raw_extensions` Tier-2 descriptor, if any). Without them, an LLM agent cannot discover that
-`WHERE class_uid = 3004` is a valid filter or that `_sensor = 'claroty'` is a valid correlation
-predicate — producing phantom-column failures at query time.
+`WHERE class_uid = 3004` is a valid filter, `_sensor = 'claroty'` is a valid correlation
+predicate, or that `_client`, `_source_table`, `_source_type` are valid filterable columns —
+producing phantom-column failures at query time. The full set of five must match BC-2.10.012
+§Postconditions and BC-2.11.012 (virtual-field conformance reference).
 
-(Mandate anchor: S-ADR058-OCSF-ROUTING-001 — story-writer leg must add an AC and Red Gate test
-asserting that `prism_describe` for a Claroty table with `ocsf_column_naming = true` emits
-`ColumnDescriptor` entries for `class_uid` (Integer, non-nullable) and `_sensor` (String,
-non-nullable) in addition to Tier-1 and Tier-2 descriptors.)
+(Mandate anchor: S-MCP-ENVELOPE-DESCRIBE-001 — Red Gate test RG-DESC-002 asserts that
+`prism_describe` for any OCSF table emits `ColumnDescriptor` entries for all five: `class_uid`
+(Integer, non-nullable), `_sensor` (String, non-nullable), `_client` (String, non-nullable),
+`_source_table` (String, non-nullable), and `_source_type` (String, non-nullable), in addition
+to Tier-1 and Tier-2 descriptors.)
 
 ---
 
@@ -1479,7 +1493,7 @@ provenance. The detailed quoting convention analysis (four options evaluated) is
 - BC-2.01.013, BC-2.16.003, and BC-2.16.002 each require product-owner amendment after Stage 2
   ships (see §I3 for the full amendment obligation list).
 
-### Status as of v2.43 (2026-09-16)
+### Status as of v2.44 (2026-09-16)
 
 Decision accepted. Stage 1 (coercion fixes, `column_coercion_failure` emission) is implemented by
 `S-ADR058-OCSF-COERCION-001` (status: draft; mandate anchor discharged at §H). Stage 2
@@ -1499,7 +1513,7 @@ the `devices` table collision is resolved per §J3. `device_alert_relations` (fo
 | BC-2.16.002 §Canonical Structured Event Catalog — `ocsf.unknown_class_name` row | DISCHARGED | The `ocsf.unknown_class_name` catalog row already exists in BC-2.16.002 §Canonical Structured Event Catalog with `ocsf_class`, `sensor_id`, `table_name` fields and per-batch recurrence |
 | BC-2.16.003 SS-07/SS-12 subsystem reconciliation | DISCHARGED | BC-2.16.003 has no SS-07/SS-12 refs; its `subsystem:` frontmatter is single-valued SS-16 (F8 fix-burst finding) |
 | BC-2.16.003 audit_logs EC — KF-05 settled to `metadata.uid` for `audit_logs.id` (OQ-005) | PENDING TDD | PO must update any EC row that reflected `activity_uid` drop-to-raw; EC must reflect `metadata_uid` as Tier-1 Arrow column; S-ADR058-OCSF-ROUTING-001 RG-021 flip |
-| BC-2.16.003 OQ-003 — synthesized-column visibility: `class_uid` + `_sensor` in prism_describe | PENDING TDD | PO must add EC asserting `prism_describe` emits `class_uid` (Integer) and `_sensor` (String) descriptors when `ocsf_column_naming = true`; S-ADR058-OCSF-ROUTING-001 (story-writer adds RG) |
+| BC-2.16.003 OQ-003 — synthesized-column visibility: `class_uid`, `_sensor`, `_client`, `_source_table`, `_source_type` in prism_describe | PENDING TDD | PO must add EC asserting `prism_describe` emits all five synthesized/virtual-field descriptors (§G OQ-003 v2.44) when `ocsf_column_naming = true`; S-MCP-ENVELOPE-DESCRIBE-001 (RG-DESC-002) |
 | BC-2.16.003 OQ-001 — push-down match invariant: dual `col.name` + `ocsf_field_to_arrow_name` in `extract_time_window_from_ast` | PENDING TDD | PO must add EC or AC asserting datetime push-down uses POST-flip Arrow field names when `ocsf_column_naming = true`; S-ADR058-OCSF-ROUTING-001 RG-PD-001 |
 
 **Handoff obligation discharge status (story-writer/implementer):**
@@ -1515,7 +1529,7 @@ the `devices` table collision is resolved per §J3. `device_alert_relations` (fo
 | `class_selector.rs` in-file doc-table updates | PENDING TDD | Module-doc `select()` and `select_by_class_name` tables; implementer execution at KF-01 code delivery |
 | KF-05 TOML correction: `metadata.uid` for `audit_logs.id` (OQ-005) | PENDING TDD | `claroty.sensor.toml` KF-05 fix; S-ADR058-OCSF-ROUTING-001 RG-021 flip (assert Tier-1 `metadata_uid`, not `raw_extensions`) |
 | §I6 push-down invariant: dual-name registration in `extract_time_window_from_ast` (OQ-001) | PENDING TDD | `prism-query::pushdown::extract_time_window_from_ast` must insert both `col.name` and `ocsf_field_to_arrow_name(ocsf_field)` for datetime columns when `ocsf_column_naming = true`; S-ADR058-OCSF-ROUTING-001 RG-PD-001 |
-| §G synthesized-column describe: `class_uid` + `_sensor` ColumnDescriptors (OQ-003) | PENDING TDD | `prism-mcp::tools::prism_describe` must emit `class_uid` and `_sensor` ColumnDescriptors when `ocsf_column_naming = true`; S-ADR058-OCSF-ROUTING-001 (story-writer adds RG) |
+| §G synthesized-column describe: five ColumnDescriptors (OQ-003 v2.44) | PENDING TDD | `prism-mcp::tools::prism_describe` must emit `class_uid`, `_sensor`, `_client`, `_source_table`, `_source_type` ColumnDescriptors when `ocsf_column_naming = true`; S-MCP-ENVELOPE-DESCRIBE-001 (RG-DESC-002) |
 
 ## Alternatives Considered
 
@@ -1560,6 +1574,7 @@ the `devices` table collision is resolved per §J3. `device_alert_relations` (fo
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 2.44 | 2026-09-16 | architect | §G OQ-003 amendment for S-MCP-ENVELOPE-DESCRIBE-001 (beta.3 unblock). Extends synthesized-column discoverability from two columns to five: adds `_client` (String, non-nullable), `_source_table` (String, non-nullable), `_source_type` (String, non-nullable) alongside existing `class_uid` + `_sensor`. The three new columns are virtual fields injected by `inject_virtual_fields` (BC-2.11.012); the two existing columns are synthesized by `pipeline_result_to_record_batch`. Mandate anchor updated from S-ADR058-OCSF-ROUTING-001 to S-MCP-ENVELOPE-DESCRIBE-001 (RG-DESC-002). Status table OQ-003 obligation rows updated to reflect five-column set. Consistent with BC-2.10.012 §Postconditions and BC-2.11.012 (amended in parallel by product-owner). §Status banner updated v2.43→v2.44. TD-VSDD-097: (1) sibling pair — no ADR twin; CLEAR. (2) downstream copy target — §G OQ-003 text is copy-source for BC-2.10.012 EC-10-025 amendment (parallel, product-owner); the five-column set aligns both artifacts. (3) mandate anchor — new MUST adds RG-DESC-002 anchored to S-MCP-ENVELOPE-DESCRIBE-001 (real story ID, Wave 2). §K5/RG-COS/is_online/retired cluster: NOT touched. |
 | 2.43 | 2026-09-16 | architect | Re-gate pass 9 fix. F-4 (OBS, POL-39): §I3 BC amendment obligations — one cross-artifact version pin depinned. "BC v1.5 §Changelog item I" → "BC-2.16.003 §Changelog item I". This is in the [DISCHARGED] row for BC-2.16.003 EC-016-013-012; the "BC v1.5" was a volatile cross-artifact version pin not covered by the §K5 POL-39 convention (which covers only intra-ADR decision-history references). D-924 burst provenance context preserved. Comprehensive non-changelog body sweep: no other cross-artifact version pins found. All other vX.Y occurrences in non-changelog narrative are intra-ADR references covered by §K5 POL-39 convention note or provenance-exempt §A/§B decision-history prose. §Status heading currency-synced v2.42→v2.43. |
 | 2.42 | 2026-09-16 | architect | Re-gate pass 8 fix. F-2 (LOW, POL-39): two cross-artifact version pins "BC-2.01.013 v1.8" depinned to section anchors. Site 1 (§A2 design-rationale body): "BC-2.01.013 v1.8 EC-01-025 (added D-924 burst, 2026-05-31)" → "BC-2.01.013 §EC-01-025 (added D-924 burst, 2026-05-31)". Site 2 (§Source/Origin block): "**BC-2.01.013 EC-01-025** (v1.8, added D-924 burst 2026-05-31)" → "**BC-2.01.013 §EC-01-025** (added D-924 burst 2026-05-31)". No other BC-2.01.013 version pin present in non-changelog body. D-924 burst date and provenance context preserved at both sites. §Status heading currency-synced: v2.41→v2.42. TD-VSDD-097: (1) sibling pair — no ADR twin; CLEAR. (2) downstream copy target — §A2 body text and §Source block are not independently copied; intra-ADR only. (3) mandate anchor — no new MUST added. |
 | 2.41 | 2026-09-16 | architect | Re-gate pass 6 records-only fix (TD-VSDD-096). F-1 (LOW): §Status heading currency-synced to frontmatter — was "Status as of v2.37" while frontmatter had reached v2.40; corrected to "Status as of v2.41" (new version produced by this fix). Sibling-consistency: ADR-066 §Status was kept current-versioned throughout this cascade; ADR-058 §Status now matches that discipline. No decision-content change — discharge tables, rationale text, and all §K5/§D2/§J mandate anchors are untouched. |
