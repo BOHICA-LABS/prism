@@ -2956,15 +2956,29 @@ fn check_jex_in_sql_query(sq: &crate::ast::SqlQuery) -> Result<(), PrismError> {
 }
 
 fn check_jex_in_pipe_stage(stage: &crate::ast::PipeStage) -> Result<(), PrismError> {
+    // Exhaustive match is a deliberate injection-perimeter compile-time guard: if a future
+    // Expr-bearing variant is added to PipeStage, this becomes a compile error rather than
+    // silently bypassing the E-QUERY-045 security gate (matching check_jex_in_expr style).
     use crate::ast::PipeStage;
     match stage {
         PipeStage::Where(pred) => check_jex_in_predicate(pred),
-        // Sort, Limit, Tail, Stats, Dedup, Fields, Join, Enrich — no Expr walk needed.
-        _ => Ok(()),
+        // The following variants contain only FieldPath, Literal, String, u64 — no Expr nodes
+        // that could carry a json_extract_string FuncCall::Scalar child.
+        PipeStage::Sort(_)
+        | PipeStage::Limit(_)
+        | PipeStage::Tail(_)
+        | PipeStage::Stats(_)
+        | PipeStage::Dedup(_)
+        | PipeStage::Fields(_)
+        | PipeStage::Join(_)
+        | PipeStage::Enrich(_) => Ok(()),
     }
 }
 
 fn check_jex_in_predicate(pred: &crate::ast::Predicate) -> Result<(), PrismError> {
+    // Exhaustive match is a deliberate injection-perimeter compile-time guard: if a future
+    // Expr-bearing variant is added to Predicate, this becomes a compile error rather than
+    // silently bypassing the E-QUERY-045 security gate (matching check_jex_in_expr style).
     use crate::ast::Predicate;
     match pred {
         Predicate::Compare { lhs, rhs, .. } => {
@@ -2979,9 +2993,18 @@ fn check_jex_in_predicate(pred: &crate::ast::Predicate) -> Result<(), PrismError
         }
         Predicate::Not(inner) => check_jex_in_predicate(inner),
         Predicate::InSubquery { subquery, .. } => check_jex_in_sql_query(subquery),
-        // StringOp, Regex, In, Between, Cidr, Has, Missing, IsNull, Wildcard, RecoveryError
-        // — none contain Expr nodes with potential FuncCall::Scalar children.
-        _ => Ok(()),
+        // The following variants contain only FieldPath, String, Literal, CidrLiteral,
+        // RegexLiteral — no Expr nodes that could carry a json_extract_string FuncCall::Scalar.
+        Predicate::StringOp { .. }
+        | Predicate::Regex { .. }
+        | Predicate::In { .. }
+        | Predicate::Between { .. }
+        | Predicate::Cidr { .. }
+        | Predicate::Has(_)
+        | Predicate::Missing(_)
+        | Predicate::IsNull { .. }
+        | Predicate::Wildcard { .. }
+        | Predicate::RecoveryError => Ok(()),
     }
 }
 

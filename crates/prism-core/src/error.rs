@@ -1656,7 +1656,13 @@ pub enum PrismError {
     // E-QUERY-045 — json_extract_string literal-key plan gate (ADR-066 §B3 + §D3 + §F)
     //
     // Fired by `check_json_extract_key_literal` BEFORE DataFusion execution (plan time).
-    // Gate fires after E-QUERY-037/038/039/041/042/043 gates per ADR-066 §B3.
+    // Gate fires AFTER plan-time gates E-QUERY-037 (table not found), E-QUERY-038 (column
+    // not found), and E-QUERY-039 (enrich UDF not found), and BEFORE `ctx.sql()` per
+    // ADR-066 §B3. Temporal gates E-QUERY-041 (bad literal format) and E-QUERY-042 (type
+    // mismatch) run in-pipeline per ADR-052 §D4 (after the plan-time gate sequence) — they
+    // are not pre-execution plan-gate peers of E-QUERY-045. E-QUERY-043 (IN subquery in
+    // projection) likewise fires in-pipeline. No specific ordering between E-QUERY-045 and
+    // in-pipeline gates is asserted beyond ADR-066 §B3.
     //
     // Two sub-cases (a) and (b); both map to JSON-RPC -32602 (INVALID_PARAMS):
     // caller-resolvable by correcting the key argument.

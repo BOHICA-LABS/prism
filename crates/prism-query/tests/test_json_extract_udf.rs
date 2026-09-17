@@ -3,7 +3,7 @@
 //! 11 failing tests — RG-JEX-001..RG-JEX-011 — all MUST FAIL against the current
 //! `todo!()` stubs before any production logic is implemented (Red Gate requirement,
 //! BC-5.38.001). Every test traces to exactly one EC-11-025-NNN edge case in
-//! BC-2.11.025 v1.9 and one acceptance criterion in S-JSON-EXTRACT-UDF-001 v1.5.
+//! BC-2.11.025 v1.9 and one acceptance criterion in S-JSON-EXTRACT-UDF-001 v1.6.
 //!
 //! # Test method by group
 //!
@@ -53,7 +53,7 @@
 //! | RG-JEX-010  | EC-11-025-009     | AC-010 dot-in-key      | step 4 (top-lvl) |
 //! | RG-JEX-011  | EC-11-025-011     | AC-011 pipe mode E2E   | full E2E         |
 //!
-//! Story: S-JSON-EXTRACT-UDF-001 v1.5 | BC: BC-2.11.025 v1.9 | ADR: ADR-066 v1.6
+//! Story: S-JSON-EXTRACT-UDF-001 v1.6 | BC: BC-2.11.025 v1.9 | ADR: ADR-066 v1.6
 
 #![allow(
     clippy::unwrap_used,
