@@ -3,7 +3,7 @@ document_type: verification-property
 level: L4
 vp_id: "VP-162"
 title: "json_extract_string_impl — Null Safety and Panic Freedom (Kani)"
-version: "1.4"
+version: "1.5"
 status: draft
 producer: architect
 phase: P0
@@ -22,7 +22,7 @@ verification_method: kani
 feasibility: feasible
 lifecycle_status: draft
 introduced: "2026-09-16"
-modified: "2026-09-16"
+modified: "2026-09-17"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -103,7 +103,7 @@ pub(crate) fn json_extract_string_impl(
 
 #[cfg(kani)]
 mod vp162_proofs {
-    use super::super::json_extract_udf::json_extract_string_impl;
+    use crate::json_extract_udf::json_extract_string_impl;
 
     /// VP-162: null safety and panic freedom for json_extract_string_impl.
     ///
@@ -232,6 +232,7 @@ extraction logic is safe for all possible input string values.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.5 | 2026-09-17 | architect | Errata (additive/errata post-freeze lane; no property/mandate change). §Kani Proof Harness: corrected stale `super::super::json_extract_udf::json_extract_string_impl` → `crate::json_extract_udf::json_extract_string_impl`. `super::super` from `crates/prism-query/src/proofs/` resolves to `crate::proofs`, not the crate root; `json_extract_udf` is declared at crate-root scope in `lib.rs`. Corrected to match VP-014/VP-015 `crate::` convention and the compiling implementation. |
 | 1.4 | 2026-09-17 | architect | Errata (additive/errata post-freeze lane; no behavioral/contract/mandate change). §Coverage Scope effectful-wrapper method name corrected: `invoke_batch` → `invoke_with_args` — DataFusion 46.0 deprecated `ScalarUDFImpl::invoke_batch`; workspace is pinned to datafusion 53.1 which exposes `invoke_with_args`. Same errata class corrected in ADR-066 §E this burst. |
 | 1.3 | 2026-09-16 | architect | Re-gate pass 10 fix. Consistency F-2 (LOW): `source_invariant: null` added to frontmatter — VP-162 §Source Traceability explicitly anchors its 256-byte key-length precondition to ADR-066 §D3 (CWE-400), not to any DI-NNN workspace invariant; per VP-INDEX §Properties convention, a VP with no DI-NNN invariant must carry `source_invariant: null`. |
 | 1.2 | 2026-09-16 | architect | Re-gate pass 2 fix. F-3 (MED): §Source Traceability Invariant row corrected — DI-019 label was "null-safe extraction" (factually wrong; DI-019 = Query Security Limits: 64KB query, 10K cap, 30s timeout); relabeled to "Query Security Limits" with correct description; ADR-066 §D3 (CWE-400 key-length cap) added as explicit anchor for the 256-byte key-length precondition modeled in the Kani harness. |

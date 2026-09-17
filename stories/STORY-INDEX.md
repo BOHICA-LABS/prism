@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "3.047"
+version: "3.048"
 status: draft
 producer: state-manager
 timestamp: 2026-09-17T00:00:00Z
 phase: 3
 total_stories: 354
+# D-2553 — STORY-INDEX v3.047→v3.048: S-JSON-EXTRACT-UDF-001 v1.3→v1.4 pin sync (D-2553 LOCAL re-gate CLEAN(PR-merge); VP-162 v1.4→v1.5 errata pin sweep in §Authority/FROZEN NOTE/Token Budget/Architecture Compliance Rules; v1.3 stale cite in Architecture Compliance Rules also corrected; total_stories 354 UNCHANGED).
 # D-2552 — STORY-INDEX v3.046→v3.047: S-JSON-EXTRACT-UDF-001 v1.2→v1.3 pin sync (LOCAL adversary pass-1 fix-burst; F-2 MED AC-009/EC-11-025-010 aligned BC silent-null-propagation + ADR-066 §D1 purity; story-writer bump; total_stories 354 UNCHANGED).
 # D-2551 — STORY-INDEX v3.045→v3.046: S-JSON-EXTRACT-UDF-001 v1.1→v1.2 errata pin sync (ADR-066 v1.5→v1.6 + VP-162 v1.3→v1.4; invoke_batch→invoke_with_args; pre-TDD D-2551 errata burst; additive/errata post-freeze; total_stories 354 UNCHANGED).
 # D-2550 — STORY-INDEX v3.044→v3.045: F3 W4+W5 MATERIALIZATION COMPLETE — BETA.3 F3 MATERIALIZATION 10/10 STORIES READY. S-BETA3-RELEASE-001 v1.0 REGISTERED READY (facade; 9 ACs; E-BETA3-REMEDIATION; W4; P0; 2pts; crates_touched []; depends_on 8 W1-W3 stories; RELEASE_PROMOTE_TOKEN human prereq captured as DELIVERY gate; holdout N/A — no binary produced; RELEASING.md §4 / ADR-063 §D7 v1.14 / ADR-064 §D2 v2.3). S-ONBOARDING-DOCS-001 v1.0 REGISTERED READY (facade/docs; 4 ACs issues 16-19; E-BETA3-REMEDIATION; W5; P1; 2pts; crates_touched []; depends_on []; blocks S-BETA3-RELEASE-001; holdout N/A). Both facade (crates_touched []); D-1110 N/A (no Rust code). delta-analysis §S-BETA3-RELEASE-001 scope item 2 errata corrected (RELEASING.md §1 pre-release exception authoritative; beta uses release-tag.yml not develop→main promotion). total_stories 352→354.
@@ -1127,7 +1128,7 @@ All 8 D-1889 CRITICALs are now tracked artifacts. Stories below cover the sensor
 | S-DEMO-CLAROTY-HARNESS-DAR-001 | prism-dtu-harness: Add POST /api/v1/device_alert_relations/ to Claroty in-process clone (closes INV-HARNESS-ROUTE-PARITY for device_alert_relations) [draft v1.0] | prism-dtu-harness | 1 (BC-2.16.013) | -- | 2 | S-DEMO-CLAROTY-DAR-001 |
 | S-ADR058-OCSF-COERCION-001 | ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission [merged v1.47] | prism-spec-engine,prism-bin | 3 (BC-2.16.003, BC-2.02.011, BC-2.16.002) | VP-017, VP-016 | 5 | -- |
 | S-ADR058-OCSF-ROUTING-001 | ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation [MERGED v1.57] | prism-spec-engine,prism-bin,prism-mcp,prism-ocsf,prism-sensors | 4 (BC-2.16.003, BC-2.16.002, BC-2.01.013, BC-2.11.016) | VP-017, VP-016 | 8 | S-ADR058-OCSF-COERCION-001 |
-| S-JSON-EXTRACT-UDF-001 | DataFusion json_extract_string ScalarUDF — Literal-Key-Only JSON String Extraction with Plan Gate (E-QUERY-045); BLOCKS S-JSON-EXTRACT-TYPED-001 + S-JSON-EXTRACT-NESTED-001 [ready v1.3; D-2552; RG-JEX-001..011; SAC-1 compliant; DataFusion 53.1 invoke_with_args; security-reviewer pass mandated] | prism-query, prism-core | 2 (BC-2.11.025 v1.8, ADR-066 v1.6) | VP-162 | 5 | S-ADR058-OCSF-ROUTING-001 |
+| S-JSON-EXTRACT-UDF-001 | DataFusion json_extract_string ScalarUDF — Literal-Key-Only JSON String Extraction with Plan Gate (E-QUERY-045); BLOCKS S-JSON-EXTRACT-TYPED-001 + S-JSON-EXTRACT-NESTED-001 [ready v1.4; D-2553; RG-JEX-001..011; SAC-1 compliant; DataFusion 53.1 invoke_with_args; security-reviewer pass mandated] | prism-query, prism-core | 2 (BC-2.11.025 v1.8, ADR-066 v1.6) | VP-162 | 5 | S-ADR058-OCSF-ROUTING-001 |
 | S-ADR058-DTU-PARITY-MIGRATION-001 | DTU Parity Test Migration for ADR-058 Stage 2 OCSF Field-Path Routing [draft v1.0] | prism-dtu-claroty,prism-dtu-crowdstrike,prism-dtu-armis,prism-dtu-cyberint,prism-bin | 2 (BC-2.16.003, BC-2.01.013) | -- | 5 | -- |
 | S-OCSF-FIDELITY-CROWDSTRIKE-001 | CrowdStrike OCSF Schema Validation and Correction (ADR-058 §K Methodology) [draft v0.2] | prism-sensors,prism-ocsf | 0 (pending PO authorship) | -- | tbd | -- |
 | S-OCSF-FIDELITY-CYBERINT-001 | Cyberint OCSF Schema Validation and Correction (ADR-058 §K Methodology) [draft v0.2] | prism-sensors,prism-ocsf | 0 (pending PO authorship) | -- | tbd | -- |
