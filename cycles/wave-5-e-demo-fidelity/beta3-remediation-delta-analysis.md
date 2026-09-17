@@ -300,6 +300,15 @@ tests pass but live API fails.
 assert on literal `"null"` strings. Grep all test fixture JSON for literal `"null"` string
 values before fixing; update tests to assert Arrow null cells.
 
+> **D-1110 remove-uncertainty note (2026-09-17):** Issue 7a (top-level `Value::Null` in a
+> String column → Arrow None, not `"null"`) is PRE-FIXED on develop. The `ColumnType::String`
+> arm of `build_column_array` has `serde_json::Value::Null => None` as its first explicit
+> match arm (added in commit `fff6e28ba`). The code behavior matches BC-2.16.003
+> EC-016-013-006 (amended). Only Issue 7b (null ELEMENTS in a `Value::Array` compact-JSON-list
+> → filtered; all-null → `"[]"`; EC-016-013-041) requires implementation. See
+> S-MCP-NULL-ENCODING-001 §History v1.2 for the discovery record and the reclassification
+> of RG-NULL-001 as a lock-in regression guard.
+
 ---
 
 ### Issue 8 — alerts.finding_info_uid column_type mismatch with live API

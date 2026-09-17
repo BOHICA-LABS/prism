@@ -4,8 +4,8 @@ story_id: S-MCP-NULL-ENCODING-001
 title: "Fix null/list null encoding in build_column_array and map_record"
 wave: 2
 epic_id: E-BETA3-REMEDIATION
-version: "1.0"
-status: draft
+version: "1.2"
+status: ready
 producer: story-writer
 phase: 3
 priority: P0
@@ -53,36 +53,17 @@ risk: MEDIUM
 behavioral_contracts:
   - BC-2.11.001
   - BC-2.16.003
-# BC status: AMENDMENTS PENDING PO authorship.
+# BC status: AMENDMENTS ACTIVE (D-2544).
 #
-# BC-2.16.003 EC-016-013-006 currently says:
-#   "`column_type = "string"`, `Value::Null` input — Rule 1 pass-through; `Value::Null` placed
-#   in OCSF field; absent key is DISTINCT from null (see wire-shape invariant in §Invariants)"
-#   This is AMBIGUOUS. "Placed in OCSF field" does not specify whether the Arrow cell is a null
-#   cell (None) or the literal string "null". The defect (7a) is that `build_column_array`
-#   calls `.to_string()` on `Value::Null` → "null" (the string), rather than returning `None`
-#   (Arrow null cell).
-#   REQUIRED AMENDMENT: EC-016-013-006 must be updated to state explicitly:
-#     "Path A (`build_column_array`): returns `None` (Arrow null cell) — NOT the literal string
-#     `\"null\"`. The Rust expression `Value::Null.to_string()` evaluates to `"null"` and MUST
-#     NOT be used. Return `None` from the `serde_json::Value::Null` arm of the String branch.
-#     Path B (`coerce_value` / `map_record`): places JSON null as the JSON null VALUE in the
-#     destination key (OCSF field or raw_extensions), per §Invariants null-vs-absent rule."
-#   Next available EC: EC-016-013-041.
+# BC-2.16.003 v1.32 amendments now active:
+#   EC-016-013-006 AMENDED: Path A `build_column_array` returns `None` (Arrow null cell) for
+#     `Value::Null` string input — NOT the literal string "null". Unambiguous as of v1.32.
+#   EC-016-013-041 NEW: `Value::Null` elements in `Value::Array` inputs for string columns
+#     are omitted from the compact JSON-list string output (not serialized as "null").
+#     An all-null array produces "[]". (EC-016-013-042 was the alternative candidate ID;
+#     EC-016-013-041 was assigned per D-2544.)
 #
-# BC-2.16.003 EC-016-013-026 (or new EC-016-013-042) needs extension for null-in-array:
-#   EC-016-013-026 currently describes the `Value::Array` arm for string columns as serializing
-#   all elements via `other.to_string()`, yielding a compact JSON-list string. It does NOT
-#   address the sub-case where array elements are `Value::Null`. In that sub-case,
-#   `other.to_string()` returns `"null"` (the string), producing `["null"]` in raw_extensions.
-#   REQUIRED AMENDMENT or NEW EC: add a clause to EC-016-013-026 (or create EC-016-013-042):
-#     "Null elements within a `Value::Array` input for string columns MUST be omitted from the
-#     compact JSON-list string output. A `Value::Null` element is filtered out, not serialized
-#     as the string `\"null\"`. An array whose only elements are `Value::Null` produces the
-#     empty compact JSON-list string `\"[]\"` (consistent with the existing empty-array rule),
-#     NOT `[\"null\"]`."
-#
-# BC-2.11.001 EC-11-079 (null-not-absent, active):
+# BC-2.11.001 EC-11-079 (null-not-absent, active, v1.37):
 #   This contract governs the DOWNSTREAM serialization layer (Arrow null cell → JSON null key
 #   in MCP wire output). EC-11-079 is not the upstream fix target, but the story's fixes feed
 #   it: once `build_column_array` produces Arrow null cells (not literal "null" strings),
@@ -90,11 +71,7 @@ behavioral_contracts:
 #   JSON `null` (not absent keys). The wire-shape assertions in this story's ACs verify the
 #   end-to-end chain: sensor-null → Arrow-null → JSON-null-not-absent.
 #
-# Both BC-2.16.003 AMENDMENTS (EC-016-013-006 update + EC-016-013-041/042 addition) MUST
-# be authored by product-owner and reach `status: active` BEFORE this story is dispatched
-# to test-writer (Spec-First Gate S-7.01).
-#
-# This story's status MUST remain `draft` until both BC-2.16.003 amendments are authored.
+# Spec-First Gate S-7.01 satisfied; story is unblocked for test-writer dispatch.
 verification_properties: []
 assumption_validations: []
 risk_mitigations: []
@@ -132,9 +109,9 @@ emission site in `crates/prism-dtu-claroty/src/routes/` MUST emit `null` (not th
 — not just the struct definition — before writing the SAP-2 parity test (AC-003/RG-NULL-003).
 Reference: CLAUDE.md §SAP-2 probe rule 6 (emission-site authority).
 
-> NOTE: BC-2.16.003 amendments (EC-016-013-006 update + new EC-016-013-041/042) MUST be
-> authored by product-owner and reach `status: active` BEFORE test-writer dispatch. See
-> frontmatter `behavioral_contracts` comment block for exact amendment text.
+> NOTE: BC-2.16.003 v1.32 amendments are now active per D-2544 — EC-016-013-006 (amended)
+> and EC-016-013-041 (new). Spec-First Gate S-7.01 satisfied; story is unblocked for
+> test-writer dispatch.
 
 ---
 
@@ -145,18 +122,34 @@ xDome tenant (jea-readapi), both rooted in `build_column_array` in `spec_driven_
 
 **Issue 7a — String columns: JSON `null` → literal string `"null"` instead of Arrow null:**
 
-When a sensor API returns a JSON `null` for an optional string field (e.g., `source_ip: null`),
-`build_column_array` calls `Value::Null.to_string()` (via the wildcard arm in the String branch)
-which produces the string `"null"`. The Arrow `Utf8` column then contains the four-character
-string "null" instead of an Arrow null cell.
+> **D-1110 remove-uncertainty finding (2026-09-16):** Issue 7a is ALREADY FIXED on the
+> current develop branch. The `ColumnType::String` arm of `build_column_array` has
+> `serde_json::Value::Null => None` as its first explicit match arm (added in commit
+> `fff6e28ba feat(enrichment): ENRICH-1/2/3/4-B integration`, June 23, 2026). This was
+> present before the beta.2 Monroe demo; the demo was run against a build that predated
+> this commit. The code behavior now matches BC-2.16.003 EC-016-013-006 (amended).
+>
+> Consequence for this story: RG-NULL-001 is a LOCK-IN REGRESSION GUARD (GREEN immediately),
+> not a Red Gate failing test. Phase B (T-B01) must VERIFY the existing fix, not implement
+> a new one. Only Issue 7b (array element null filtering) requires an implementation fix.
+> Red Gate density: 3 genuinely failing tests (RG-NULL-002, RG-NULL-003, RG-NULL-004).
 
-**Downstream effects:**
-- `SELECT * FROM claroty_alerts WHERE source_ip IS NULL` returns 0 rows (the column has the
-  string "null", not an Arrow null cell — the predicate never fires)
-- LLM agents reading serialized row JSON see `"source_ip": "null"` (string) instead of
-  `"source_ip": null` (JSON null) — the agent cannot distinguish a null field from a field
-  whose value happens to be the string "null"
-- BC-2.16.003 EC-016-013-006 is violated: the contract says `Value::Null` is "placed in
+When a sensor API returns a JSON `null` for an optional string field (e.g., `source_ip: null`),
+`build_column_array` in the beta.2 release build called `Value::Null.to_string()` (via the
+wildcard arm in the String branch), which produced the string `"null"`. The Arrow `Utf8`
+column contained the four-character string "null" instead of an Arrow null cell.
+
+**This behavior is fixed on develop.** The `ColumnType::String` branch now has
+`serde_json::Value::Null => None` before the wildcard arm. The downstream effects below
+describe what the beta.2 release exhibited; they do NOT describe current develop behavior.
+
+**Beta.2 downstream effects (historical, fixed on develop):**
+- `SELECT * FROM claroty_alerts WHERE source_ip IS NULL` returned 0 rows (the column had
+  the string "null", not an Arrow null cell — the predicate never fired)
+- LLM agents reading serialized row JSON saw `"source_ip": "null"` (string) instead of
+  `"source_ip": null` (JSON null) — the agent could not distinguish a null field from a field
+  whose value happened to be the string "null"
+- BC-2.16.003 EC-016-013-006 was violated: the contract says `Value::Null` is "placed in
   OCSF field" (implying null cell), not "stringified and placed as the string 'null'"
 
 **Issue 7b — List columns: `Value::Null` elements in arrays → `["null"]` in raw_extensions:**
@@ -190,7 +183,7 @@ inspection, and `raw_extensions` key lookups all behave correctly.
 
 | BC | Title | Version at Authoring | Scope in This Story |
 |----|-------|---------------------|---------------------|
-| BC-2.16.003 | Column-to-OCSF Mapping | v1.31 (AMENDMENT PENDING for EC-016-013-006 + new EC-016-013-041/042) | §Edge Cases EC-016-013-006: `Value::Null` for string column → Arrow null cell (not literal "null" string); §Invariants null-vs-absent rule; new EC for null elements in `Value::Array` arm |
+| BC-2.16.003 | Column-to-OCSF Mapping | v1.32 | §Edge Cases EC-016-013-006 (amended): `Value::Null` for string column → Arrow null cell (not literal "null" string); §Invariants null-vs-absent rule; EC-016-013-041 (new): null elements in `Value::Array` arm omitted |
 | BC-2.11.001 | Query MCP Tool | v1.37 (active) | EC-11-079: null-not-absent wire-shape — this story's upstream fix feeds the EC-11-079 guarantee at the MCP serialization layer |
 
 **BC-2.16.003 amendment required before test-writer dispatch:**
@@ -313,7 +306,7 @@ unchanged; regression guard)
 | Artifact | Estimated Tokens | Notes |
 |----------|-----------------|-------|
 | This story file | ~5,000 | |
-| BC-2.16.003 v1.31 (full text) | ~25,000 | Primary contract; large file — §EC table, §Coercion Matrix, §Invariants |
+| BC-2.16.003 v1.32 (active — primary contract) | ~25,000 | Large file — §EC table, §Coercion Matrix, §Invariants; EC-016-013-006 amended + EC-016-013-041 new |
 | BC-2.11.001 v1.37 (§Postconditions + §Edge Cases EC-11-079 only) | ~8,000 | Read targeted sections only; full file is 44k tokens |
 | `spec_driven_adapter.rs` (`build_column_array` function + String arm context) | ~8,000 | Targeted read of the function block; large file overall |
 | `column_mapping.rs` (`map_record` function) | ~4,000 | Targeted read |
@@ -333,9 +326,9 @@ unchanged; regression guard)
 All tests live in `crates/prism-bin/tests/bc_2_16_003_null_encoding.rs` (new file)
 unless noted otherwise.
 
-**PREREQUISITE:** BC-2.16.003 amendments (EC-016-013-006 + EC-016-013-041/042) MUST be
-authored by product-owner and reach `status: active` before test-writer dispatch
-(Spec-First Gate S-7.01).
+**PREREQUISITE MET (D-2544):** BC-2.16.003 v1.32 amendments are active — EC-016-013-006
+(amended) and EC-016-013-041 (new) have reached `status: active`. Spec-First Gate S-7.01
+satisfied; test-writer dispatch is unblocked.
 
 - [ ] **RG-NULL-001**: `test_BC_2_16_003_string_column_json_null_materializes_as_arrow_null`
   Assert: `build_column_array` called with `column_type = "string"` and `serde_json::Value::Null`
@@ -344,7 +337,10 @@ authored by product-owner and reach `status: active` before test-writer dispatch
   RecordBatch with the Arrow null cell, serialize via `WriterBuilder::with_explicit_nulls(true)`,
   assert the JSON row contains `"column_name": null` (JSON null), NOT `"column_name": "null"`
   (JSON string).
-  Currently FAILS (returns `Some("null")`).
+  **Currently PASSES on develop (lock-in regression guard)** — the `ColumnType::String` arm
+  already has `serde_json::Value::Null => None` (commit `fff6e28ba`, June 2026). Write this
+  test to lock the existing correct behavior; do NOT treat it as driving a code fix. It is
+  NOT a Red Gate failing test; do NOT count it toward the Red Gate density check.
   AC-001.
 
 - [ ] **RG-NULL-002**: `test_BC_2_16_003_array_with_all_null_elements_produces_empty_json_list`
@@ -381,11 +377,11 @@ tests for non-null string and array values (EC-016-013-026 coverage). These are 
 Gate tests — they are existing passing tests that must REMAIN GREEN after the fix. The
 implementer verifies them as part of T-F01 verification.
 
-**Red Gate density check (BC-5.38.001):** **4 failing tests** (RG-NULL-001..004) before
-implementation begins. The story has 4 ACs; AC-004 is a regression guard (existing passing
-tests) rather than a new failing test. Density: 4 RG tests / 4 ACs = 1.00 — satisfies
-the ≥ 0.5 threshold. All non-trivial function bodies use `todo!()` stubs; tests fail on
-wrong values (`Some("null")` instead of `None`).
+**Red Gate density check (BC-5.38.001):** **3 genuinely failing tests** (RG-NULL-002,
+RG-NULL-003, RG-NULL-004) before implementation begins. RG-NULL-001 is a lock-in regression
+guard (GREEN immediately per D-1110 finding — Issue 7a already fixed on develop). The story
+has 4 ACs; AC-004 is a regression guard. Density: 3 failing RG tests / 4 ACs = 0.75 —
+satisfies the ≥ 0.5 threshold. All non-trivial function bodies use `todo!()` stubs.
 
 ### Implementation tasks (to be executed by implementer AFTER Red Gate)
 
@@ -399,19 +395,19 @@ wrong values (`Some("null")` instead of `None`).
   context. List them. These tests may need to be updated after the fix to assert Arrow null
   cells instead. Document the list in the PR description as a regression risk inventory.
 
-#### Phase B — Fix `build_column_array` String arm (Issue 7a)
+#### Phase B — Verify `build_column_array` String arm (Issue 7a already fixed)
 
-- [ ] **T-B01**: In `crates/prism-bin/src/spec_driven_adapter.rs`, find the `build_column_array`
-  function's `ColumnType::String` branch. Locate the arm that matches `serde_json::Value::Null`
-  (or the wildcard arm that currently calls `other.to_string()` and thereby converts Null to
-  the string "null"). Change this arm to return `None` (Arrow null cell) for `Value::Null`
-  input.
+- [ ] **T-B01**: **VERIFICATION ONLY — no code change expected.** In
+  `crates/prism-bin/src/spec_driven_adapter.rs`, locate the `ColumnType::String` branch of
+  `build_column_array`. Verify the first explicit match arm is `serde_json::Value::Null => None`
+  (not a wildcard `other => other.to_string()`). This fix was landed in commit `fff6e28ba`
+  (June 2026); if it is present, T-B01 is complete with NO code change.
 
-  The fix MUST be targeted to the `Value::Null` arm only. It MUST NOT change the behavior for
-  `Value::String(s)` → `Some(s)`, `Value::Number` → `Some(n.to_string())`, or
-  `Value::Array` (covered by Phase C below). Only `Value::Null` behavior changes.
+  If — unexpectedly — the `serde_json::Value::Null => None` arm is absent, STOP and report
+  to the orchestrator. Do NOT silently add it: verify the issue is real before writing a fix.
 
-  After T-B01, RG-NULL-001 must be GREEN.
+  After T-B01 verification, run RG-NULL-001. It MUST be GREEN (it is a lock-in test for
+  existing behavior, not a test driving a new fix — per D-1110 remove-uncertainty finding).
 
 #### Phase C — Fix `build_column_array` `Value::Array` arm (Issue 7b)
 
@@ -548,7 +544,7 @@ All versions pinned in workspace `Cargo.toml` — use workspace pins, not standa
 | Dependency | Version | Note |
 |-----------|---------|------|
 | `serde_json` | workspace pin | `Value::Null`, `Value::Array`, `.is_null()` — stable API |
-| `arrow-json` | workspace pin (arrow-json = "58.2.0" per BC-2.11.001 EC-11-081) | `WriterBuilder::with_explicit_nulls(true)` — required for wire-shape assertions in tests |
+| `arrow-json` | per-crate pin (`"58"` in `crates/prism-bin/Cargo.toml`; Cargo.lock resolves to 58.2.0) | `WriterBuilder::with_explicit_nulls(true)` — required for wire-shape assertions in tests |
 | Rust toolchain | per `rust-toolchain.toml` | Stable channel; edition 2024 |
 
 No new dependencies are introduced by this story.
@@ -571,7 +567,7 @@ Arrow materialization layer — no MCP tool handler dependency.
 
 | File | Change |
 |------|--------|
-| `crates/prism-bin/src/spec_driven_adapter.rs` | `build_column_array`: fix `Value::Null` → `None` in String branch (T-B01); filter `Value::Null` elements from `Value::Array` arm (T-C01) |
+| `crates/prism-bin/src/spec_driven_adapter.rs` | `build_column_array`: verify `Value::Null` → `None` in String branch (T-B01 verify-only — fix already landed); filter `Value::Null` elements from `Value::Array` arm (T-C01) |
 | `crates/prism-spec-engine/src/column_mapping.rs` | `map_record` Path B: mirror null-handling fix (T-D01) — if not already correct |
 | `CHANGELOG.md` | Add [Unreleased] > Fixed entry (T-G01) |
 
@@ -599,3 +595,13 @@ touchpoint as the remove-uncertainty pass). Suggested scenario areas:
   not `["null"]`
 
 Holdout scenarios are stored in the holdout directory that test-writer/implementer never read.
+
+---
+
+## History
+
+| Version | Date | Change |
+|---------|------|--------|
+| 1.2 | 2026-09-16 | D-1110 remove-uncertainty pass: (1) Issue 7a corrected — `Value::Null => None` already present in ColumnType::String arm of `build_column_array` (commit `fff6e28ba`, June 2026); RG-NULL-001 reclassified as lock-in regression guard (GREEN immediately, not Red Gate); T-B01 changed from fix to verify-only; density check updated to 3 failing / 4 ACs = 0.75. (2) `arrow-json` version corrected — per-crate pin `"58"` in Cargo.toml (not "workspace pin 58.2.0"); Cargo.lock resolves to 58.2.0. |
+| 1.1 | 2026-09-16 | F3 BC/ADR pin propagation (D-2544): BC-2.16.003 v1.31→v1.32. AMENDMENT PENDING annotation replaced with settled reference to active ECs (EC-016-013-006 amended, EC-016-013-041 new). "EC-016-013-042" alternative ID removed. PREREQUISITE note updated to PREREQUISITE MET. |
+| 1.0 | 2026-09-16 | Initial story decomposition |

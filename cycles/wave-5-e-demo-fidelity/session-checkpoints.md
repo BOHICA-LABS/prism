@@ -11,6 +11,14 @@ Current checkpoint lives in `.factory/STATE.md §Session Resume Checkpoint`.
 
 ---
 
+## Archived: D-2545 — 2026-09-16; STATE v10.051 — SESSION-WRAP-PAUSE; PIPELINE PAUSED
+
+**RESUME IN ONE BREATH (D-2545):** Prism at develop@561d8bac — PIPELINE PAUSED (SESSION-WRAP-PAUSE 2026-09-16; STATE v10.051). (a) POSITION: Phase 3, cycle wave-5-e-demo-fidelity, F3 story materialization. Batch-0 spec-gate CLOSED (D-2541). FIRST NEXT ACTIONS ON RESUME (from D-2544 ledger): (1) W1 S-MCP-TOOL-GATE-001 (spec-corrected v1.1; D-1110 scan DONE): → product-owner holdout scenarios (2-4 hidden) → status draft→ready. (2) W2 S-MCP-ENVELOPE-DESCRIBE-001 (draft; BC-2.10.012 v1.10 + ADR-058 v2.44 ACTIVE): → story-writer propagate BC/ADR pins into body → remove-uncertainty (D-1110) → holdout → ready. (3) W2 S-MCP-NULL-ENCODING-001 (draft; BC-2.16.003 v1.32 ACTIVE): → story-writer propagate BC pin → remove-uncertainty → holdout → ready. Then materialize: W2-arch, W3, W4/W5 facade. (b) CONVERGENCE: N/A — Batch-0 CLOSED; no active streak. (c) IN-FLIGHT: none. (d) PENDING DECISIONS / BLOCKERS: none blocking. (e) WIP BRANCHES: none. (f) RESUME COMMAND: /vsdd-factory:rehydrate-wave → /vsdd-factory:next-step.
+
+**NOTE: Superseded by D-2546 — F3 W1+W2 MATERIALIZATION COMPLETE 2026-09-17; 3 stories promoted draft→ready; pipeline RESUMED; STATE v10.051→v10.052.**
+
+---
+
 ## Archived: D-2544 — 2026-09-16; STATE v10.050 — F3 W2 SPEC-AMENDMENTS COMPLETE; F3 MATERIALIZATION IN PROGRESS
 
 **RESUME IN ONE BREATH (D-2544):** Prism at develop@561d8bac — PIPELINE ACTIVE (F3 W2 SPEC-AMENDMENTS COMPLETE 2026-09-16). (a) POSITION: Phase 3, cycle wave-5-e-demo-fidelity, F3 story materialization. W1 S-MCP-TOOL-GATE-001 CORRECTED (D-2543, story v1.1; status:draft — pending holdout only). W2 S-MCP-ENVELOPE-DESCRIBE-001 + S-MCP-NULL-ENCODING-001 MATERIALIZED draft; W2 SPEC-AMENDMENTS ACTIVE (D-2544 — BC-2.10.012 v1.10, BC-2.16.003 v1.32, ADR-058 v2.44); story-writer pin-propagation pending. BC-INDEX v10.23; ARCH-INDEX v2.398; STORY-INDEX v3.040 total 348. (b) CONVERGENCE: Batch-0 gate CLOSED (no active streak). F3 materialization ongoing (W1 corrected; W2 spec-active; W2-arch/W3/W4/W5 pending). (c) IN-FLIGHT: none. D-2544 burst committed. No agents running. (d) PENDING DECISIONS / BLOCKERS: story-writer pin propagation (non-blocking before TDD); F11 DTU fixtures; open PRs. (e) WIP BRANCHES: none. Parked UNCHANGED. (f) RESUME COMMAND: /vsdd-factory:next-step.

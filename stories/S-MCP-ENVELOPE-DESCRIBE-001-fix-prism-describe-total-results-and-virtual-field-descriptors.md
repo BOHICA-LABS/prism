@@ -4,8 +4,8 @@ story_id: S-MCP-ENVELOPE-DESCRIBE-001
 title: "Fix prism_describe total_results counting and add missing virtual field column descriptors"
 wave: 2
 epic_id: E-BETA3-REMEDIATION
-version: "1.0"
-status: draft
+version: "1.1"
+status: ready
 producer: story-writer
 phase: 3
 priority: P0
@@ -42,40 +42,17 @@ risk: LOW
 behavioral_contracts:
   - BC-2.10.012
   - BC-2.11.012
-# BC status: AMENDMENTS PENDING PO authorship.
-#   BC-2.10.012 v1.9 (current) does NOT yet contain:
-#     (a) An EC or postcondition specifying total_results = tables.len() for prism_describe
-#         responses (Issue 3). The §Response envelope section describes SafetyEnvelopeBuilder
-#         usage with trust_level "internal" but does not specify the total_results counting
-#         contract for the {tables: [...]} shape. Amendment target:
-#         Add to BC-2.10.012 §Response envelope:
-#         "total_results in _meta MUST equal the length of the `tables` array in the
-#         prism_describe response object (not 0). The SafetyEnvelopeBuilder.wrap() call
-#         site must resolve total_results via the `tables` key arm."
-#         Example EC to add:
-#         EC-10-032: prism_describe response with 3 tables → _meta.total_results == 3
-#                    (not 0 from the else-branch of the current wrap() implementation).
-#     (b) _client, _source_table, _source_type in the OQ-003 synthesized columns list
-#         (Issue 5). The current §Response shape §column ordering section only describes
-#         confirmed/unconfirmed ColumnSpec columns. OQ-003 columns are mentioned indirectly
-#         in §Auto-generated example queries but the full five-column list is absent.
-#         Amendment target (add to BC-2.10.012 §Response shape §columns array):
-#         "The following five synthesized ColumnDescriptor entries are appended AFTER all
-#          ColumnSpec-derived columns, in this exact order:
-#          1. class_uid  (Integer, nullable: false) — OCSF class identifier
-#          2. _sensor    (String, nullable: false) — sensor type provenance
-#          3. _client    (String, nullable: false) — client/org provenance
-#          4. _source_table (String, nullable: false) — source table provenance
-#          5. _source_type  (String, nullable: false) — data-delivery path
-#          These match the VirtualField enum variants injected by inject_virtual_fields
-#          (BC-2.11.012 §Invariants sensor-table virtual field set: exactly four)."
-#   ADR-058 §G OQ-003 needs amendment to enumerate all five synthesized columns
-#   (currently enumerates only class_uid and _sensor per beta3-remediation-delta-analysis.md §Issue 5).
-#   BOTH BC-2.10.012 amendments must be authored by product-owner and reach active/approved
-#   status BEFORE this story is dispatched to test-writer (Spec-First Gate S-7.01).
-#   BC-2.11.012 v1.11 IS already frozen active — it defines the canonical sensor-table
-#   virtual field set and is referenced for traceability (Issue 5 fix must conform to §Invariants).
-#   No amendment to BC-2.11.012 is required; it is used as a conformance contract only.
+# BC status: AMENDMENTS ACTIVE (D-2544).
+#   BC-2.10.012 v1.10 now contains:
+#     (a) EC-10-032: prism_describe total_results = tables.len() (not 0).
+#         SafetyEnvelopeBuilder.wrap() tables-arm resolves total_results per §Response envelope.
+#     (b) Five synthesized ColumnDescriptors in §Response shape (OQ-003 extended), in exact order:
+#         class_uid, _sensor, _client, _source_table, _source_type.
+#   ADR-058 v2.44: §G OQ-003 now enumerates all five synthesized ColumnDescriptors.
+#   BC-2.11.012 v1.11: active — canonical sensor-table virtual field set (exactly four:
+#     _sensor, _client, _source_table, _source_type). No amendment required; used as
+#     conformance contract only.
+#   Spec-First Gate S-7.01 satisfied; story is unblocked for test-writer dispatch.
 verification_properties: []
 assumption_validations: []
 risk_mitigations: []
@@ -90,7 +67,7 @@ authoritative design decision for this story. Read Part 1 §Issue 3, Part 1 §Is
 §S-MCP-ENVELOPE-DESCRIBE-001 in full before implementing.
 Path: `.factory/cycles/wave-5-e-demo-fidelity/beta3-remediation-delta-analysis.md`
 
-**BC-2.10.012 v1.9** (prism_describe Schema Discovery Tool) governs the response shape,
+**BC-2.10.012 v1.10** (prism_describe Schema Discovery Tool) governs the response shape,
 synthesized column set, response envelope, and all prism_describe postconditions.
 Path: `.factory/specs/behavioral-contracts/BC-2.10.012-prism-describe-schema-discovery-tool.md`
 
@@ -99,15 +76,13 @@ field set: exactly four fields (`_sensor`, `_client`, `_source_table`, `_source_
 This story implements conformance with §Invariants "sensor-table virtual field set: exactly four".
 Path: `.factory/specs/behavioral-contracts/BC-2.11.012-virtual-fields.md`
 
-**ADR-058 §G** (OQ-003 synthesized columns) defines which columns are appended as synthesized
-descriptors. The OQ-003 block in prism_describe.rs must be extended per the amendment in the
-delta analysis.
+**ADR-058 v2.44 §G** (OQ-003 synthesized columns) defines which columns are appended as
+synthesized descriptors. The OQ-003 block in prism_describe.rs must be extended to five
+columns per the amendment (D-2544).
 Path: `.factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md`
 
-> NOTE: BC-2.10.012 requires two amendments (total_results counting; five synthesized columns)
-> and ADR-058 §G requires an OQ-003 amendment. These MUST be authored by the product-owner
-> and architect respectively and reach active/approved status BEFORE test-writer dispatch.
-> See §Spec-First Gate note in frontmatter `behavioral_contracts` comment block.
+> NOTE: BC-2.10.012 v1.10 and ADR-058 v2.44 amendments are now active per D-2544.
+> Spec-First Gate S-7.01 is satisfied; story is unblocked for test-writer dispatch.
 
 ---
 
@@ -170,7 +145,7 @@ in each table's `columns` array, so that I can understand query scope and use `_
 
 | BC | Title | Version at Authoring | Scope in This Story |
 |----|-------|---------------------|---------------------|
-| BC-2.10.012 | `prism_describe` Schema Discovery Tool (L2) | v1.9 (AMENDMENT PENDING) | §Response envelope: total_results = tables.len() for prism_describe shape; §Response shape: five synthesized column descriptors (OQ-003 extension to _client, _source_table, _source_type) |
+| BC-2.10.012 | `prism_describe` Schema Discovery Tool (L2) | v1.10 | §Response envelope: total_results = tables.len() for prism_describe shape (EC-10-032); §Response shape: five synthesized column descriptors (OQ-003 extended — class_uid, _sensor, _client, _source_table, _source_type) |
 | BC-2.11.012 | Virtual Fields in Queries — `_sensor`, `_client`, `_source_table`, `_source_type` | v1.11 (active, no amendment) | §Invariants: sensor-table virtual field set exactly four; this story implements conformance for the prism_describe schema-discovery surface |
 
 ---
@@ -299,13 +274,13 @@ test-writer BEFORE implementer begins any implementation tasks. See §Tasks.
 | Artifact | Estimated Tokens | Notes |
 |----------|-----------------|-------|
 | This story file | ~5,000 | |
-| BC-2.10.012 v1.9 (full text — primary AC source after amendment) | ~20,000 | Large; read §Response envelope + §Response shape + §OQ-003 |
+| BC-2.10.012 v1.10 (active — primary AC source) | ~20,000 | Large; read §Response envelope + §Response shape + §OQ-003 |
 | BC-2.11.012 v1.11 (virtual fields — §Invariants, §Postconditions) | ~8,000 | Read full; §Invariants is the authoritative field set |
 | `safety_envelope.rs` (full) | ~5,000 | wrap() function + struct definitions |
 | `crates/prism-mcp/src/tools/prism_describe.rs` (full) | ~30,000 | Large; includes build_column_descriptors_ocsf OQ-003 block and all tests |
 | `crates/prism-mcp/tests/mcp_prism_describe.rs` (existing test file) | ~20,000 | Add RG-DESC-001..003 to existing file |
 | beta3-remediation-delta-analysis.md §Issue 3 + §Issue 5 + §S-MCP-ENVELOPE-DESCRIBE-001 | ~4,000 | Reference for fix design |
-| ADR-058 §G (OQ-003 section only) | ~2,000 | Read §G only; skip other sections |
+| ADR-058 v2.44 §G (OQ-003 section only) | ~2,000 | Read §G only; skip other sections |
 | **Total estimated** | **~94,000** | Well within one context window |
 
 ---
@@ -552,3 +527,12 @@ touchpoint as the remove-uncertainty pass). Holdout scenarios should exercise:
   has advertised those columns (end-to-end discoverability scenario)
 
 Holdout scenarios are stored in the holdout directory that test-writer/implementer never read.
+
+---
+
+## History
+
+| Version | Date | Change |
+|---------|------|--------|
+| 1.1 | 2026-09-16 | F3 BC/ADR pin propagation (D-2544): BC-2.10.012 v1.9→v1.10; ADR-058 §G reference updated to v2.44. AMENDMENT PENDING annotations removed from frontmatter comment, §Authority, §Behavioral Contracts table, and §Token Budget. |
+| 1.0 | 2026-09-16 | Initial story decomposition |

@@ -4,8 +4,8 @@ story_id: S-MCP-TOOL-GATE-001
 title: "Gate 40 operations stubs behind default-off Cargo feature to eliminate -32003 catalog pollution"
 wave: 1
 epic_id: E-BETA3-REMEDIATION
-version: "1.1"
-status: draft
+version: "1.2"
+status: ready
 producer: story-writer
 phase: 3
 priority: P0
@@ -41,20 +41,13 @@ risk: LOW
 behavioral_contracts:
   - BC-2.10.017
   - BC-2.10.011
-# BC status: AMENDMENTS PENDING PO authorship.
-#   BC-2.10.017 §Postconditions currently states "Tool names in NOT_YET_AVAILABLE_TOOLS
-#   are registered in tools/list (visible to clients)" — the OPPOSITE of the new behavior.
-#   BC-2.10.017 §Invariants must be amended to add: "When operations feature is absent
-#   (default), NOT_YET_AVAILABLE_TOOLS is &[] and no stub tools are registered."
-#   BC-2.10.011 §Postconditions `not_registered_tools` description must be amended to
-#   clarify the empty-slice state when the operations feature is absent.
-#   BOTH amendments must be authored by product-owner and reach active/approved status
-#   BEFORE this story is dispatched to test-writer (spec-first gate S-7.01).
-#   Amendment scope per beta3-remediation-delta-analysis.md §Issue 1 and §S-MCP-TOOL-GATE-001:
-#   - BC-2.10.017: Replace "registered in tools/list (visible to clients) but invoke the
-#     fast-fail handler" with "NOT registered when `operations` feature is absent (default);
-#     registered and fast-failing ONLY when `operations` feature is enabled."
-#   - BC-2.10.011: update `not_registered_tools` semantics: empty slice when feature absent.
+# BC status: AMENDMENTS ACTIVE (D-2543).
+#   BC-2.10.017 v1.3: operations-feature gate postconditions and invariants now active.
+#     - NOT_YET_AVAILABLE_TOOLS = &[] when `operations` feature absent
+#     - stub tools NOT registered in tools/list when feature absent
+#     - -32003 fast-fail only fires when `operations` feature is enabled
+#   BC-2.10.011 v1.7: not_registered_tools empty-slice semantics when operations feature absent now active.
+#   Spec-First Gate S-7.01 satisfied; story is unblocked for test-writer dispatch.
 verification_properties: []
 assumption_validations: []
 risk_mitigations: []
@@ -83,9 +76,8 @@ capability check." The implementer MUST read this BC to confirm all 14 LIVE_TOOL
 ungated after this story lands.
 Path: `.factory/specs/behavioral-contracts/BC-2.10.012-prism-describe-schema-discovery-tool.md`
 
-> NOTE: The amendments to BC-2.10.017 and BC-2.10.011 described above must be authored
-> by the product-owner and reach `status: active` BEFORE test-writer dispatch. See
-> §Spec-First Gate note in frontmatter `behavioral_contracts` comment block.
+> NOTE: Amendments to BC-2.10.017 (v1.3) and BC-2.10.011 (v1.7) are now active per D-2543.
+> Spec-First Gate S-7.01 is satisfied; story is unblocked for test-writer dispatch.
 
 ---
 
@@ -120,8 +112,8 @@ confused by 40 permanently-failing stubs that return `-32003`.
 
 | BC | Title | Version at Authoring | Scope in This Story |
 |----|-------|---------------------|---------------------|
-| BC-2.10.017 | Not-Yet-Available Tools Fast-Fail — Audit Channel Non-Blocking | v1.1 (AMENDMENT PENDING) | §Postconditions + §Invariants: operations-feature gate behavior; NOT_YET_AVAILABLE_TOOLS = &[] when feature absent; no stub tools in catalog when feature absent |
-| BC-2.10.011 | list_capabilities Meta-Tool | v1.6 (AMENDMENT PENDING) | §Postconditions `not_registered_tools` field: empty slice when operations feature absent; previously-populated slice preserved when feature enabled |
+| BC-2.10.017 | Not-Yet-Available Tools Fast-Fail — Audit Channel Non-Blocking | v1.3 | §Postconditions + §Invariants: operations-feature gate behavior; NOT_YET_AVAILABLE_TOOLS = &[] when feature absent; no stub tools in catalog when feature absent |
+| BC-2.10.011 | list_capabilities Meta-Tool | v1.7 | §Postconditions `not_registered_tools` field: empty slice when operations feature absent; previously-populated slice preserved when feature enabled |
 
 BC-2.10.012 is a PROTECTION BOUNDARY (not an implemented contract): the story must not gate
 any tool in LIVE_TOOLS, and specifically must not gate `prism_describe`, `list_capabilities`,
@@ -240,8 +232,8 @@ is ENABLED; the test must verify the correct code in each compilation context)
 | Artifact | Estimated Tokens | Notes |
 |----------|-----------------|-------|
 | This story file | ~4,500 | |
-| BC-2.10.017 v1.1 (amended — full text) | ~5,000 | Primary AC source after amendment |
-| BC-2.10.011 v1.6 (amended — full text) | ~15,000 | not_registered_tools semantics |
+| BC-2.10.017 v1.3 (active) | ~5,000 | Primary AC source |
+| BC-2.10.011 v1.7 (active) | ~15,000 | not_registered_tools semantics |
 | BC-2.10.012 v1.9 (protection boundary check) | ~20,000 | Read §Preconditions only; large file |
 | `server.rs` (LIVE_TOOLS/NOT_YET_AVAILABLE_TOOLS + all 40 stub handlers) | ~40,000 | Large file; implementer reads entire file |
 | `Cargo.toml` (prism-mcp) | ~1,000 | Small; add [features] section |
@@ -514,5 +506,6 @@ Holdout scenarios are stored in the holdout directory that test-writer/implement
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.2 | 2026-09-16 | F3 BC/ADR pin propagation (D-2543/D-2544): BC-2.10.017 v1.1→v1.3; BC-2.10.011 v1.6→v1.7. AMENDMENT PENDING annotations removed from frontmatter comment, §Authority NOTE, §Behavioral Contracts table, and §Token Budget. |
 | 1.1 | 2026-09-16 | U-1: Corrected error code from `-32601` (MethodNotFound) to `-32602` (InvalidParams, message `tool not found`) per rmcp 1.7.0 source + `error_mapping.rs:86-91` confirmation (D-1110 uncertainty scan). Applied to AC-003, RG-GATE-003, T-D01, AC-005. U-2/U-3: Replaced T-C01 per-method-`#[cfg]`-inside-one-`#[tool_router]`-block approach (fails E0599 in rmcp-macros 1.7.0) with ratified two-router-block + combiner pattern per architect design decision D-1110. T-S01 updated from open-question spike to compile-confirmation step. Architecture Compliance Rule 2 and risk comment updated to reflect ratified mechanism. |
 | 1.0 | 2026-09-15 | Initial story decomposition |
