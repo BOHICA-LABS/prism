@@ -952,11 +952,19 @@ impl QueryEngine {
         // gate ordering; consistent with the temporal-check double-parse design).
         check_enrich_udf_availability(effective_query, self.infusion_registry.as_deref())?;
 
+        // S-JSON-EXTRACT-UDF-001: E-QUERY-045 literal-key gate (ADR-066 §B3 + §D3).
+        // Fires AFTER E-QUERY-039 (last content gate), BEFORE ctx.sql(). If the query
+        // fails to parse, the downstream pipeline surfaces the parse error; gate skips.
+        // Gate ordering: E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → E-QUERY-045.
+        if let Ok(ast) = crate::filter_parser::PrismQlParser::parse(effective_query) {
+            check_json_extract_key_literal(&ast)?;
+        }
+
         // ADR-052 D4 Option A: plan-time temporal literal gate is now implemented as
         // an AST-walk inside run_materialization_pipeline (check_temporal_literals).
         // The old text-scanner (check_temporal_literals) is deleted; the AST-walk fires
         // against the same parsed AST used for execution, after inject_now.
-        // Gate ordering: E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → [AST-walk in mat pipeline].
+        // Gate ordering: E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → E-QUERY-045 → [AST-walk in mat pipeline].
 
         // Step 1: Resolve client scope (BC-2.11.011).
         let clients =
@@ -966,6 +974,10 @@ impl QueryEngine {
         // HIGH-001 / ADV-W3MT-P58-HIGH-001: memory_pool_bytes was stored but not consumed.
         // Now wired via `build_session_context` which wraps RuntimeEnvBuilder + GreedyMemoryPool.
         let session_ctx = crate::memory::build_session_context(self.config.memory_pool_bytes)?;
+
+        // S-JSON-EXTRACT-UDF-001: register json_extract_string UDF (ADR-066 §E; BC-2.11.025 §Registration).
+        // Registered once per ephemeral context — infallible in DataFusion 53.1 (register_udf returns ()).
+        session_ctx.register_udf(crate::json_extract_udf::json_extract_string_udf());
 
         // S-DEMO-ENRICHMENT-PIVOT-001 / BC-2.19.001: register plugin-backed enrichment UDFs so
         // analyst queries using `| enrich infusion(field)` resolve in this ephemeral context.
@@ -1297,6 +1309,12 @@ impl QueryEngine {
         // double-parse; cost accepted (consistent with temporal-check double-parse design).
         check_enrich_udf_availability(query_str, self.infusion_registry.as_deref())?;
 
+        // S-JSON-EXTRACT-UDF-001: E-QUERY-045 literal-key gate for scheduled queries (ADR-066 §B3).
+        // Mirrors execute_inner — gate ordering: E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → E-QUERY-045.
+        if let Ok(ast) = crate::filter_parser::PrismQlParser::parse(query_str) {
+            check_json_extract_key_literal(&ast)?;
+        }
+
         // ADR-052 D4 Option A: temporal gate is now in run_materialization_pipeline.
         // See execute_inner for the full gate-ordering comment.
 
@@ -1304,7 +1322,7 @@ impl QueryEngine {
         // 037/038/039, mirroring execute_inner. Previously this gate ran BEFORE 037/038/039
         // in execute_scheduled_inner, causing asymmetric first-error behavior.
         // Canonical gate order: E-QUERY-001 (parse) → E-QUERY-037 → E-QUERY-038 → E-QUERY-039
-        //   → E-QUERY-011 (capability, LAST pre-I/O gate).
+        //   → E-QUERY-045 → E-QUERY-011 (capability, LAST pre-I/O gate).
         // Scheduled queries run in system context with no capabilities — this means they
         // cannot reference prism_audit (correct secure-by-default for scheduled queries).
         // The gate is best-effort: if query_str fails to parse, the pipeline handles it.
@@ -1319,6 +1337,10 @@ impl QueryEngine {
         let session_ctx = Arc::new(crate::memory::build_session_context(
             self.config.memory_pool_bytes,
         )?);
+
+        // S-JSON-EXTRACT-UDF-001: register json_extract_string UDF for scheduled queries (ADR-066 §E).
+        // Registered once per ephemeral context — infallible in DataFusion 53.1 (register_udf returns ()).
+        session_ctx.register_udf(crate::json_extract_udf::json_extract_string_udf());
 
         // S-DEMO-ENRICHMENT-PIVOT-001 / BC-2.19.001: register plugin-backed enrichment UDFs
         // for scheduled queries as well (detection-engine enrichment context).
@@ -2869,18 +2891,157 @@ fn collect_predicate_columns_with_bareness(
 ///
 /// BC-5.38.005 self-check: "If I include this real implementation, will the test for this
 /// function pass trivially without any implementer work?" — YES (RG-JEX-006 + RG-JEX-007
-/// directly test this gate). MUST remain `todo!()`.
+/// directly test this gate). Stub replaced by real implementation in S-JSON-EXTRACT-UDF-001.
 ///
 /// ADR-066 §B3 + §D3 + §F; BC-2.11.025 §Plan-time literal-key gate;
 /// S-JSON-EXTRACT-UDF-001 AC-006 (RG-JEX-006) + AC-007 (RG-JEX-007).
-// dead_code at stub stage: called from the materialization pipeline (T-08/T-09 in engine.rs)
-// which is behind todo!(). Will be wired in S-JSON-EXTRACT-UDF-001 T-08/T-09.
-#[allow(dead_code)]
-pub(crate) fn check_json_extract_key_literal(_ast: &crate::ast::Ast) -> Result<(), PrismError> {
-    todo!(
-        "check_json_extract_key_literal gate not yet implemented — \
-         S-JSON-EXTRACT-UDF-001 T-09 (ADR-066 §B3 + §D3)"
-    )
+/// Maximum allowed key length in UTF-8 bytes per ADR-066 §D3 (CWE-400).
+const JSON_EXTRACT_MAX_KEY_BYTES: usize = 256;
+
+pub(crate) fn check_json_extract_key_literal(ast: &crate::ast::Ast) -> Result<(), PrismError> {
+    use crate::ast::{Ast, SqlStatement};
+    match ast {
+        Ast::Sql(SqlStatement::Select(sq)) => check_jex_in_sql_query(sq),
+        Ast::Sql(_) => Ok(()), // DML — no json_extract_string in scope
+        Ast::SqlPipe(spq) => {
+            check_jex_in_sql_query(&spq.head)?;
+            for stage in &spq.stages {
+                check_jex_in_pipe_stage(stage)?;
+            }
+            Ok(())
+        }
+        Ast::Pipe(pq) => {
+            for stage in &pq.stages {
+                check_jex_in_pipe_stage(stage)?;
+            }
+            Ok(())
+        }
+        Ast::Filter(fe) => check_jex_in_predicate(&fe.predicate),
+    }
+}
+
+fn check_jex_in_sql_query(sq: &crate::ast::SqlQuery) -> Result<(), PrismError> {
+    use crate::ast::SelectItem;
+    // SELECT projections
+    for item in &sq.select.items {
+        if let SelectItem::Expr { expr, .. } = item {
+            check_jex_in_expr(expr)?;
+        }
+    }
+    // JOIN ON conditions
+    for join in &sq.joins {
+        check_jex_in_expr(&join.on)?;
+    }
+    // WHERE clause
+    if let Some(pred) = &sq.where_ {
+        check_jex_in_predicate(pred)?;
+    }
+    // GROUP BY
+    for expr in &sq.group_by {
+        check_jex_in_expr(expr)?;
+    }
+    // ORDER BY
+    for oe in &sq.order_by {
+        check_jex_in_expr(&oe.expr)?;
+    }
+    // HAVING
+    if let Some(pred) = &sq.having {
+        check_jex_in_predicate(pred)?;
+    }
+    Ok(())
+}
+
+fn check_jex_in_pipe_stage(stage: &crate::ast::PipeStage) -> Result<(), PrismError> {
+    use crate::ast::PipeStage;
+    match stage {
+        PipeStage::Where(pred) => check_jex_in_predicate(pred),
+        // Sort, Limit, Tail, Stats, Dedup, Fields, Join, Enrich — no Expr walk needed.
+        _ => Ok(()),
+    }
+}
+
+fn check_jex_in_predicate(pred: &crate::ast::Predicate) -> Result<(), PrismError> {
+    use crate::ast::Predicate;
+    match pred {
+        Predicate::Compare { lhs, rhs, .. } => {
+            check_jex_in_expr(lhs)?;
+            check_jex_in_expr(rhs)
+        }
+        Predicate::Logical { predicates, .. } => {
+            for p in predicates {
+                check_jex_in_predicate(p)?;
+            }
+            Ok(())
+        }
+        Predicate::Not(inner) => check_jex_in_predicate(inner),
+        Predicate::InSubquery { subquery, .. } => check_jex_in_sql_query(subquery),
+        // StringOp, Regex, In, Between, Cidr, Has, Missing, IsNull, Wildcard, RecoveryError
+        // — none contain Expr nodes with potential FuncCall::Scalar children.
+        _ => Ok(()),
+    }
+}
+
+fn check_jex_in_expr(expr: &crate::ast::Expr) -> Result<(), PrismError> {
+    use crate::ast::{Expr, FuncCall, Literal, ScalarFunc};
+    match expr {
+        Expr::FuncCall(FuncCall::Scalar {
+            func: ScalarFunc::JsonExtractString,
+            args,
+            ..
+        }) => {
+            // Validate that args[1] is a literal string key within the byte limit.
+            match args.get(1) {
+                Some(Expr::Literal(Literal::String(key))) => {
+                    let key_len = key.len(); // byte length (UTF-8)
+                    if key_len > JSON_EXTRACT_MAX_KEY_BYTES {
+                        return Err(PrismError::JsonExtractKeyTooLong {
+                            key_len,
+                            max_len: JSON_EXTRACT_MAX_KEY_BYTES,
+                        });
+                    }
+                    // Valid literal key — still recurse into all args to catch
+                    // nested json_extract_string calls (e.g., nested extraction).
+                    for arg in args {
+                        check_jex_in_expr(arg)?;
+                    }
+                    Ok(())
+                }
+                _ => Err(PrismError::JsonExtractNonLiteralKey),
+            }
+        }
+        Expr::FuncCall(FuncCall::Scalar { args, .. }) => {
+            for arg in args {
+                check_jex_in_expr(arg)?;
+            }
+            Ok(())
+        }
+        Expr::FuncCall(FuncCall::Aggregate { args, .. }) => {
+            for arg in args {
+                check_jex_in_expr(arg)?;
+            }
+            Ok(())
+        }
+        Expr::FuncCall(FuncCall::Window { .. }) => Ok(()),
+        Expr::Compare { lhs, rhs, .. } => {
+            check_jex_in_expr(lhs)?;
+            check_jex_in_expr(rhs)
+        }
+        Expr::Logical { lhs, rhs, .. } => {
+            check_jex_in_expr(lhs)?;
+            check_jex_in_expr(rhs)
+        }
+        Expr::Not(inner) => check_jex_in_expr(inner),
+        Expr::InSubquery { subquery, .. } => check_jex_in_sql_query(subquery),
+        // Leaf or non-function nodes: no FuncCall children.
+        Expr::Literal(_)
+        | Expr::Field(_)
+        | Expr::VirtualField(_)
+        | Expr::In { .. }
+        | Expr::Star
+        | Expr::Now
+        | Expr::Interval(_)
+        | Expr::TimestampArithmetic { .. } => Ok(()),
+    }
 }
 
 // ---------------------------------------------------------------------------

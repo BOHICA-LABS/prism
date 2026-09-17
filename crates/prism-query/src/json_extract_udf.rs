@@ -28,8 +28,11 @@
 
 use std::any::Any;
 use std::hash::{Hash, Hasher};
+use std::sync::Arc;
 
+use datafusion::arrow::array::{Array, StringArray};
 use datafusion::arrow::datatypes::DataType;
+use datafusion::common::ScalarValue;
 use datafusion::error::Result as DataFusionResult;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
@@ -139,14 +142,88 @@ impl ScalarUDFImpl for JsonExtractStringUdf {
     /// DataFusion 53.1 `ScalarUDFImpl` interface: `invoke_batch` (deprecated at
     /// DataFusion 46.0) is NEVER used — this method is the sole execution path.
     ///
-    /// BC-5.38.005 self-check: "If I include this real implementation, will the test
-    /// for this function pass trivially without any implementer work?" — YES. This
-    /// method is the behavioral core that RG-JEX-001..010 test. MUST remain `todo!()`.
-    fn invoke_with_args(&self, _args: ScalarFunctionArgs) -> DataFusionResult<ColumnarValue> {
-        todo!(
-            "json_extract_string UDF invoke_with_args not yet implemented — \
-             S-JSON-EXTRACT-UDF-001 T-05 (json_extract_string_impl) + T-07 (registration)"
-        )
+    /// ADR-066 §B1; BC-2.11.025 postcondition §Execution.
+    /// S-JSON-EXTRACT-UDF-001 AC-001..AC-010.
+    fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DataFusionResult<ColumnarValue> {
+        // Step 1: Extract the literal key from args[1].
+        // After plan-gate validation (check_json_extract_key_literal), args[1] is always
+        // a Scalar::Utf8 — the plan gate rejects non-literal keys (E-QUERY-045).
+        // We still handle edge cases defensively (NULL key → all-NULL output).
+        let key_opt: Option<String> = match args.args.get(1) {
+            Some(ColumnarValue::Scalar(ScalarValue::Utf8(opt))) => opt.clone(),
+            Some(ColumnarValue::Scalar(ScalarValue::LargeUtf8(opt))) => opt.clone(),
+            Some(ColumnarValue::Scalar(ScalarValue::Null)) | None => None,
+            Some(other) => {
+                return Err(datafusion::error::DataFusionError::Execution(format!(
+                    "json_extract_string: key argument must be a Utf8 scalar, got {:?}",
+                    other.data_type()
+                )));
+            }
+        };
+        let key = match key_opt {
+            Some(k) => k,
+            None => {
+                // NULL key → all-NULL output (null-propagating; VP-162 invariant 2).
+                let nulls: Vec<Option<&str>> = vec![None; args.number_rows];
+                return Ok(ColumnarValue::Array(Arc::new(StringArray::from(nulls))));
+            }
+        };
+
+        // Step 2: Iterate the JSON column (args[0]) and apply per-row extraction.
+        let json_col = args.args.first().ok_or_else(|| {
+            datafusion::error::DataFusionError::Execution(
+                "json_extract_string: expected 2 arguments, got 0".to_string(),
+            )
+        })?;
+
+        match json_col {
+            ColumnarValue::Array(col_arr) => {
+                // Column input: iterate every row of the StringArray.
+                let str_arr = col_arr
+                    .as_any()
+                    .downcast_ref::<StringArray>()
+                    .ok_or_else(|| {
+                        datafusion::error::DataFusionError::Execution(format!(
+                            "json_extract_string: JSON column must be Utf8, got {:?}",
+                            col_arr.data_type()
+                        ))
+                    })?;
+
+                let results: Vec<Option<String>> = (0..str_arr.len())
+                    .map(|i| {
+                        if str_arr.is_null(i) {
+                            None // Arrow-null row → SQL NULL (AC-004 / VP-162 invariant 2)
+                        } else {
+                            json_extract_string_impl(Some(str_arr.value(i)), &key)
+                        }
+                    })
+                    .collect();
+
+                // Convert Vec<Option<String>> → StringArray (nulls become Arrow nulls).
+                let out_arr: StringArray = results
+                    .iter()
+                    .map(|opt| opt.as_deref())
+                    .collect::<Vec<Option<&str>>>()
+                    .into();
+
+                Ok(ColumnarValue::Array(Arc::new(out_arr)))
+            }
+            ColumnarValue::Scalar(ScalarValue::Utf8(opt)) => {
+                // Scalar input (e.g., constant expression) — single extraction.
+                let extracted = json_extract_string_impl(opt.as_deref(), &key);
+                Ok(ColumnarValue::Scalar(ScalarValue::Utf8(extracted)))
+            }
+            ColumnarValue::Scalar(ScalarValue::Null) => {
+                // Scalar NULL input → NULL output (AC-004 / VP-162 invariant 2).
+                Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None)))
+            }
+            ColumnarValue::Scalar(other) => {
+                Err(datafusion::error::DataFusionError::Execution(format!(
+                    "json_extract_string: JSON column must be Utf8 or Null, got {:?}",
+                    other.data_type()
+                )))
+            }
+        }
     }
 }
 
@@ -174,10 +251,7 @@ impl ScalarUDFImpl for JsonExtractStringUdf {
 ///
 /// S-JSON-EXTRACT-UDF-001 AC-001; ADR-066 §E; BC-2.11.025 postcondition §Registration.
 pub fn json_extract_string_udf() -> ScalarUDF {
-    todo!(
-        "json_extract_string_udf factory not yet implemented — \
-         S-JSON-EXTRACT-UDF-001 T-07 (register_udf wiring in engine.rs)"
-    )
+    ScalarUDF::from(JsonExtractStringUdf::new())
 }
 
 // ---------------------------------------------------------------------------
@@ -185,10 +259,6 @@ pub fn json_extract_string_udf() -> ScalarUDF {
 // ---------------------------------------------------------------------------
 
 /// Pure JSON string extraction — the Kani-provable core (VP-162).
-// The `dead_code` lint fires at stub stage because `invoke_with_args` is `todo!()`.
-// This function will be called from `invoke_with_args` (S-JSON-EXTRACT-UDF-001 T-05)
-// and from the VP-162 Kani proof harness (T-06). The allow is a stub-stage exception.
-#[allow(dead_code)]
 ///
 /// Extracts the value at `key` from the JSON object string in `json_col`.
 ///
@@ -199,31 +269,34 @@ pub fn json_extract_string_udf() -> ScalarUDF {
 /// ## Return value semantics (ADR-066 §B1 steps 1–7)
 ///
 /// Returns `None` for:
-/// - `None` input (`json_col` is an Arrow null, AC-004)
-/// - `serde_json::from_str` parse failure — invalid JSON (AC-009)
-/// - JSON value is not an object (array, string, number, boolean, null at root, AC-005)
-/// - Key absent from the JSON object (AC-003)
-/// - `serde_json::Value::Null` at the key — JSON null is treated as absent (AC-002)
+/// - `None` input (`json_col` is an Arrow null, AC-004)                  — step 1
+/// - `serde_json::from_str` parse failure — invalid JSON (AC-009)        — step 2
+/// - JSON value is not an object (array, string, number, etc., AC-005)   — step 3
+/// - Key absent from the JSON object (AC-003)                            — step 4
+/// - `serde_json::Value::Null` at the key — JSON null = absent (AC-002)  — step 5
 ///
-/// Returns `Some(s.clone())` for `Value::String(s)` at key (AC-001).
-/// Returns `Some(value.to_string())` for non-string, non-null values (AC-008).
+/// Returns `Some(s.clone())` for `Value::String(s)` at key (AC-001)     — step 6.
+/// Returns `Some(value.to_string())` for non-string, non-null (AC-008)   — step 7.
 ///
 /// Dot-in-key literal is treated as a top-level key name, NOT nested JSONPath
-/// (AC-010; ADR-066 §D4; nested path is `S-JSON-EXTRACT-NESTED-001` post-beta.3).
+/// (AC-010; ADR-066 §D4; nested path reserved for `S-JSON-EXTRACT-NESTED-001`).
 ///
 /// ## Architecture constraint (ADR-066 §D1 + VP-162 §Proof Target)
 ///
 /// MUST have no DataFusion or Arrow types in its signature. The Kani proof harness
 /// (`proofs/vp162_json_extract_null_safety.rs`) calls this function directly.
 ///
-/// BC-5.38.005 self-check: "If I include this real implementation, will the test
-/// for this function pass trivially without any implementer work?" — YES (most
-/// RG-JEX tests depend on this pure function working correctly). MUST be `todo!()`.
-///
 /// S-JSON-EXTRACT-UDF-001 AC-001..AC-010; ADR-066 §B1; VP-162 invariant 1 + 2.
-pub(crate) fn json_extract_string_impl(_json_col: Option<&str>, _key: &str) -> Option<String> {
-    todo!(
-        "json_extract_string_impl pure function not yet implemented — \
-         S-JSON-EXTRACT-UDF-001 T-05 (ADR-066 §B1 steps 1–7)"
-    )
+pub(crate) fn json_extract_string_impl(json_col: Option<&str>, key: &str) -> Option<String> {
+    let json_str = json_col?; // step 1: None input → None output (AC-004; VP-162 invariant 2)
+    let value: serde_json::Value = serde_json::from_str(json_str).ok()?; // step 2: parse failure → None (AC-009)
+    let obj = value.as_object()?; // step 3: non-object JSON root → None (AC-005)
+    let val = obj.get(key)?; // step 4: key absent → None (AC-003)
+    if val.is_null() {
+        return None; // step 5: JSON null at key → SQL NULL (AC-002)
+    }
+    if let serde_json::Value::String(s) = val {
+        return Some(s.clone()); // step 6: string value → clone (AC-001)
+    }
+    Some(val.to_string()) // step 7: non-string, non-null → coerce via to_string (AC-008)
 }

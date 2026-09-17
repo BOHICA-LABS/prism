@@ -121,6 +121,7 @@ EXPECTED_SYMBOLS = [
     "FetchContext",               # v96 prism_spec_engine::pipeline::FetchContext
     "PipelineResult",             # v97 prism_spec_engine::pipeline::PipelineResult
     "FetchOutput",                # v98 prism_sensors::adapter::FetchOutput
+    "JsonExtractStringUdf",       # v99 prism_query::json_extract_udf::JsonExtractStringUdf (S-JSON-EXTRACT-UDF-001)
     # ── E0004 enum match violations (23 entries; 22 unique after prism_core::ColumnType dedup) ──
     # Names are the last path segment from `note: \`path::TypeName\` defined here`.
     "PaginationConfig",      # v07 spec_parser::PaginationConfig
