@@ -17490,62 +17490,72 @@ mod jex_gate_walk_completeness_tests {
         );
     }
 
-    /// MED-001 proof (1): DML WHERE parses json_extract_string as ScalarFunc::Unknown,
-    /// NOT as ScalarFunc::JsonExtractString.
+    /// DML safe-skip proof (post-fix expectation): after T-09a, DML WHERE parses
+    /// json_extract_string as `ScalarFunc::JsonExtractString` (parity fix).
     ///
-    /// The DML WHERE predicate is parsed by `build_predicate_parser` via `fn_call_comparison`
-    /// (filter_parser.rs), which ALWAYS emits `ScalarFunc::Unknown(func_name)` for all
-    /// function names. It never emits `ScalarFunc::JsonExtractString` (that variant is only
-    /// produced by the SELECT-path `scalar_call` parser in sql_parser.rs). Verifying this
-    /// confirms proof (1) in the `Ast::Sql(_)` arm rationale comment.
+    /// The T-09a fix to `fn_call_comparison` (filter_parser.rs) maps `"json_extract_string"`
+    /// → `ScalarFunc::JsonExtractString` for ALL predicate positions, including DML WHERE.
+    /// This test asserts the post-fix parser behavior.
     ///
-    /// SAP-3: end-to-end parse path test (real parser, real DML input, no synthetic AST).
+    /// The DML safe-skip arm in `check_json_extract_key_literal` (`Ast::Sql(_) => Ok(())`)
+    /// must still hold: even though the filter now carries `ScalarFunc::JsonExtractString`,
+    /// the gate returns `Ok(())` immediately for any DML AST variant. This property is
+    /// separately verified by `test_jex_dml_ast_returns_ok_no_scope` (which constructs a
+    /// synthetic DML AST with `ScalarFunc::JsonExtractString` directly and calls the gate).
+    ///
+    /// Updated three-proof rationale:
+    ///   proof (1) pre-fix:  parser emits Unknown   → gate can't fire even if it walked DML
+    ///   proof (1) post-fix: parser emits JEString  → gate WOULD fire IF it walked DML
+    ///   proof (2):          gate returns Ok(()) for ANY Ast::Sql variant (DML safe-skip arm)
+    ///   proof (3):          combined → DML always passes E-QUERY-045 regardless
+    ///
+    /// SAP-3: end-to-end parse path test (real parser via parse_sql_dml, no synthetic AST).
     #[test]
-    fn test_jex_dml_filter_parses_as_unknown_scalar_not_jex_variant() {
+    fn test_jex_dml_ast_safe_skip_with_jex_variant() {
         use crate::ast::{Ast, Predicate, SqlStatement};
         use crate::sql_parser::parse_sql_dml;
 
         // Parse a real DML DELETE with json_extract_string in the WHERE clause.
-        // The second argument is a column reference (non-literal), which would trigger
-        // E-QUERY-045 IF the gate ever walked DML predicates. We want to confirm it
-        // never gets that far: the parser should not produce ScalarFunc::JsonExtractString.
+        // After T-09a: fn_call_comparison maps "json_extract_string" →
+        // ScalarFunc::JsonExtractString for DML WHERE predicates too (parity fix).
         let result =
             parse_sql_dml("DELETE FROM test_table WHERE json_extract_string(col, other_col) = 'x'");
 
         let ast = result.expect(
-            "MED-001 proof (1): DELETE with json_extract_string in WHERE must parse \
-             successfully (function is recognised as Unknown, not as a restricted scalar)",
+            "DML safe-skip proof (1): DELETE with json_extract_string in WHERE must parse \
+             successfully regardless of ScalarFunc variant.",
         );
 
         // Extract the DML node.
         let dml = match &ast {
             Ast::Sql(SqlStatement::Dml(node)) => node,
             other => {
-                panic!("MED-001 proof (1): expected Ast::Sql(SqlStatement::Dml(_)), got {other:?}")
+                panic!("DML safe-skip proof (1): expected Ast::Sql(SqlStatement::Dml(_)), got {other:?}")
             }
         };
 
-        // The WHERE filter must be present and must contain ScalarFunc::Unknown.
+        // The WHERE filter must be present.
         let filter = dml.filter.as_ref().expect(
-            "MED-001 proof (1): DELETE WHERE clause must produce a non-None filter predicate",
+            "DML safe-skip proof (1): DELETE WHERE clause must produce a non-None filter predicate",
         );
 
-        // The predicate must be a Predicate::Compare with LHS FuncCall::Scalar
-        // whose func is ScalarFunc::Unknown("json_extract_string").
+        // After T-09a: the predicate's LHS must carry ScalarFunc::JsonExtractString.
         match filter {
             Predicate::Compare { lhs, .. } => match lhs.as_ref() {
                 crate::ast::Expr::FuncCall(FuncCall::Scalar { func, .. }) => {
                     assert_eq!(
                         func,
-                        &ScalarFunc::Unknown("json_extract_string".to_string()),
-                        "MED-001 proof (1): DML WHERE json_extract_string must parse as \
-                             ScalarFunc::Unknown(\"json_extract_string\"), NOT as \
-                             ScalarFunc::JsonExtractString. Got: {func:?}"
+                        &ScalarFunc::JsonExtractString,
+                        "DML safe-skip proof (1): after T-09a filter_parser fix, DML WHERE \
+                         json_extract_string must parse as ScalarFunc::JsonExtractString \
+                         (parity with SELECT-list and pipe-where). Got: {func:?}"
                     );
                 }
-                other => panic!("MED-001 proof (1): expected FuncCall::Scalar LHS, got {other:?}"),
+                other => {
+                    panic!("DML safe-skip proof (1): expected FuncCall::Scalar LHS, got {other:?}")
+                }
             },
-            other => panic!("MED-001 proof (1): expected Predicate::Compare, got {other:?}"),
+            other => panic!("DML safe-skip proof (1): expected Predicate::Compare, got {other:?}"),
         }
     }
 
