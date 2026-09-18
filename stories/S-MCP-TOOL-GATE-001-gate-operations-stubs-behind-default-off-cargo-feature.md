@@ -5,7 +5,7 @@ title: "Gate 40 operations stubs behind default-off Cargo feature to eliminate -
 level: "L4"
 wave: 1
 epic_id: E-BETA3-REMEDIATION
-version: "1.4"
+version: "1.5"
 status: ready
 producer: story-writer
 timestamp: "2026-09-18T00:00:00Z"
@@ -27,7 +27,7 @@ inputs:
   - .factory/specs/behavioral-contracts/BC-2.10.017-not-yet-available-tools-fast-fail-audit-channel-non-blocking.md
   - .factory/specs/behavioral-contracts/BC-2.10.011-list-capabilities-meta-tool.md
   - crates/prism-mcp/src/server.rs
-input-hash: "33a4829"
+input-hash: "17d6c8f"
 traces_to: .factory/cycles/wave-5-e-demo-fidelity/beta3-remediation-delta-analysis.md
 depends_on: []
 # depends_on anchor justification:
@@ -196,17 +196,27 @@ list_capabilities always registered)
 ### AC-005 — Existing `test_MCP_01_partition_positive_coverage` assertion for `get_diagnostics` is updated for new behavior
 
 The existing inline test `test_MCP_01_partition_positive_coverage` currently asserts that
-`get_diagnostics` returns error code `-32003`. After the fix, with the `operations` feature
-absent, `get_diagnostics` is NOT registered and will return a different error. The test must
-be updated (gated with `#[cfg(feature = "operations")]` or its assertions updated) so it
-reflects the correct behavior in both worlds:
-- `#[cfg(not(feature = "operations"))]`: calling `get_diagnostics` returns `err.code == -32602` (InvalidParams, message `tool not found`; NOT `-32003`, NOT `-32601`)
-- `#[cfg(feature = "operations")]`: calling `get_diagnostics` still returns `-32003` (fast-fail preserved)
+`get_diagnostics` returns error code `-32003`. After the fix, the test must be split across
+two `#[cfg]` arms so it reflects the correct behavior in both compilation contexts:
+
+- `#[cfg(not(feature = "operations"))]`: In the operations-ABSENT build, `get_diagnostics` is
+  NOT a registered tool. The inline arm asserts its ABSENCE from `production_tool_catalog()`
+  — i.e., the tool name does NOT appear in the catalog slice. Calling `get_diagnostics` as a
+  method is NOT a valid assertion in this arm: in the operations-absent build the ops `impl`
+  block is gated out and the method does not exist on `PrismServer` (would fail to compile
+  with E0599). The `-32602` (`InvalidParams`, message `"tool not found"`) WIRE behavior — the
+  MCP protocol error an LLM agent receives when invoking this tool name against an
+  operations-absent server — is verified end-to-end by RG-GATE-003
+  (`test_BC_2_10_017_ops_tool_invocation_returns_invalid_params_without_operations_feature`),
+  not by this inline arm.
+- `#[cfg(feature = "operations")]`: Calling `get_diagnostics` still returns `-32003`
+  (fast-fail preserved; unchanged from current behavior).
 
 This prevents the test from becoming a false negative (paper-fix) after the feature gate lands.
 
 (traces to BC-2.10.017 amended §Postconditions: -32003 only applies when `operations` feature
-is ENABLED; the test must verify the correct code in each compilation context)
+is ENABLED; operations-absent inline arm asserts catalog-ABSENCE of get_diagnostics; wire
+-32602 behavior discharged by RG-GATE-003)
 
 ---
 
@@ -398,9 +408,18 @@ entries; tests fail on count assertions.
 
 - [ ] **T-D01**: Update `test_MCP_01_partition_positive_coverage` (inline `#[cfg(test)] mod tests`
   in `server.rs`):
-  - Wrap the `get_diagnostics` → `-32003` assertion in `#[cfg(feature = "operations")]`
-  - Add a `#[cfg(not(feature = "operations"))]` arm that asserts calling `get_diagnostics`
-    returns `err.code == -32602` with message `"tool not found"` (NOT `-32003`, NOT `-32601`)
+  - Wrap the `get_diagnostics` → `-32003` assertion in `#[cfg(feature = "operations")]` so
+    the fast-fail assertion is preserved when the feature is enabled (no behavior change for
+    the operations-enabled build).
+  - Add a `#[cfg(not(feature = "operations"))]` arm that asserts `get_diagnostics` is ABSENT
+    from `production_tool_catalog()` — i.e., the tool name does NOT appear in the catalog
+    slice (e.g., `assert!(!production_tool_catalog().iter().any(|t| t.name == "get_diagnostics"))`).
+    Do NOT attempt to call `get_diagnostics` as a method in this arm: in the operations-absent
+    build the ops `impl` block is compiled out and the method does not exist on `PrismServer`;
+    calling it would fail to compile with E0599. The `-32602` wire assertion (the MCP
+    `InvalidParams` / `"tool not found"` error returned to an LLM agent that invokes this tool
+    name) is discharged end-to-end by RG-GATE-003
+    (`test_BC_2_10_017_ops_tool_invocation_returns_invalid_params_without_operations_feature`).
   - This test update enforces AC-005.
 
 - [ ] **T-D02**: Verify `test_MCP_01_capability_classification_partitions_tool_catalog` still
@@ -564,6 +583,7 @@ Holdout scenarios are stored in the holdout directory that test-writer/implement
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.5 | 2026-09-18 | OBS-A (LOCAL pass-2): AC-005 + T-D01 prose corrected — operations-absent inline arm asserts get_diagnostics catalog-ABSENCE (calling it cannot compile when gated out, E0599); -32602 wire behavior discharged by RG-GATE-003. No code or behavior change; implementation already correct. input-hash updated to reflect current inputs state (17d6c8f). |
 | 1.4 | 2026-09-18 | Template conformance (D-2567 resume; Canonical Principle Rule 4 fix-in-scope): added missing frontmatter keys (level/cycle/inputs/input-hash/timestamp/traces_to) + Purity Classification section, values derived from sibling E-BETA3-REMEDIATION stories. No AC/RG/task/BC/ADR content change. |
 | 1.3 | 2026-09-18 | Phase D compile-safety cfg-gate tasks added (D-2567 resume, SAC-1 completeness): T-D03 gates inline server.rs `test_operations_tools_return_not_implemented_error_code`; T-D04 gates `tests/mcp_infrastructure.rs` `test_bc_2_10_017_not_yet_available_fast_fail_under_1s` + `test_bc_2_10_017_not_yet_available_guard_precedes_audit` — all three call gated ops methods and would fail no-operations-build compilation after T-C01. `mcp_infrastructure.rs` added to Files-to-MODIFY. Explicit no-gate constraint on param structs (`ListInfusionsParams`/`InfusionStatusParams`/`PluginStatusParams`). No BC/ADR/AC change; no new Red Gate test (RG density unchanged 4/5). |
 | 1.2 | 2026-09-16 | F3 BC/ADR pin propagation (D-2543/D-2544): BC-2.10.017 v1.1→v1.3; BC-2.10.011 v1.6→v1.7. AMENDMENT PENDING annotations removed from frontmatter comment, §Authority NOTE, §Behavioral Contracts table, and §Token Budget. |
