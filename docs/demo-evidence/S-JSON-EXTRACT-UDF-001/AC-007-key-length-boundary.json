@@ -6,7 +6,8 @@
     "bc_clause": "EC-11-025-007 / E-QUERY-045(b) / CWE-400",
     "scenario": "257-byte key rejected; 256-byte key accepted (inclusive boundary)",
     "binary": "target/debug/prism",
-    "commit": "83fa7ff51"
+    "commit": "7deb3674f",
+    "re_recorded": "cycle-2 B-2 fix: replaced hand-authored file (had non-MCP fields note/content_summary/query_note) with real MCP stdio capture"
   },
   "demo_257_byte_rejection": {
     "mcp_request": {
@@ -16,9 +17,10 @@
       "params": {
         "name": "query",
         "arguments": {
-          "query": "SELECT json_extract_string(raw_extensions, 'aaa...aaa[257 a-chars]') FROM claroty_alerts",
-          "query_note": "key is 257 ASCII 'a' characters = 257 UTF-8 bytes",
-          "clients": ["acme"]
+          "query": "SELECT json_extract_string(raw_extensions, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa') FROM claroty_alerts",
+          "clients": [
+            "acme"
+          ]
         }
       }
     },
@@ -69,9 +71,10 @@
       "params": {
         "name": "query",
         "arguments": {
-          "query": "SELECT json_extract_string(raw_extensions, 'aaa...aaa[256 a-chars]') FROM claroty_alerts",
-          "query_note": "key is 256 ASCII 'a' characters = 256 UTF-8 bytes (boundary, inclusive)",
-          "clients": ["acme"]
+          "query": "SELECT json_extract_string(raw_extensions, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa') FROM claroty_alerts",
+          "clients": [
+            "acme"
+          ]
         }
       }
     },
@@ -79,16 +82,62 @@
       "jsonrpc": "2.0",
       "id": 3,
       "result": {
-        "isError": false,
-        "note": "Query accepted (no E-QUERY-045 rejection). Query passed plan gate and proceeded to sensor fan-out. E-SENSOR-010 returned because no live Claroty instance — plan gate did NOT reject the 256-byte key.",
-        "content_summary": "0 results found (E-SENSOR-010 from dummy credential — plan gate passed)"
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"_meta\":{\"data_source\":[\"claroty\"],\"has_more\":false,\"next_cursor\":null,\"page\":1,\"query_time\":\"2026-09-18T02:57:28.151370+00:00\",\"safety_flags\":[],\"tool\":\"query\",\"total_results\":0,\"trust_level\":\"untrusted_external\"},\"content\":[{\"text\":\"0 results found\",\"type\":\"text\"}],\"results\":{\"is_truncated\":false,\"normalized_pql\":\"SELECT json_extract_string(raw_extensions, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa') FROM claroty_alerts\",\"returned_results\":0,\"rows\":[],\"sensor_errors\":[\"claroty_alerts: sensor error (E-SENSOR-010)\"],\"total_available\":0},\"structuredContent\":{\"results\":{\"is_truncated\":false,\"normalized_pql\":\"SELECT json_extract_string(raw_extensions, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa') FROM claroty_alerts\",\"returned_results\":0,\"rows\":[],\"sensor_errors\":[\"claroty_alerts: sensor error (E-SENSOR-010)\"],\"total_available\":0}}}"
+          }
+        ],
+        "structuredContent": {
+          "_meta": {
+            "data_source": [
+              "claroty"
+            ],
+            "has_more": false,
+            "next_cursor": null,
+            "page": 1,
+            "query_time": "2026-09-18T02:57:28.151370+00:00",
+            "safety_flags": [],
+            "tool": "query",
+            "total_results": 0,
+            "trust_level": "untrusted_external"
+          },
+          "content": [
+            {
+              "text": "0 results found",
+              "type": "text"
+            }
+          ],
+          "results": {
+            "is_truncated": false,
+            "normalized_pql": "SELECT json_extract_string(raw_extensions, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa') FROM claroty_alerts",
+            "returned_results": 0,
+            "rows": [],
+            "sensor_errors": [
+              "claroty_alerts: sensor error (E-SENSOR-010)"
+            ],
+            "total_available": 0
+          },
+          "structuredContent": {
+            "results": {
+              "is_truncated": false,
+              "normalized_pql": "SELECT json_extract_string(raw_extensions, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa') FROM claroty_alerts",
+              "returned_results": 0,
+              "rows": [],
+              "sensor_errors": [
+                "claroty_alerts: sensor error (E-SENSOR-010)"
+              ],
+              "total_available": 0
+            }
+          }
+        },
+        "isError": false
       }
     },
     "assertions": {
       "isError": false,
       "no_E_QUERY_045": true,
-      "boundary_inclusive": true,
-      "note": "256-byte key is exactly at the limit — accepted by check_json_extract_key_literal. Zero per-row overhead: gate is plan-time only."
+      "boundary_inclusive": true
     }
   }
 }

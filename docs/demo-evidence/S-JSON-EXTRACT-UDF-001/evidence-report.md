@@ -2,10 +2,18 @@
 
 **Story:** S-JSON-EXTRACT-UDF-001 — Minimal `json_extract_string` ScalarUDF with Literal-Key Plan Gate  
 **Branch:** feature/S-JSON-EXTRACT-UDF-001  
-**Commit at recording:** 83fa7ff51  
+**Commit at recording:** 7deb3674f (cycle-2 re-record; original cycle-1 was at 83fa7ff51)  
 **Binary:** `target/debug/prism` (built from worktree via `cargo build -p prism-bin`)  
 **Date:** 2026-09-17  
 **AC coverage:** AC-001 through AC-012 (all 12 acceptance criteria)
+
+### Cycle-2 re-recording notes (2026-09-17)
+
+Three files were re-captured at HEAD `7deb3674f` to close pr-reviewer findings:
+
+- **B-1 → `AC-005-non-literal-key-error.json` (new file):** Previous capture (old `AC-006-non-literal-key-rejection.json`) had stale suggestion text `"Use a literal string key: json_extract_string(col, 'key_name')."`. Current HEAD suggestion is `"Provide a string literal as the second argument, e.g., json_extract_string(raw_extensions, 'severity')."`. Both AC-005 and AC-006 re-captured at HEAD.
+- **B-2 → `AC-007-key-length-boundary.json` and `AC-012-where-predicate-gate.json`:** Previous files were hand-authored with non-MCP fields (`note`, `content_summary`, `query_note`) and contained no `content[]` array or `_meta` key. Replaced with genuine JSON-RPC stdio captures from the running prism binary.
+- **N-e:** Evidence report updated with correct test count (33, was 28), accurate wire-shape labeling (see AC-011 section), and current `captured_at` SHA.
 
 ---
 
@@ -173,11 +181,11 @@ Query: `SELECT json_extract_string(raw_extensions, '<256 a-chars>') FROM claroty
 Query: `SELECT json_extract_string(raw_extensions, 'severity') AS jex_severity FROM claroty_alerts | limit 5`  
 **Observed:** `isError: false` — UDF registered and resolved, query passed plan gate and executed. No "unknown function" error. Sensor returned E-SENSOR-010 (dummy credential, no live sensor) — confirms the failure point is the sensor, NOT the UDF.
 
-**Unit test (RG-JEX-011) wire-shape assertions (SID-2):**  
+**Unit test (RG-JEX-011) Arrow-level assertions (SID-2):**  
 - `test_jex_rg011_pipe_mode_end_to_end_executes` — PASS
 - Exercises `QueryEngine::execute()` with `JexMockAdapter` (SAP-3 public surface)
-- Arrow-level assertions: `extracted_col.value(0) == "critical"`, `extracted_col.is_null(1) == true` (missing key), `extracted_col.is_null(2) == true` (null column)
-- Wire-shape: asserts on RecordBatch / StringArray values (not pre-serialization structs)
+- Arrow-level assertions (pre-serialization Rust structs): `extracted_col.value(0) == "critical"`, `extracted_col.is_null(1) == true` (missing key), `extracted_col.is_null(2) == true` (null column)
+- Note: these are Arrow RecordBatch / StringArray assertions — pre-serialization. Wire-level JSON assertions (asserting on `content[0].text` bytes) are covered by the plan-gate tests (RG-JEX-006, RG-JEX-007, RG-JEX-012, RG-JEX-013) that assert on the MCP `structuredContent.error` envelope.
 
 **Traces to:** BC-2.11.025 EC-11-025-011
 
@@ -220,10 +228,12 @@ Query: `SELECT id FROM claroty_alerts WHERE json_extract_string(raw_extensions, 
 
 ```
 cargo nextest run -p prism-query -E 'test(test_jex)' --no-fail-fast
-28 tests run: 28 passed, 0 failed
+33 tests run: 33 passed, 0 failed
 ```
 
-12 canonical RG-JEX Red Gate tests all PASS:
+(Cycle-2 note: test count grew from 28 to 33 as cycle-2 fix commits added RG-013, RG-007-b/c/d, `test_jex_f4_*` engine-execute arm tests, and gate-walk completeness tests.)
+
+33 total test_jex tests all PASS:
 
 | Test | Result |
 |------|--------|
@@ -234,24 +244,46 @@ cargo nextest run -p prism-query -E 'test(test_jex)' --no-fail-fast
 | test_jex_rg005_non_object_json_returns_sql_null | PASS |
 | test_jex_rg006_non_literal_key_rejected_e_query_045_a | PASS |
 | test_jex_rg007_key_exceeds_max_len_rejected_e_query_045_b | PASS |
+| test_jex_rg007_b_key_at_exactly_max_len_accepted | PASS |
+| test_jex_rg007_c_multibyte_key_at_boundary_accepted | PASS |
+| test_jex_rg007_d_multibyte_key_over_boundary_rejected | PASS |
 | test_jex_rg008_non_string_json_value_coerced_to_string | PASS |
+| test_jex_rg008_bool_true_coerced_to_string | PASS |
+| test_jex_rg008_array_coerced_to_string | PASS |
+| test_jex_rg008_object_coerced_to_string | PASS |
 | test_jex_rg009_parse_failure_non_json_input_returns_sql_null | PASS |
 | test_jex_rg010_dot_in_key_literal_not_nested_path | PASS |
 | test_jex_rg011_pipe_mode_end_to_end_executes | PASS |
 | test_jex_rg012_where_predicate_non_literal_key_rejected_e_query_045 | PASS |
+| test_jex_rg012_b_where_key_too_long_rejected_e_query_045_b | PASS |
+| test_jex_rg012_c_having_predicate_non_literal_key_rejected_e_query_045 | PASS |
+| test_jex_rg012_d_where_valid_literal_key_executes_correctly | PASS |
+| test_jex_rg013_pipe_where_non_literal_key_rejected_e_query_045_a | PASS |
+| test_jex_rg013_b_pipe_where_key_too_long_rejected_e_query_045_b | PASS |
+| test_jex_f4_coerce_arm_engine_execute | PASS |
+| test_jex_f4_dot_in_key_arm_engine_execute | PASS |
+| test_jex_f4_non_object_arm_engine_execute | PASS |
+| test_jex_f4_parse_fail_arm_engine_execute | PASS |
+| test_jex_dml_ast_safe_skip_with_jex_variant_integration | PASS |
+| jex_gate_walk_completeness_tests::test_jex_dml_ast_returns_ok_no_scope | PASS |
+| jex_gate_walk_completeness_tests::test_jex_dml_ast_safe_skip_with_jex_variant | PASS |
+| jex_gate_walk_completeness_tests::test_jex_timestamp_arithmetic_base_key_too_long_defense_in_depth | PASS |
+| jex_gate_walk_completeness_tests::test_jex_timestamp_arithmetic_base_rejected_defense_in_depth | PASS |
+| jex_gate_walk_completeness_tests::test_jex_window_variant_is_fieldless_compile_guard | PASS |
 
 ---
 
 ## Artifact Index
 
-| File | Type | ACs Covered |
-|------|------|-------------|
-| `AC-006-007-012-plan-gate.gif` | VHS GIF recording | AC-006, AC-007, AC-011, AC-012 |
-| `AC-006-007-012-plan-gate.webm` | VHS WEBM recording | AC-006, AC-007, AC-011, AC-012 |
-| `AC-006-007-012-plan-gate.tape` | VHS tape source | AC-006, AC-007, AC-011, AC-012 |
-| `AC-006-non-literal-key-rejection.json` | MCP wire transcript | AC-006 |
-| `AC-007-key-length-boundary.json` | MCP wire transcript | AC-007 |
-| `AC-011-pipe-mode-udf-registration.json` | MCP wire transcript + unit test summary | AC-011 |
-| `AC-012-where-predicate-gate.json` | MCP wire transcript | AC-012 |
-| `AC-001-010-functional-unit-tests.json` | Unit test assertion summary | AC-001..005, AC-008..010 |
-| `prism_plan_gate_demo.py` | Demo driver script (VHS source) | AC-006, AC-007, AC-011, AC-012 |
+| File | Type | ACs Covered | Cycle |
+|------|------|-------------|-------|
+| `AC-006-007-012-plan-gate.gif` | VHS GIF recording | AC-006, AC-007, AC-011, AC-012 | cycle-1 |
+| `AC-006-007-012-plan-gate.webm` | VHS WEBM recording | AC-006, AC-007, AC-011, AC-012 | cycle-1 |
+| `AC-006-007-012-plan-gate.tape` | VHS tape source | AC-006, AC-007, AC-011, AC-012 | cycle-1 |
+| `AC-005-non-literal-key-error.json` | MCP wire transcript (cycle-2, HEAD 7deb3674f) | AC-006 (plan-gate E-QUERY-045(a)) | cycle-2 |
+| `AC-006-non-literal-key-rejection.json` | MCP wire transcript (cycle-2, HEAD 7deb3674f) | AC-006 | cycle-2 |
+| `AC-007-key-length-boundary.json` | MCP wire transcript (cycle-2, HEAD 7deb3674f) | AC-007 | cycle-2 |
+| `AC-011-pipe-mode-udf-registration.json` | MCP wire transcript + unit test summary | AC-011 | cycle-1 |
+| `AC-012-where-predicate-gate.json` | MCP wire transcript (cycle-2, HEAD 7deb3674f) | AC-012 | cycle-2 |
+| `AC-001-010-functional-unit-tests.json` | Unit test assertion summary | AC-001..005, AC-008..010 | cycle-1 |
+| `prism_plan_gate_demo.py` | Demo driver script (VHS source) | AC-006, AC-007, AC-011, AC-012 | cycle-1 |

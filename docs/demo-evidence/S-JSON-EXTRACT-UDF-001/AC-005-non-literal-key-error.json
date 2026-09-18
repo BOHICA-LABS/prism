@@ -1,14 +1,14 @@
 {
   "_demo_meta": {
     "story_id": "S-JSON-EXTRACT-UDF-001",
-    "ac": "AC-006",
-    "rg": "RG-JEX-006",
+    "ac": "AC-005",
+    "rg": "RG-JEX-005",
     "bc_clause": "EC-11-025-006 / E-QUERY-045(a)",
-    "scenario": "Non-literal key argument rejected at plan time",
-    "query": "SELECT json_extract_string(raw_extensions, severity_id) FROM claroty_alerts",
+    "scenario": "Non-literal key argument (column reference) rejected at plan time",
+    "query": "SELECT json_extract_string(raw_extensions, severity_col) FROM claroty_alerts",
     "binary": "target/debug/prism",
     "commit": "7deb3674f",
-    "re_recorded": "cycle-2: suggestion text updated to current HEAD (N4 fix)"
+    "re_recorded": "cycle-2 B-1 fix: suggestion text updated from old 'Use a literal string key...' form to current HEAD text per N4 fix"
   },
   "mcp_request": {
     "jsonrpc": "2.0",
@@ -17,7 +17,7 @@
     "params": {
       "name": "query",
       "arguments": {
-        "query": "SELECT json_extract_string(raw_extensions, severity_id) FROM claroty_alerts",
+        "query": "SELECT json_extract_string(raw_extensions, severity_col) FROM claroty_alerts",
         "clients": [
           "acme"
         ]
@@ -59,6 +59,6 @@
     "error_category": "validation",
     "message_contains_E_QUERY_045a": true,
     "fires_before_sensor_fanout": true,
-    "note": "Query rejected at plan time (check_json_extract_key_literal gate). No sensor fan-out occurred \u2014 no E-SENSOR-010 in response. Gate fires AFTER E-QUERY-037/038/039, BEFORE ctx.sql() per ADR-066 \u00a7B3."
+    "suggestion_text_verified": "Provide a string literal as the second argument, e.g., json_extract_string(raw_extensions, 'severity')."
   }
 }
