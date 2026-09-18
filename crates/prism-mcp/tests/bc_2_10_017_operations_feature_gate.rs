@@ -423,6 +423,115 @@ fn test_BC_2_10_017_live_tools_all_present_without_operations_feature() {
 }
 
 // ---------------------------------------------------------------------------
+// OBS-1 coverage-symmetry: list_capabilities via end-to-end client round-trip
+// ---------------------------------------------------------------------------
+
+/// OBS-1 / SAP-3 end-to-end reachability — BC-2.10.017 §Postconditions INV-OPERATIONS-FEATURE-GATE:
+/// `list_capabilities` over a real MCP client duplex round-trip MUST return
+/// `not_registered_tools == []` when the `operations` feature is absent.
+///
+/// RG-GATE-002 covers `list_capabilities.not_registered_tools` via a direct handler call.
+/// This test adds the matching SAP-3 end-to-end coverage: it drives PrismServer from the
+/// public MCP wire surface (JSON-RPC `tools/call` → `list_capabilities`) rather than from
+/// an internal Rust handler invocation, proving that the empty `not_registered_tools` result
+/// is reachable end-to-end and not just asserted on an internal struct.
+///
+/// The server is wired with a `WriteExecutor` (same as RG-GATE-002) because
+/// `list_capabilities` returns `Err(Internal)` without one.
+///
+/// Wire-shape assertion discipline: serializes `CallToolResult` to JSON and asserts the
+/// `structuredContent → results → not_registered_tools` path at the serialized-bytes level —
+/// the exact envelope the LLM agent reads.
+///
+/// TD-VSDD-091 compliance: no `file.rs:NNN` line-number cites.
+#[tokio::test]
+async fn test_BC_2_10_017_list_capabilities_not_registered_tools_empty_via_end_to_end_client_roundtrip(
+) {
+    // DummyClientHandler: minimal no-op client to complete the MCP handshake.
+    #[derive(Debug, Clone, Default)]
+    struct DummyClientHandler;
+    impl ClientHandler for DummyClientHandler {
+        fn get_info(&self) -> ClientInfo {
+            ClientInfo::default()
+        }
+    }
+
+    let (server_transport, client_transport) = tokio::io::duplex(4096);
+
+    // Spawn PrismServer WITH WriteExecutor wired — list_capabilities requires it.
+    // `.waiting()` keeps the server alive to handle the tool call (same pattern as
+    // RG-GATE-003 and OBS-2).
+    let _server_handle = tokio::spawn(async move {
+        if let Ok(peer) = server_with_write_executor_for_gate_tests()
+            .serve(server_transport)
+            .await
+        {
+            let _ = peer.waiting().await;
+        }
+    });
+
+    // Complete the MCP handshake via the client side.
+    let client = DummyClientHandler::default()
+        .serve(client_transport)
+        .await
+        .expect(
+            "test_BC_2_10_017_list_capabilities_not_registered_tools_empty_via_end_to_end_client_roundtrip: \
+             DummyClientHandler::serve must complete MCP handshake \
+             (test infrastructure failure if this panics)",
+        );
+
+    // Build arguments: { "client_id": "test-client" } — matches the org slug registered
+    // in server_with_write_executor_for_gate_tests() and mirrors RG-GATE-002's call.
+    let mut args: serde_json::Map<String, serde_json::Value> = serde_json::Map::new();
+    args.insert(
+        "client_id".to_string(),
+        serde_json::Value::String("test-client".to_string()),
+    );
+
+    // Call `list_capabilities` via the real JSON-RPC wire.
+    let call_result = timeout(
+        Duration::from_secs(5),
+        client.call_tool(
+            CallToolRequestParams::new("list_capabilities").with_arguments(args),
+        ),
+    )
+    .await
+    .expect(
+        "test_BC_2_10_017_list_capabilities_not_registered_tools_empty_via_end_to_end_client_roundtrip: \
+         call_tool must return within 5s (no hang)",
+    )
+    .expect(
+        "test_BC_2_10_017_list_capabilities_not_registered_tools_empty_via_end_to_end_client_roundtrip: \
+         list_capabilities wire call must succeed (WriteExecutor is wired)",
+    );
+
+    // Wire-shape assertion — serialize CallToolResult and navigate at the JSON-bytes level.
+    // Path: structuredContent → results → not_registered_tools
+    // (mirrors the wire-shape navigation in RG-GATE-002, but from the round-trip result)
+    let json = serde_json::to_value(&call_result).expect("CallToolResult must serialize to JSON");
+
+    let wire_sc = json.get("structuredContent").expect(
+        "OBS-1 wire-shape BC-2.10.017: 'structuredContent' key must be present in \
+             list_capabilities wire response",
+    );
+
+    let wire_body = wire_sc.get("results").unwrap_or(wire_sc);
+
+    let wire_arr = wire_body["not_registered_tools"].as_array().expect(
+        "OBS-1 wire-shape BC-2.10.017: 'not_registered_tools' must be a JSON array \
+         in the serialized MCP response",
+    );
+
+    assert!(
+        wire_arr.is_empty(),
+        "OBS-1 wire-shape BC-2.10.017 INV-OPERATIONS-FEATURE-GATE: \
+         serialized not_registered_tools MUST be [] when `operations` feature is absent; \
+         got {} entries — SAP-3 end-to-end reachability proof from the MCP wire surface",
+        wire_arr.len()
+    );
+}
+
+// ---------------------------------------------------------------------------
 // OBS-2 defence-in-depth: real MCP client round-trip via duplex transport
 // ---------------------------------------------------------------------------
 
