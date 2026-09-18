@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: active
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-10"
 capability: "CAP-034"
 lifecycle_status: active
 introduced: demo-readiness-2026-06-24
-modified: "2026-09-16"
+modified: "2026-09-18"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -21,7 +21,7 @@ removal_reason: null
 inputs:
   - ".factory/specs/domain-spec/capabilities.md"
   - ".factory/specs/architecture/decisions/ADR-046-three-mode-correctness-filter-sql-pipe-mode-bridge-error-and-execution-validation.md"
-input-hash: "TBD"
+input-hash: "883049c"
 traces_to: ["CAP-034"]
 extracted_from: null
 ---
@@ -58,7 +58,8 @@ When the `operations` Cargo feature is enabled, tools in the `NOT_YET_AVAILABLE_
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| JSON-RPC `-32003` | Tool in `NOT_YET_AVAILABLE_TOOLS` is invoked | Fast-fail within 1s: `{"code": -32003, "message": "Tool '{tool_name}' is not yet available in this release. …"}` |
+| JSON-RPC `-32003` | `operations` feature ENABLED + Tool in `NOT_YET_AVAILABLE_TOOLS` is invoked | Fast-fail within 1s: `{"code": -32003, "message": "Tool '{tool_name}' is not yet available in this release. …"}` |
+| JSON-RPC `-32602` | `operations` feature ABSENT (default) + Previously-stubbed tool name (e.g., `get_diagnostics`) is invoked | rmcp standard tool-not-found: `{"code": -32602, "message": "tool not found"}` — the tool was never registered; no stub exists in the MCP catalog; NOT `-32003` |
 
 ## Edge Cases
 
@@ -73,11 +74,14 @@ When the `operations` Cargo feature is enabled, tools in the `NOT_YET_AVAILABLE_
 
 > See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
 
-| Input | Expected Output | Category |
-|-------|----------------|----------|
-| `tools/call list_infusions` | JSON-RPC error `-32003` within 1s | happy-path (fast-fail) |
-| `tools/call plugin_status {"plugin_name": "crowdstrike-oauth2.prx"}` | JSON-RPC error `-32003` within 1s | happy-path (fast-fail) |
-| `tools/call infusion_status {"infusion_name": "threat_score"}` | JSON-RPC error `-32003` within 1s | happy-path (fast-fail) |
+Note: These vectors cover two mutually exclusive compilation states. Rows marked `operations-enabled` require `--features operations`; rows marked `operations-absent` apply to the default production build.
+
+| Input | Compilation State | Expected Output | Category |
+|-------|------------------|----------------|----------|
+| `tools/call list_infusions` | operations-enabled | JSON-RPC error `-32003` within 1s | happy-path (fast-fail) |
+| `tools/call plugin_status {"plugin_name": "crowdstrike-oauth2.prx"}` | operations-enabled | JSON-RPC error `-32003` within 1s | happy-path (fast-fail) |
+| `tools/call infusion_status {"infusion_name": "threat_score"}` | operations-enabled | JSON-RPC error `-32003` within 1s | happy-path (fast-fail) |
+| `tools/call get_diagnostics` | operations-absent (default) | JSON-RPC error `{"code": -32602, "message": "tool not found"}` — NOT `-32003` | happy-path (feature-gate) |
 
 ## Verification Properties
 
@@ -119,8 +123,8 @@ TBD
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | S-MCP-TOOL-GATE-001-LOCAL-pass-1-OBS-3 | 2026-09-18 | product-owner | Additive table completeness. §Error Cases: added operations-ABSENT row (`operations` feature absent + previously-stubbed tool name invoked → MCP −32602 `"tool not found"`, NOT −32003). §Canonical Test Vectors: added compilation-state column and operations-absent row (`tools/call get_diagnostics` operations-absent → `{code: -32602, message: "tool not found"}`). Tables now enumerate both compilation states (operations-enabled → −32003; operations-absent/default → −32602), consistent with §Postconditions and INV-OPERATIONS-FEATURE-GATE (already correct at v1.3). No behavioral change — RG-GATE-003 already tests −32602. Pre-existing duplicate v1.1 changelog rows merged into single row. Closes S-MCP-TOOL-GATE-001 LOCAL pass-1 OBS-3. |
 | 1.3 | beta3-remediation-BC-2.10.017-v1.3 | 2026-09-16 | product-owner | Factual correction: −32601 (MethodNotFound) → −32602 (InvalidParams, `"tool not found"`). §Postconditions (absent-feature path) and INV-OPERATIONS-FEATURE-GATE updated to reflect rmcp 1.7.0 `handler/server/router/tool.rs` → `ErrorData::invalid_params("tool not found")` and prism `error_mapping.rs` tool-not-found → −32602 (deliberately NOT −32601 per inline comment at `error_mapping.rs:86-91`). Story anchor S-MCP-TOOL-GATE-001 AC-003/RG-GATE-003 now correctly cites −32602. TD-VSDD-097 sibling note: the −32602 fact also appears in S-MCP-TOOL-GATE-001 body (AC-003/RG-GATE-003/T-D01); story-writer is correcting that in parallel — no story edits made here. |
 | 1.2 | beta3-remediation-BC-amendments | 2026-09-16 | product-owner | Operations feature gate: amended §Description to capture absent-feature default. Added feature-gate postcondition block (absent = NOT_YET_AVAILABLE_TOOLS &[], 14-tool catalog, -32601 for unknown tool; enabled = existing -32003 fast-fail). Replaced stale "registered in tools/list" invariant with INV-OPERATIONS-FEATURE-GATE. Anchors: S-MCP-TOOL-GATE-001 AC-001/AC-003/AC-004/AC-005 (RG-GATE-001, RG-GATE-003, RG-GATE-004). Resolves beta.3 issues 1 and 2 (beta3-remediation-delta-analysis.md §Issue 1). |
-| 1.1 | PR-203-post-merge-POL-14 | 2026-06-26 | state-manager | **POL-14 BC auto-promotion: draft → active.** Anchor story S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 squash-merged via PR #203 to develop@7e60df03 (2026-06-26; CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) cascade on frozen HEAD 356e0573). `status: draft → active`. No behavioral change; frontmatter status field only. |
-| 1.1 | PR-203-fix-burst-F-P2R2-HIGH-001 | 2026-06-26 | product-owner | D-1110 reality-drift reconciliation (F-P2R2-HIGH-001 sibling-sweep miss). §Preconditions: removed fictional `mpsc::Sender<AuditEntry>`; reflects `Option<Arc<dyn AuditWriter>>`. §Postconditions: Option B `try_send` mandate dropped; shipped implementation is Option A (guard-reorder — `emit_tool_audit` never reached for NOT_YET_AVAILABLE tools). INV-AUDIT-NON-BLOCKING: rewritten to reflect Arc-DI async-await path with no mpsc/try_send; non-blocking property is satisfied by guard-reorder. §Architecture Anchors: cite real `emit_tool_audit` function signature + behavioral anchor; drop stale `try_send` prescription. BC-2.10.016 received its D-1110 reconciliation in the prior burst; this BC (2.10.017) is the sibling-sweep closure. EC-10-017-001 (and §Edge Cases sweep) reconciled to guard-reorder reality — "audit channel buffer full" was a fictional condition; rewritten to describe the slow-AuditWriter scenario and the invariant that `emit_tool_audit` is never reached for NOT_YET_AVAILABLE tools (completes the v1.1 D-1110 sweep, closes F-002). |
+| 1.1 | PR-203-fix-burst-F-P2R2-HIGH-001 + PR-203-post-merge-POL-14 | 2026-06-26 | product-owner + state-manager | D-1110 reality-drift reconciliation (F-P2R2-HIGH-001 sibling-sweep miss). §Preconditions: removed fictional `mpsc::Sender<AuditEntry>`; reflects `Option<Arc<dyn AuditWriter>>`. §Postconditions: Option B `try_send` mandate dropped; shipped implementation is Option A (guard-reorder — `emit_tool_audit` never reached for NOT_YET_AVAILABLE tools). INV-AUDIT-NON-BLOCKING: rewritten to reflect Arc-DI async-await path with no mpsc/try_send; non-blocking property is satisfied by guard-reorder. §Architecture Anchors: cite real `emit_tool_audit` function signature + behavioral anchor; drop stale `try_send` prescription. BC-2.10.016 received its D-1110 reconciliation in the prior burst; this BC (2.10.017) is the sibling-sweep closure. EC-10-017-001 (and §Edge Cases sweep) reconciled to guard-reorder reality — "audit channel buffer full" was a fictional condition; rewritten to describe the slow-AuditWriter scenario and the invariant that `emit_tool_audit` is never reached for NOT_YET_AVAILABLE tools (completes the v1.1 D-1110 sweep, closes F-002). **POL-14 auto-promotion: draft → active** on squash-merge of PR #203 to develop@7e60df03 (2026-06-26; CI 43/43 green; `status: draft → active`; no additional behavioral change). |
 | 1.0 | demo-readiness-2026-06-24 | 2026-06-24 | product-owner | Initial contract. Authored per demo-readiness-remediation-design-2026-06-24.md. Closes BLOCKER-004. Root cause: `emit_tool_audit` blocking `send()` before fast-fail guard; fix: reorder guard before audit OR change to `try_send`. |
