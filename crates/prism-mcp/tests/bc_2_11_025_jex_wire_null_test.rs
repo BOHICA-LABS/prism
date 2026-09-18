@@ -85,10 +85,8 @@ mod tests {
     /// Mock adapter returning 3 rows of JSON payloads in a `payload` (Utf8, nullable) column:
     ///
     /// - Row 0: `{"severity":"critical","host":"server01"}` → json_extract_string → "critical"
-    /// - Row 1: `{"severity":null,"host":"server02"}`       → json_extract_string → SQL NULL
-    ///                                                          (JSON null at key)
-    /// - Row 2: `{"host":"server03"}`                       → json_extract_string → SQL NULL
-    ///                                                          (key absent)
+    /// - Row 1: `{"severity":null,"host":"server02"}` → json_extract_string → SQL NULL (JSON null at key)
+    /// - Row 2: `{"host":"server03"}` → json_extract_string → SQL NULL (key absent)
     ///
     /// Rows 1 and 2 are the null-producing arms: after serialization through
     /// arrow_json::WriterBuilder::with_explicit_nulls(true) the `extracted` key must be
