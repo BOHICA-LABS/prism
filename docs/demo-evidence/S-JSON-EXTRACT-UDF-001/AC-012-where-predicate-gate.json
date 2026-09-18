@@ -1,0 +1,91 @@
+{
+  "_demo_meta": {
+    "story_id": "S-JSON-EXTRACT-UDF-001",
+    "ac": "AC-012",
+    "rg": "RG-JEX-012",
+    "bc_clause": "EC-11-025-012 / predicate-position parity via T-09a filter_parser.rs fix",
+    "scenario": "WHERE predicate position: non-literal key rejected; valid literal key executes",
+    "binary": "target/debug/prism",
+    "commit": "83fa7ff51"
+  },
+  "demo_where_non_literal_rejection": {
+    "description": "WHERE predicate with non-literal key (column reference) triggers E-QUERY-045(a). Predicate-position parity established by T-09a fix: filter_parser.rs fn_call_comparison maps 'json_extract_string' -> ScalarFunc::JsonExtractString (not Unknown), so the check_json_extract_key_literal gate fires.",
+    "mcp_request": {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "method": "tools/call",
+      "params": {
+        "name": "query",
+        "arguments": {
+          "query": "SELECT id FROM claroty_alerts WHERE json_extract_string(raw_extensions, severity_id) = 'x'",
+          "clients": ["acme"]
+        }
+      }
+    },
+    "mcp_response": {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "ERROR: [validation] - E-QUERY-045: json_extract_string requires a literal string key (e.g., json_extract_string(col, 'key_name')). Dynamic key expressions are not supported.. Use a literal string key: json_extract_string(col, 'key_name')."
+          }
+        ],
+        "structuredContent": {
+          "_meta": {
+            "trust_level": "internal"
+          },
+          "error": {
+            "category": "validation",
+            "code": "E-QUERY-045",
+            "message": "E-QUERY-045: json_extract_string requires a literal string key (e.g., json_extract_string(col, 'key_name')). Dynamic key expressions are not supported.",
+            "original_params_valid": false,
+            "retry_after_seconds": null,
+            "retryable": false,
+            "source": "prism_mcp",
+            "suggestion": "Use a literal string key: json_extract_string(col, 'key_name').",
+            "upstream_message": null
+          }
+        },
+        "isError": true
+      }
+    },
+    "assertions": {
+      "isError": true,
+      "error_code": "E-QUERY-045",
+      "fires_in_where_position": true,
+      "same_message_as_select_position": true,
+      "fires_before_sensor_fanout": true
+    }
+  },
+  "demo_where_valid_literal_accepted": {
+    "description": "WHERE predicate with valid literal key executes correctly (no E-QUERY-045). Confirms predicate-position parity: valid literal keys work in WHERE just as in SELECT.",
+    "mcp_request": {
+      "jsonrpc": "2.0",
+      "id": 3,
+      "method": "tools/call",
+      "params": {
+        "name": "query",
+        "arguments": {
+          "query": "SELECT id FROM claroty_alerts WHERE json_extract_string(raw_extensions, 'severity') = 'high'",
+          "clients": ["acme"]
+        }
+      }
+    },
+    "mcp_response": {
+      "jsonrpc": "2.0",
+      "id": 3,
+      "result": {
+        "isError": false,
+        "content_summary": "0 results found (E-SENSOR-010 from dummy credential — plan gate passed)",
+        "note": "Query accepted. No E-QUERY-045. Proceeded to sensor fan-out, returned E-SENSOR-010 due to no live sensor."
+      }
+    },
+    "assertions": {
+      "isError": false,
+      "no_E_QUERY_045": true,
+      "valid_literal_in_where_executes": true
+    }
+  }
+}

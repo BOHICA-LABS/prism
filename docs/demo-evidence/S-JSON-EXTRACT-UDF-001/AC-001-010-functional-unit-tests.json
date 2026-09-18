@@ -1,0 +1,102 @@
+{
+  "_demo_meta": {
+    "story_id": "S-JSON-EXTRACT-UDF-001",
+    "acs": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-005", "AC-008", "AC-009", "AC-010"],
+    "rgs": ["RG-JEX-001", "RG-JEX-002", "RG-JEX-003", "RG-JEX-004", "RG-JEX-005", "RG-JEX-008", "RG-JEX-009", "RG-JEX-010"],
+    "method": "DataFusion SessionContext unit tests (prism_query public API) + QueryEngine::execute",
+    "commit": "83fa7ff51",
+    "test_file": "crates/prism-query/tests/test_json_extract_udf.rs"
+  },
+  "test_results_summary": {
+    "total_tests": 12,
+    "passed": 12,
+    "failed": 0,
+    "run_command": "cargo nextest run -p prism-query -E 'test(test_jex_rg00)' --no-fail-fast"
+  },
+  "AC-001_happy_path": {
+    "test": "test_jex_rg001_udf_registered_happy_path_executes",
+    "result": "PASS",
+    "input_json": "{\"severity\":\"high\",\"count\":5}",
+    "key": "severity",
+    "expected_output": "\"high\" (non-null Utf8 Arrow cell)",
+    "arrow_assertion": "extracted_col.value(0) == \"high\" && !extracted_col.is_null(0)",
+    "bc_clause": "EC-11-025-001 / postcondition §Happy path",
+    "datafusion_registration": "json_extract_string UDF registered under exact name 'json_extract_string' with (Utf8, Utf8) -> Utf8 nullable, Volatility::Immutable"
+  },
+  "AC-002_json_null_at_key": {
+    "test": "test_jex_rg002_json_null_value_at_key_returns_sql_null",
+    "result": "PASS",
+    "input_json": "{\"status\":null}",
+    "key": "status",
+    "expected_output": "SQL NULL (not 'null' string, not empty string)",
+    "arrow_assertion": "extracted_col.is_null(0) == true",
+    "bc_clause": "EC-11-025-005 / postcondition §JSON null at key",
+    "note": "JSON null value at key treated as absent, null-propagating. ADR-066 §B1 step 5."
+  },
+  "AC-003_missing_key": {
+    "test": "test_jex_rg003_missing_key_returns_sql_null",
+    "result": "PASS",
+    "input_json": "{\"severity\":\"high\"}",
+    "key": "missing_key",
+    "expected_output": "SQL NULL (key absent from object)",
+    "arrow_assertion": "extracted_col.is_null(0) == true",
+    "bc_clause": "EC-11-025-003 / postcondition §Missing key"
+  },
+  "AC-004_null_column_input": {
+    "test": "test_jex_rg004_null_column_input_returns_sql_null",
+    "result": "PASS",
+    "input": "Arrow null cell (SQL NULL) in column",
+    "key": "severity",
+    "expected_output": "SQL NULL (null-propagating)",
+    "arrow_assertion": "extracted_col.is_null(0) == true",
+    "bc_clause": "EC-11-025-002 / postcondition §Null column",
+    "kani_proof": "VP-162-B vp162_b_none_input_is_none_output"
+  },
+  "AC-005_non_object_json": {
+    "test": "test_jex_rg005_non_object_json_returns_sql_null",
+    "result": "PASS",
+    "input_json": "[\"a\",\"b\",\"c\"]",
+    "key": "key",
+    "expected_output": "SQL NULL (non-object JSON, array input)",
+    "arrow_assertion": "extracted_col.is_null(0) == true",
+    "bc_clause": "EC-11-025-004 / postcondition §Non-object JSON",
+    "note": "Applies to any non-object JSON: array, string primitive, number, boolean, JSON null at root."
+  },
+  "AC-008_non_string_coercion": {
+    "tests": [
+      "test_jex_rg008_non_string_json_value_coerced_to_string",
+      "test_jex_rg008_bool_true_coerced_to_string",
+      "test_jex_rg008_array_coerced_to_string",
+      "test_jex_rg008_object_coerced_to_string"
+    ],
+    "result": "PASS (4 variants)",
+    "coercions": {
+      "integer_42": "\"42\"",
+      "bool_true": "\"true\"",
+      "array_1_2": "\"[1,2]\"",
+      "object_nested": "{\"nested\":\"value\"} -> \"{\\\"nested\\\":\\\"value\\\"}\""
+    },
+    "bc_clause": "EC-11-025-008 / postcondition §Non-string value",
+    "note": "serde_json::Value::to_string() coercion — NOT SQL NULL. Callers can cast downstream."
+  },
+  "AC-009_parse_failure": {
+    "test": "test_jex_rg009_parse_failure_non_json_input_returns_sql_null",
+    "result": "PASS",
+    "input": "{not_json} (malformed JSON string in column)",
+    "key": "key",
+    "expected_output": "SQL NULL (silent null-propagation, no E-QUERY-045)",
+    "arrow_assertion": "extracted_col.is_null(0) == true",
+    "bc_clause": "EC-11-025-010 / postcondition §Parse failure",
+    "note": "serde_json::from_str failure -> None. Silent per BC-2.11.025 §Postconditions Parse-failure + ADR-066 §B1 step 2 (purity gate: no per-row tracing emissions)."
+  },
+  "AC-010_dot_in_key": {
+    "test": "test_jex_rg010_dot_in_key_literal_not_nested_path",
+    "result": "PASS",
+    "input_json": "{\"a.b\":\"literal_val\",\"a\":{\"b\":\"nested\"}}",
+    "key": "a.b",
+    "expected_output": "\"literal_val\" (exact top-level key match, NOT nested path a->b)",
+    "arrow_assertion": "extracted_col.value(0) == \"literal_val\"",
+    "bc_clause": "EC-11-025-009 / postcondition §Top-level key only",
+    "note": "ADR-066 §D4: nested JSONPath access out of scope for beta.3. serde_json::Map::get(key) does exact top-level lookup."
+  }
+}
