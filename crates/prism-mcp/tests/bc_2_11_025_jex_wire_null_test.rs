@@ -21,7 +21,7 @@
 //! |------|-----------|---------------------|
 //! | test_BC_2_11_025_json_extract_string_null_row_wire_null_not_absent | EC-11-025-011 AC-011 + EC-11-079 | arrow_json explicit_nulls=false ([C3]/[H20]) |
 //!
-//! Story: S-JSON-EXTRACT-UDF-001 v1.6 | BC: BC-2.11.025 v1.9 | ADR: ADR-066 v1.6
+//! Story: S-JSON-EXTRACT-UDF-001 | BC: BC-2.11.025 (AC-011, EC-11-079) | ADR: ADR-066 §B2
 
 #[cfg(test)]
 mod tests {

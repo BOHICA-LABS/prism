@@ -2909,18 +2909,21 @@ pub(crate) fn check_json_extract_key_literal(ast: &crate::ast::Ast) -> Result<()
         // MED-001 fix (TD-VSDD-059 / SAP-3): DML — json_extract_string cannot reach
         // execution through this arm. Three structural proofs, each test-verified:
         //
-        // (1) Parser proof: the DML WHERE predicate is parsed by `build_predicate_parser`
-        //     via `fn_call_comparison` (filter_parser.rs), which always emits
-        //     `ScalarFunc::Unknown(func_name)` for ALL function names, including
-        //     "json_extract_string". It NEVER emits `ScalarFunc::JsonExtractString`.
-        //     Verified by `test_jex_dml_filter_parses_as_unknown_scalar_not_jex_variant`.
+        // (1) Parser state (post-T-09a): the filter_parser.rs T-09a fix maps
+        //     "json_extract_string" → `ScalarFunc::JsonExtractString` for ALL predicate
+        //     positions, including DML WHERE. DML filters now emit the same variant as
+        //     SELECT predicates and pipe WHERE stages (T-09a parity). A
+        //     `ScalarFunc::JsonExtractString` node in a DML filter WOULD trigger E-QUERY-045
+        //     if the gate walked DML predicates. Safety rests entirely on proofs (2) and (3).
+        //     (BC-2.11.025 §Postconditions DML scope-exclusion; ADR-066 §B3.)
+        //     Verified by `test_jex_dml_ast_safe_skip_with_jex_variant`.
         //
-        // (2) Gate proof: `check_jex_in_expr` matches ONLY `ScalarFunc::JsonExtractString`
-        //     (the first arm). A `ScalarFunc::Unknown("json_extract_string")` node in a
-        //     DML WHERE falls through to the generic `FuncCall::Scalar { args, .. }` arm,
-        //     which recurses into args without triggering E-QUERY-045. This arm never
-        //     reaches `check_jex_in_expr` at all for DML input — it returns `Ok(())`
-        //     immediately. Verified by `test_jex_dml_ast_returns_ok_no_scope`.
+        // (2) Gate proof: the `Ast::Sql(_) => Ok(())` arm returns immediately for ANY
+        //     `Ast::Sql` non-Select variant — it never descends into predicates and never
+        //     calls `check_jex_in_expr`. Even a DML filter carrying
+        //     `ScalarFunc::JsonExtractString` with a non-literal key cannot trigger
+        //     E-QUERY-045 through this arm.
+        //     Verified by `test_jex_dml_ast_returns_ok_no_scope`.
         //
         // (3) Write-path proof: the write_pipeline.rs stores only `has_where_clause: bool`
         //     and creates NO DataFusion SessionContext, so the UDF is never invoked on DML

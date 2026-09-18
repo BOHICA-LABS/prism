@@ -1,8 +1,8 @@
 //! Red Gate test suite for S-JSON-EXTRACT-UDF-001 / json_extract_string scalar UDF.
 //!
 //! 11 baseline failing tests (RG-JEX-001..011) + RG-JEX-012 family added by F-JEX-P1-HIGH-001
-//! fix pass. Every test traces to exactly one EC-11-025-NNN edge case in BC-2.11.025 v1.11
-//! and one acceptance criterion in S-JSON-EXTRACT-UDF-001 v1.8.
+//! fix pass. Every test traces to exactly one EC-11-025-NNN edge case in BC-2.11.025
+//! and one acceptance criterion in S-JSON-EXTRACT-UDF-001.
 //!
 //! # Test method by group
 //!
@@ -60,7 +60,7 @@
 //! | RG-JEX-011   | EC-11-025-011     | AC-011 pipe mode E2E    | full E2E         |
 //! | RG-JEX-012   | EC-11-025-012     | AC-012 WHERE/HAVING gate| plan gate        |
 //!
-//! Story: S-JSON-EXTRACT-UDF-001 v1.8 | BC: BC-2.11.025 v1.11 | ADR: ADR-066 v1.7
+//! Story: S-JSON-EXTRACT-UDF-001 | BC: BC-2.11.025 | ADR: ADR-066
 
 #![allow(
     clippy::unwrap_used,
@@ -1413,7 +1413,7 @@ async fn test_jex_f4_dot_in_key_arm_engine_execute() {
 
 /// RG-JEX-012: non-literal key in WHERE predicate rejected at plan time with E-QUERY-045(a).
 ///
-/// Canonical RG-JEX-012 name from story spec S-JSON-EXTRACT-UDF-001 v1.8 / AC-012.
+/// Canonical RG-JEX-012 name from story spec S-JSON-EXTRACT-UDF-001 / AC-012.
 ///
 /// Query: `SELECT * FROM test_events WHERE json_extract_string(raw_data, severity_col) = 'x'`
 /// `severity_col` is a column reference (non-literal) in WHERE predicate position.
