@@ -10,9 +10,9 @@ epic_id: "E-BETA3-REMEDIATION"
 story_source: "S-MCP-TOOL-GATE-001"
 version: "1.0"
 status: active
-used: false
-last_evaluated: null
-last_eval_satisfaction: null
+used: true
+last_evaluated: 2026-09-18
+last_eval_satisfaction: 1.00
 single_use: true
 producer: product-owner
 timestamp: "2026-09-16T00:00:00Z"
@@ -20,12 +20,12 @@ modified: "2026-09-16"
 phase: 3
 inputs:
   - ".factory/specs/behavioral-contracts/BC-2.10.017-not-yet-available-tools-fast-fail-audit-channel-non-blocking.md"
-input-hash: "TBD"
+input-hash: "786ebe5"
 traces_to: "BC-2.10.017"
 behavioral_contracts:
   - BC-2.10.017
 verification_properties: []
-lifecycle_status: active
+lifecycle_status: consumed
 introduced: "S-MCP-TOOL-GATE-001"
 staleness_check: null
 stale_reason: null
