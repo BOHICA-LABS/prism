@@ -6173,10 +6173,10 @@ mod tests {
             .get("suggestion")
             .and_then(|v| v.as_str())
             .expect("suggestion must be a string");
-        assert!(
-            suggestion.contains("raw_extensions") || suggestion.contains("severity"),
-            "[SID-2/N4]: suggestion must use a non-duplicative example (e.g., raw_extensions/severity). \
-             Got: '{suggestion}'"
+        assert_eq!(
+            suggestion,
+            "Provide a string literal as the second argument, e.g., json_extract_string(raw_extensions, 'severity').",
+            "[SID-2/N4]: suggestion must exactly match the VariantMeta arm text. Got: '{suggestion}'"
         );
     }
 

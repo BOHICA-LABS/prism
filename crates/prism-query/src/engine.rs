@@ -2888,8 +2888,12 @@ const JSON_EXTRACT_MAX_KEY_BYTES: usize = 256;
 /// plan + execution). Temporal gates E-QUERY-041 (bad literal format) and E-QUERY-042
 /// (type mismatch) run in-pipeline per ADR-052 §D4 (inside `run_materialization_pipeline`,
 /// after the plan-time gate sequence) — they are not pre-execution plan-gate peers of
-/// E-QUERY-045. This ordering is enforced by the caller and verified by RG-JEX-006
-/// (AC-006; SAP-3 reachability). ADR-066 §B3.
+/// E-QUERY-045. This ordering is enforced by the caller. Defense-in-depth note:
+/// E-QUERY-037 fires at the table-registry layer; `make_gate_engine()` (test mode, no
+/// table_registry) bypasses E-QUERY-037 so E-QUERY-045 fires independently in that path.
+/// RG-JEX-006 verifies that E-QUERY-045 fires at plan time (AC-006; SAP-3 reachability);
+/// it does NOT verify that E-QUERY-045 fires *after* E-QUERY-037 — verifying relative
+/// ordering requires a test with table_registry present. ADR-066 §B3.
 ///
 /// # SAP-3 reachability
 ///
@@ -2936,6 +2940,12 @@ pub(crate) fn check_json_extract_key_literal(ast: &crate::ast::Ast) -> Result<()
             }
             Ok(())
         }
+        // Call-site invariant: `PrismQlParser::parse` always produces `write: None` in all
+        // three grammar entry points (SQL / SqlPipe / Pipe modes). The only `write: Some`
+        // path is `parse_with_write_registry` — unreachable from `QueryEngine::execute`.
+        // Therefore `Ast::Pipe` with `write: Some` cannot arrive at this gate via the
+        // normal execute path. Covered by test_jex_rg019_ast_pipe_where_non_literal_key_rejected_e_query_045_a
+        // (SAP-3 E2E reachability from QueryEngine::execute).
         Ast::Pipe(pq) => {
             for stage in &pq.stages {
                 check_jex_in_pipe_stage(stage)?;
@@ -2969,8 +2979,13 @@ fn check_jex_in_sql_query(sq: &crate::ast::SqlQuery) -> Result<(), PrismError> {
     // Expr-bearing fields (e.g. window-clause list). `distinct` is bool; not Expr-bearing.
     let SelectClause { items, distinct: _ } = select;
     for item in items {
-        if let SelectItem::Expr { expr, .. } = item {
-            check_jex_in_expr(expr)?;
+        // Exhaustive match: compile-time guard against new Expr-bearing SelectItem variants.
+        // `#[non_exhaustive]` on SelectItem is cross-crate only; within prism-query we match
+        // all three variants explicitly so the compiler catches additions.
+        match item {
+            SelectItem::Expr { expr, .. } => check_jex_in_expr(expr)?,
+            // Star / TableStar expand column names — no Expr::FuncCall children.
+            SelectItem::Star | SelectItem::TableStar(_) => {}
         }
     }
     // JOIN ON conditions — exhaustive Join destructure guards against future Expr-bearing
@@ -3012,8 +3027,14 @@ fn check_jex_in_pipe_stage(stage: &crate::ast::PipeStage) -> Result<(), PrismErr
     use crate::ast::PipeStage;
     match stage {
         PipeStage::Where(pred) => check_jex_in_predicate(pred),
+        // SAP-3 rule 3 — grammar-unreachable arms (defense-in-depth only):
         // The following variants contain only FieldPath, Literal, String, u64 — no Expr nodes
-        // that could carry a json_extract_string FuncCall::Scalar child.
+        // that could carry a json_extract_string FuncCall::Scalar child. The PQL grammar
+        // does not allow `json_extract_string(...)` in Sort/Limit/Tail/Stats/Dedup/Fields/Join/
+        // Enrich positions (these stages accept only column names, literals, or keyword args).
+        // Therefore these arms are unreachable from any valid PQL query string; they exist as
+        // defense-in-depth to catch future grammar extensions that might inadvertently allow
+        // Expr nodes in these positions.
         PipeStage::Sort(_)
         | PipeStage::Limit(_)
         | PipeStage::Tail(_)

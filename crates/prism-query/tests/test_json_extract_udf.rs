@@ -751,12 +751,16 @@ async fn test_jex_rg007_b_key_at_exactly_max_len_accepted() {
 // RG-JEX-007-c/d — N-a: multibyte Unicode key boundary tests
 // ===========================================================================
 
-/// N-a fix: multibyte Unicode key boundary test.
+/// N-a fix: multibyte Unicode key AT the 256-byte boundary — must be ACCEPTED.
 ///
-/// The 256-byte cap uses `key.len()` (UTF-8 byte length), which is correct per ADR-066 §D3
-/// ("256-byte maximum"). A 128-char string of 2-byte UTF-8 characters (e.g., U+00E9 'é' = 2 bytes)
-/// = 256 bytes exactly — must be ACCEPTED (at boundary). 129 such chars = 258 bytes — must be
-/// REJECTED (over boundary). This test prevents a regression from `len()` → `chars().count()`.
+/// The 256-byte cap uses `key.len()` (UTF-8 byte length) per ADR-066 §D3. This test catches
+/// an off-by-one regression in the boundary comparison (`>` vs `>=`): an off-by-one would
+/// reject a 256-byte key that must be accepted.
+///
+/// Note on regression coverage: this test does NOT catch the `len()→chars().count()` regression.
+/// 128 × 'é' gives `chars().count()=128`, which is less than 256, so the gate would not fire
+/// even if the implementation erroneously used `chars().count()` instead of `len()`. Only
+/// rg007_d (129 × 'é' = 258 bytes, `chars().count()=129 < 256`) catches that regression.
 ///
 /// ADR-066 §D3; BC-2.11.025 EC-11-025-007; S-JSON-EXTRACT-UDF-001 AC-007.
 #[tokio::test]
@@ -769,6 +773,12 @@ async fn test_jex_rg007_c_multibyte_key_at_boundary_accepted() {
         key_256_bytes_unicode.len(),
         256,
         "Test setup: key must be exactly 256 UTF-8 bytes"
+    );
+    assert_eq!(
+        key_256_bytes_unicode.chars().count(),
+        128,
+        "rg007_c setup: 128 × 'é' must have 128 chars (not 256); chars().count() \
+         cannot catch the len()→chars().count() regression here — only rg007_d can"
     );
 
     let query =
@@ -1781,7 +1791,7 @@ async fn test_jex_rg012_d_where_valid_literal_key_executes_correctly() {
 ///
 /// BC-2.11.025 EC-11-025-012 / AC-012 — ADR-066 §B3.
 #[test]
-fn test_jex_dml_ast_safe_skip_with_jex_variant_integration() {
+fn test_jex_ast_parser_maps_jex_to_scalar_func_json_extract_string() {
     // Part (1): parse a real DML DELETE with json_extract_string in WHERE clause.
     // After T-09a fix: fn_call_comparison maps "json_extract_string" →
     // ScalarFunc::JsonExtractString for DML WHERE predicates too.
@@ -1898,5 +1908,192 @@ async fn test_jex_rg013_b_pipe_where_key_too_long_rejected_e_query_045_b() {
          (JsonExtractKeyTooLong {{ key_len: 257, max_len: 256 }}). \
          Got: {result:?}. The PipeStage::Where / Ast::Filter path must enforce the \
          256-byte cap (ADR-066 §D3)."
+    );
+}
+
+// ===========================================================================
+// RG-JEX-014..020 — SAP-3 E2E coverage for uncovered gate arms
+//
+// These tests exercise gate arms that had zero E2E coverage from the public
+// surface (QueryEngine::execute). Each test confirms that
+// check_json_extract_key_literal fires E-QUERY-045(a) when a non-literal key
+// appears in a position that was mutation-tested as uncovered:
+//   rg014: GROUP BY clause (Ast::Sql → check_jex_in_sql_query group_by loop)
+//   rg015: ORDER BY clause (Ast::Sql → check_jex_in_sql_query order_by loop)
+//   rg016: JOIN ON condition (Ast::Sql → check_jex_in_sql_query joins loop)
+//   rg017: IN-subquery predicate (Predicate::InSubquery → subquery SELECT)
+//   rg018: IN-subquery expression (Expr::InSubquery → subquery SELECT)
+//   rg019: Ast::Pipe WHERE stage (Ast::Pipe → PipeStage::Where)
+//   rg020: Ast::Filter standalone predicate (Ast::Filter → check_jex_in_predicate)
+//
+// SAP-3: each test exercises QueryEngine::execute (public surface), not
+// internal handlers directly. make_gate_engine() has no table_registry, so
+// E-QUERY-037 is bypassed and E-QUERY-045 fires independently.
+// ===========================================================================
+
+/// SAP-3 E2E: GROUP BY with non-literal json_extract_string key — E-QUERY-045(a).
+///
+/// Covers the GROUP BY expression loop in check_jex_in_sql_query (previously had
+/// zero E2E coverage from the public surface per mutation testing).
+///
+/// BC-2.11.025 §Plan-time literal-key gate; ADR-066 §B3.
+#[tokio::test]
+async fn test_jex_rg014_group_by_non_literal_key_rejected_e_query_045_a() {
+    // SAP-3: exercises QueryEngine::execute (public surface), not internal handlers.
+    let engine = make_gate_engine();
+
+    let query =
+        "SELECT raw_data FROM test_events GROUP BY json_extract_string(raw_data, severity_col)";
+    let result = engine.execute(query, QueryOptions::default()).await;
+
+    assert!(
+        matches!(result, Err(PrismError::JsonExtractNonLiteralKey)),
+        "RG-JEX-014: GROUP BY json_extract_string with non-literal key must trigger \
+         E-QUERY-045(a) (JsonExtractNonLiteralKey). Got: {result:?}"
+    );
+}
+
+/// SAP-3 E2E: ORDER BY with non-literal json_extract_string key — E-QUERY-045(a).
+///
+/// Covers the ORDER BY expression loop in check_jex_in_sql_query (previously had
+/// zero E2E coverage from the public surface per mutation testing).
+///
+/// BC-2.11.025 §Plan-time literal-key gate; ADR-066 §B3.
+#[tokio::test]
+async fn test_jex_rg015_order_by_non_literal_key_rejected_e_query_045_a() {
+    // SAP-3: exercises QueryEngine::execute (public surface), not internal handlers.
+    let engine = make_gate_engine();
+
+    let query =
+        "SELECT raw_data FROM test_events ORDER BY json_extract_string(raw_data, severity_col)";
+    let result = engine.execute(query, QueryOptions::default()).await;
+
+    assert!(
+        matches!(result, Err(PrismError::JsonExtractNonLiteralKey)),
+        "RG-JEX-015: ORDER BY json_extract_string with non-literal key must trigger \
+         E-QUERY-045(a) (JsonExtractNonLiteralKey). Got: {result:?}"
+    );
+}
+
+/// SAP-3 E2E: JOIN ON with non-literal json_extract_string key — E-QUERY-045(a).
+///
+/// Covers the JOIN ON expression in check_jex_in_sql_query (previously had
+/// zero E2E coverage from the public surface per mutation testing).
+///
+/// BC-2.11.025 §Plan-time literal-key gate; ADR-066 §B3.
+#[tokio::test]
+async fn test_jex_rg016_join_on_non_literal_key_rejected_e_query_045_a() {
+    // SAP-3: exercises QueryEngine::execute (public surface), not internal handlers.
+    let engine = make_gate_engine();
+
+    // The ON clause accepts an Expr (not a comparison) in PQL grammar.
+    // json_extract_string(raw_data, severity_col) as ON expr: non-literal key → gate fires.
+    let query = "SELECT * FROM test_events \
+                 INNER JOIN other_events \
+                 ON json_extract_string(raw_data, severity_col)";
+    let result = engine.execute(query, QueryOptions::default()).await;
+
+    assert!(
+        matches!(result, Err(PrismError::JsonExtractNonLiteralKey)),
+        "RG-JEX-016: JOIN ON json_extract_string with non-literal key must trigger \
+         E-QUERY-045(a) (JsonExtractNonLiteralKey). Got: {result:?}"
+    );
+}
+
+/// SAP-3 E2E: IN-subquery in WHERE predicate position with non-literal key — E-QUERY-045(a).
+///
+/// Covers Predicate::InSubquery → check_jex_in_sql_query(subquery) in
+/// check_jex_in_predicate (previously had zero E2E coverage from the public surface).
+/// The json_extract_string appears in the subquery's SELECT list.
+///
+/// BC-2.11.025 §Plan-time literal-key gate; ADR-066 §B3.
+#[tokio::test]
+async fn test_jex_rg017_in_subquery_predicate_non_literal_key_rejected_e_query_045_a() {
+    // SAP-3: exercises QueryEngine::execute (public surface), not internal handlers.
+    let engine = make_gate_engine();
+
+    let query = "SELECT * FROM test_events \
+                 WHERE id IN (SELECT json_extract_string(raw_data, severity_col) FROM other_events)";
+    let result = engine.execute(query, QueryOptions::default()).await;
+
+    assert!(
+        matches!(result, Err(PrismError::JsonExtractNonLiteralKey)),
+        "RG-JEX-017: IN-subquery predicate with non-literal key in subquery SELECT \
+         must trigger E-QUERY-045(a) (JsonExtractNonLiteralKey). Got: {result:?}"
+    );
+}
+
+/// SAP-3 E2E: IN-subquery in SELECT expression position with non-literal key — E-QUERY-045(a).
+///
+/// Covers Expr::InSubquery → check_jex_in_sql_query(subquery) in check_jex_in_expr
+/// (previously had zero E2E coverage from the public surface).
+/// The json_extract_string appears in the subquery's SELECT list.
+///
+/// BC-2.11.025 §Plan-time literal-key gate; ADR-066 §B3.
+#[tokio::test]
+async fn test_jex_rg018_in_subquery_expr_non_literal_key_rejected_e_query_045_a() {
+    // SAP-3: exercises QueryEngine::execute (public surface), not internal handlers.
+    let engine = make_gate_engine();
+
+    // `id IN (subquery)` in SELECT expression position produces Expr::InSubquery.
+    let query =
+        "SELECT id IN (SELECT json_extract_string(raw_data, severity_col) FROM other_events) \
+                 FROM test_events";
+    let result = engine.execute(query, QueryOptions::default()).await;
+
+    assert!(
+        matches!(result, Err(PrismError::JsonExtractNonLiteralKey)),
+        "RG-JEX-018: IN-subquery expression (SELECT position) with non-literal key in \
+         subquery SELECT must trigger E-QUERY-045(a) (JsonExtractNonLiteralKey). Got: {result:?}"
+    );
+}
+
+/// SAP-3 E2E: Ast::Pipe (bare FROM ... | where ...) with non-literal key — E-QUERY-045(a).
+///
+/// Covers the Ast::Pipe arm in check_json_extract_key_literal (previously had zero E2E
+/// coverage from QueryEngine::execute; Ast::SqlPipe was covered by RG-JEX-013 but the
+/// distinct Ast::Pipe mode was not).
+///
+/// The `FROM ... | where ...` syntax produces Ast::Pipe (no SELECT head), distinct from
+/// `SELECT ... FROM ... | where ...` which produces Ast::SqlPipe.
+///
+/// BC-2.11.025 §Plan-time literal-key gate; ADR-066 §B3.
+#[tokio::test]
+async fn test_jex_rg019_ast_pipe_where_non_literal_key_rejected_e_query_045_a() {
+    // SAP-3: exercises QueryEngine::execute (public surface), not internal handlers.
+    let engine = make_gate_engine();
+
+    // Pipe mode: `FROM <table> | where <predicate>` produces Ast::Pipe (not Ast::SqlPipe).
+    let query = "FROM test_events | where json_extract_string(raw_data, severity_col) == 'high'";
+    let result = engine.execute(query, QueryOptions::default()).await;
+
+    assert!(
+        matches!(result, Err(PrismError::JsonExtractNonLiteralKey)),
+        "RG-JEX-019: Ast::Pipe WHERE stage with non-literal key must trigger \
+         E-QUERY-045(a) (JsonExtractNonLiteralKey). Got: {result:?}"
+    );
+}
+
+/// SAP-3 E2E: Ast::Filter (standalone predicate) with non-literal key — E-QUERY-045(a).
+///
+/// Covers the Ast::Filter arm in check_json_extract_key_literal (previously had zero E2E
+/// coverage from the public surface per mutation testing).
+///
+/// A standalone predicate with no FROM/SELECT produces Ast::Filter.
+///
+/// BC-2.11.025 §Plan-time literal-key gate; ADR-066 §B3.
+#[tokio::test]
+async fn test_jex_rg020_ast_filter_non_literal_key_rejected_e_query_045_a() {
+    // SAP-3: exercises QueryEngine::execute (public surface), not internal handlers.
+    let engine = make_gate_engine();
+
+    // Filter mode: standalone predicate with no FROM/SELECT produces Ast::Filter.
+    let query = "json_extract_string(raw_data, severity_col) == 'high'";
+    let result = engine.execute(query, QueryOptions::default()).await;
+
+    assert!(
+        matches!(result, Err(PrismError::JsonExtractNonLiteralKey)),
+        "RG-JEX-020: Ast::Filter standalone predicate with non-literal key must trigger \
+         E-QUERY-045(a) (JsonExtractNonLiteralKey). Got: {result:?}"
     );
 }
