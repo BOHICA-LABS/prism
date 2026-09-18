@@ -971,3 +971,42 @@ Prism Phase-3, v1 = live Claroty xDome. S-ENGINE-LIMIT-EARLY-STOP-001 round-16 L
 **RESUME IN ONE BREATH:** Prism at develop@561d8bac — PIPELINE IN-PROGRESS (F3 W1+W2 MATERIALIZATION COMPLETE 2026-09-17; STATE v10.052). POSITION: Phase 3, F3 story materialization — W1+W2 DONE, W2-arch pending. All 3 beta.3 W1+W2 stories promoted draft→ready: S-MCP-TOOL-GATE-001 v1.2, S-MCP-ENVELOPE-DESCRIBE-001 v1.1, S-MCP-NULL-ENCODING-001 v1.2. HOLDOUT-INDEX v1.44 (134 scenarios; HS-033/034/035 authored). Issue 7a PRE-FIXED on develop (build_column_array fff6e28ba). FIRST NEXT ACTIONS: W2-arch materialization (S-DESCRIBE-EXAMPLE-DEDUP-001, S-QUERY-TRUE-TOTAL-001). develop HEAD `561d8baccc` UNCHANGED. STORY-INDEX v3.041. BC-INDEX v10.23. ARCH-INDEX v2.398.
 
 **NOTE: Superseded by D-2547 — F3 W2-arch MATERIALIZATION COMPLETE: S-DESCRIBE-EXAMPLE-DEDUP-001 v1.1 + S-QUERY-TRUE-TOTAL-001 v1.2 registered ready; STORY-INDEX v3.042 total 350; BC-INDEX v10.24; ARCH-INDEX v2.399; HOLDOUT-INDEX v1.45 (140/31). develop_head 561d8baccc UNCHANGED. STATE v10.052→v10.053.**
+
+---
+
+## Archived: D-2565 — 2026-09-18; STATE v10.071 — S-JSON-EXTRACT-UDF-001 DELIVERED; 1/10 beta.3 MERGED
+
+**RESUME IN ONE BREATH (D-2565):**
+Prism at develop@f38604da4 — PIPELINE IN-PROGRESS (S-JSON-EXTRACT-UDF-001 MERGED D-2565; BC-2.11.025 active; 1/10 beta.3 DELIVERED; STATE v10.071). (a) POSITION: Phase 3, cycle wave-5-e-demo-fidelity, F3 materialization COMPLETE (D-2550) — 1/10 beta.3 stories MERGED; 9 READY. STORY-INDEX v3.053 total 354. (b) LAST DELIVERED: S-JSON-EXTRACT-UDF-001 PR #296 @f38604da4 squash-merged (D-2445 admin-merge; CI 50/50; security CLEAN; PR-LEVEL 8-cycle cascade CONVERGED). BC-2.11.025 draft→active POL-14. (c) NEXT: S-MCP-TOOL-GATE-001 (W1 strict) Batch-1 TDD. (d) PENDING DECISIONS / BLOCKERS: RELEASE_PROMOTE_TOKEN PAT BOHICA-LABS re-scope = DELIVERY gate for S-BETA3-RELEASE-001 (human action). 3 PROCESS-GAPs D-2565a/b/c OPEN. (e) RESUME COMMAND: /vsdd-factory:rehydrate-wave → /vsdd-factory:next-step.
+
+**RESUME STEP 0 (D-2565):** `CronList` → re-arm heartbeat cron (8,23,38,53 * * * *) if absent/expired (.factory/ops/vsdd-heartbeat-autorecovery.md).
+
+**RESUME NEXT-ACTION — BATCH-1 TDD remaining 9 stories (D-2565):**
+1. S-MCP-TOOL-GATE-001 (W1/strict): next story in dependency order after S-JSON-EXTRACT-UDF-001.
+2. Remaining 8: S-MCP-ENVELOPE-DESCRIBE-001, S-MCP-NULL-ENCODING-001, S-DESCRIBE-EXAMPLE-DEDUP-001, S-QUERY-TRUE-TOTAL-001, S-CLAROTY-OCSF-STATUS-001, S-CLAROTY-OCSF-TOML-001, S-BETA3-RELEASE-001, S-ONBOARDING-DOCS-001.
+3. RELEASE_PROMOTE_TOKEN PAT BOHICA-LABS re-scope required before S-BETA3-RELEASE-001 dispatch (human action).
+
+**BETA.3 CYCLE CONTEXT (D-2565):** 20 issues from beta.2 Monroe live-test (D-2520) → 10 stories + 3 fast-follow stubs (D-2521). Batch-0 spec FROZEN (D-2541). Additive post-freeze through D-2565. BC-INDEX v10.29, ARCH-INDEX v2.401, VP-INDEX v2.30. STORY-INDEX v3.053.
+
+**HEADS (D-2565):**
+- develop HEAD `f38604da4` (S-JSON-EXTRACT-UDF-001 PR #296 squash-merged @f38604da4; out-of-session df5f12f00 reconciled). `main`: `bdf24cec8` (stub).
+- S-JSON-EXTRACT-UDF-001: MERGED @f38604da4. Feature branch remote deleted. Worktree .worktrees/S-JSON-EXTRACT-UDF-001 REMOVABLE.
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h'` for current HEAD (TD-VSDD-053).
+- Open PRs: #292 (ci clippy all-targets), #291 (dev-setup protoc), #288 (dtu embed fixtures), #282 (dependabot taiki-e); PR #255 (OBSOLETE — verify/close); Dependabot: #266–#274 (UNTRIAGED).
+- WORKTREES: REMOVABLE-POST-MERGE: S-JSON-EXTRACT-UDF-001, E-REL-NOTES (#264), S-CLAROTY-VULNS-001 (#245), S-ENGINE-LIMIT-EARLY-STOP-001 (#243), S-REL-NIGHTLY-001 (#276), S-REL-NIGHTLY-NOTES-001. PARKED: S-3.09, W3-FIX-S307-001 (DIRTY do-NOT-touch), S-ENGINE-H2-LARGE-RESPONSE-001.
+- Releases: v1.0.0-beta.1, v1.0.0-beta.2, v1.0.0-nightly.* (multiple), edge-nightly. NEXT: BOHICA-LABS beta.3.
+
+**BETA.3 STORY SET D-2565 (1/10 MERGED; 9/10 READY; Batch-0 FROZEN D-2541):**
+- W1/strict: S-MCP-TOOL-GATE-001 [READY v1.2 D-2546]; W2/strict: S-MCP-ENVELOPE-DESCRIBE-001 [READY v1.2 D-2547]; S-MCP-NULL-ENCODING-001 [READY v1.3 D-2549]
+- W2-arch/strict: S-DESCRIBE-EXAMPLE-DEDUP-001 [READY v1.1 D-2547]; S-QUERY-TRUE-TOTAL-001 [READY v1.2 D-2547]
+- W3/strict: S-CLAROTY-OCSF-STATUS-001 [READY v1.1 D-2549]; S-CLAROTY-OCSF-TOML-001 [READY v1.1 D-2549]; S-JSON-EXTRACT-UDF-001 [MERGED v1.8 D-2565; PR #296 @f38604da4; BC-2.11.025 active]
+- W4/facade: S-BETA3-RELEASE-001 [READY v1.0 D-2550; RELEASE_PROMOTE_TOKEN DELIVERY gate]; W5/facade: S-ONBOARDING-DOCS-001 [READY v1.0 D-2550]
+- POST-BETA.3 FAST-FOLLOWS: S-JSON-EXTRACT-TYPED-001 (P2/5pts), S-JSON-EXTRACT-NESTED-001 (P2/8pts; owns OBS-DEFER-1 ast.rs doc-comment rewrite), S-SPEC-OVERLAY-RELOCATION-001 (P3/2pts)
+
+**OPEN ITEMS (D-2565):** (a) Batch-1 TDD remaining 9 stories (start: S-MCP-TOOL-GATE-001). (b) RELEASE_PROMOTE_TOKEN PAT BOHICA-LABS re-scope (human action before S-BETA3-RELEASE-001 dispatch). (c) PRs #292/#291/#288/#282 + Dependabot #266–#274. (d) PROCESS-GAP D-2503/D-2524/D-2528/D-2565a/b/c OPEN.
+
+**HEARTBEAT (D-2565):** durable cron (8,23,38,53 * * * *) in .claude/scheduled_tasks.json. CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule.
+
+**STANDING DECISIONS D-2565 (carry forward):** (a) No pragmatic convergence. (b) D-989 + D-2445 autonomy grant. (c) D-2410 no live-test output. (d) AUTONOMOUS MERGE+TAG (D-2445). (e) v1 sensor scope: Claroty xDome (D-2443). (f) RELEASING.md; quality_gates vsdd-partial. (g) BETA channel. (h) ADR-063 v1.14 §D7 SHIPPED PR #281. (i) v1.0.0-beta.2 PUBLISHED. (j) ORG RENAME COMPLETE: BOHICA-LABS/prism D-2516. (k) vsdd-factory rc.25 D-2518. (l) BATCH-0 SPEC-GATE CLOSED (D-2541). (m) F3 MATERIALIZATION COMPLETE (D-2550): 10/10 READY. (n-z) All prior standing decisions in D-2552..D-2564 (exhaustive) carry forward. (aa) D-2565 S-JSON-EXTRACT-UDF-001 MERGED (PR #296 @f38604da4); BC-2.11.025 active; develop_head f38604da4.
+
+**NOTE: Superseded by D-2566 — SESSION-WRAP-PAUSE 2026-09-18; STATE v10.072.**
