@@ -5,7 +5,7 @@ title: "Gate 40 operations stubs behind default-off Cargo feature to eliminate -
 level: "L4"
 wave: 1
 epic_id: E-BETA3-REMEDIATION
-version: "1.6"
+version: "1.7"
 status: ready
 producer: story-writer
 timestamp: "2026-09-18T00:00:00Z"
@@ -86,7 +86,7 @@ capability check." The implementer MUST read this BC to confirm all 14 LIVE_TOOL
 ungated after this story lands.
 Path: `.factory/specs/behavioral-contracts/BC-2.10.012-prism-describe-schema-discovery-tool.md`
 
-> NOTE: Amendments to BC-2.10.017 (v1.3) and BC-2.10.011 (v1.7) are now active per D-2543.
+> NOTE: Amendments to BC-2.10.017 and BC-2.10.011 are now active per D-2543.
 > Spec-First Gate S-7.01 is satisfied; story is unblocked for test-writer dispatch.
 
 ---
@@ -172,7 +172,7 @@ The distinction is semantically significant: `-32003` tells the agent "this tool
 eventually"; `-32602` (InvalidParams, `tool not found`) tells the agent "this tool does not
 exist". The correct signal when the `operations` feature is absent is `-32602` (the tool was
 never registered; rmcp 1.7.0 returns `-32602` with message `"tool not found"` for unregistered-tool
-invocations — confirmed in rmcp source and `error_mapping.rs:86-91`).
+invocations — confirmed in rmcp source and `error_mapping.rs`).
 
 (traces to BC-2.10.017 amended §Invariants: when operations feature absent, stub tools are not
 registered; an unregistered tool invocation returns the MCP protocol-level unknown-tool error,
@@ -267,9 +267,9 @@ Derived from the Architecture Mapping table above.
 | Artifact | Estimated Tokens | Notes |
 |----------|-----------------|-------|
 | This story file | ~4,500 | |
-| BC-2.10.017 v1.3 (active) | ~5,000 | Primary AC source |
-| BC-2.10.011 v1.7 (active) | ~15,000 | not_registered_tools semantics |
-| BC-2.10.012 v1.9 (protection boundary check) | ~20,000 | Read §Preconditions only; large file |
+| BC-2.10.017 (active) | ~5,000 | Primary AC source |
+| BC-2.10.011 (active) | ~15,000 | not_registered_tools semantics |
+| BC-2.10.012 (protection boundary check) | ~20,000 | Read §Preconditions only; large file |
 | `server.rs` (LIVE_TOOLS/NOT_YET_AVAILABLE_TOOLS + all 40 stub handlers) | ~40,000 | Large file; implementer reads entire file |
 | `Cargo.toml` (prism-mcp) | ~1,000 | Small; add [features] section |
 | `tools/operations.rs` (stub module) | ~3,000 | Gate with #[cfg(feature = "operations")] |
@@ -453,7 +453,7 @@ entries; tests fail on count assertions.
 
 > **Phase D compile-safety constraint:** Do NOT add `#[cfg(feature = "operations")]` to the
 > parameter structs `ListInfusionsParams`, `InfusionStatusParams`, or `PluginStatusParams`
-> (defined in `server.rs` around lines 1337, 1346, and 1370 respectively). These are `pub struct`
+> (defined in `server.rs`). These are `pub struct`
 > definitions outside any impl block; gating them would break other references (e.g., uses in
 > non-ops handler code, derive macros, or downstream crates). Only the following are gated:
 > the ops `impl` block containing `#[tool]` handler methods (T-C01), the
@@ -585,6 +585,7 @@ Holdout scenarios are stored in the holdout directory that test-writer/implement
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.7 | 2026-09-18 | LOCAL pass-4 LOW-1/LOW-2 records-only sweep (TD-VSDD-096): exhaustive de-pin of volatile BC-version pins in §Authority/§Token Budget narrative (POL-39) + removed server.rs line-number cite from §Tasks Phase-D note (TD-VSDD-091); cite ID+§anchor form only. No code/behavior change; feature HEAD 09658db3a frozen. TD-VSDD-097 3-dim sweep: (1) sibling pair — §Authority NOTE and §Token Budget rows both carried BC pins, swept together; (2) downstream copy — none; (3) mandate anchor — no new MUST. |
 | 1.6 | 2026-09-18 | OBS-1 (LOCAL pass-3): complete test-name reconciliation sweep (docs-only; no code or behavior change; feature HEAD 09658db3a frozen). All 4 RG-GATE test names corrected to include `test_BC_2_10_017_` infix (RG-GATE-001..004). T-S01 step-3 spike test name `test_spike_tool_catalog_count_without_operations_feature` updated to shipped name `test_BC_2_10_017_tools_list_returns_14_tools_without_operations_feature` (spike placeholder superseded by RG-GATE-001 in shipped code). T-D04 and §File Structure MODIFY updated to include third gated test `test_bc_2_10_017_sibling_handlers_guard_precedes_audit` (present in worktree; was omitted from T-D04 which previously cited only two tests). Token Budget file-row note updated from RG-GATE-001..003 to RG-GATE-001..004 + OBS-2 e2e. TD-VSDD-097 3-dim sweep: (1) sibling pair — §Red Gate list and §Tasks T-D01/T-D04 references to the same tests swept together; (2) downstream copy — none (test names not copied into BC/ADR/VP artifacts); (3) mandate anchor — no new MUST added. |
 | 1.5 | 2026-09-18 | OBS-A (LOCAL pass-2): AC-005 + T-D01 prose corrected — operations-absent inline arm asserts get_diagnostics catalog-ABSENCE (calling it cannot compile when gated out, E0599); -32602 wire behavior discharged by RG-GATE-003. No code or behavior change; implementation already correct. input-hash updated to reflect current inputs state (17d6c8f). |
 | 1.4 | 2026-09-18 | Template conformance (D-2567 resume; Canonical Principle Rule 4 fix-in-scope): added missing frontmatter keys (level/cycle/inputs/input-hash/timestamp/traces_to) + Purity Classification section, values derived from sibling E-BETA3-REMEDIATION stories. No AC/RG/task/BC/ADR content change. |
