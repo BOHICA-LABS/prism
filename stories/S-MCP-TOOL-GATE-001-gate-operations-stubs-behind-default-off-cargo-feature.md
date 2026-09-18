@@ -5,7 +5,7 @@ title: "Gate 40 operations stubs behind default-off Cargo feature to eliminate -
 level: "L4"
 wave: 1
 epic_id: E-BETA3-REMEDIATION
-version: "1.5"
+version: "1.6"
 status: ready
 producer: story-writer
 timestamp: "2026-09-18T00:00:00Z"
@@ -273,7 +273,7 @@ Derived from the Architecture Mapping table above.
 | `server.rs` (LIVE_TOOLS/NOT_YET_AVAILABLE_TOOLS + all 40 stub handlers) | ~40,000 | Large file; implementer reads entire file |
 | `Cargo.toml` (prism-mcp) | ~1,000 | Small; add [features] section |
 | `tools/operations.rs` (stub module) | ~3,000 | Gate with #[cfg(feature = "operations")] |
-| New test file `bc_2_10_017_operations_feature_gate.rs` | ~3,000 | RG-GATE-001..003 |
+| New test file `bc_2_10_017_operations_feature_gate.rs` | ~3,000 | RG-GATE-001..004 + OBS-2 e2e |
 | beta3-remediation-delta-analysis.md §Issue 1 + §S-MCP-TOOL-GATE-001 | ~3,000 | Reference |
 | **Total estimated** | **~94,500** | Well within one context window |
 
@@ -293,8 +293,8 @@ Derived from the Architecture Mapping table above.
   → E0599).
   1. After T-C01 implementation: run `cargo build -p prism-mcp` (no features — default)
   2. Run `cargo build -p prism-mcp --features operations`
-  3. Run `cargo test -p prism-mcp test_spike_tool_catalog_count_without_operations_feature`
-     (asserts `PrismServer::production_tool_catalog().len() == 14`)
+  3. Run `cargo nextest run -p prism-mcp -E 'test(test_BC_2_10_017_tools_list_returns_14_tools_without_operations_feature)'`
+     (asserts `PrismServer::production_tool_catalog().len() == 14`; this is RG-GATE-001 — the spike-only placeholder name was superseded by the shipped RG-GATE function name)
 
   If either build fails, stop and report to orchestrator. Do NOT proceed to the Red Gate
   tests until both builds pass cleanly (zero E0599 errors).
@@ -305,26 +305,26 @@ All tests live in `crates/prism-mcp/tests/bc_2_10_017_operations_feature_gate.rs
 unless noted otherwise. All non-trivial function bodies use `todo!()` stubs until the
 Green Gate phase.
 
-- [ ] **RG-GATE-001**: `test_tools_list_returns_14_tools_without_operations_feature`
+- [ ] **RG-GATE-001**: `test_BC_2_10_017_tools_list_returns_14_tools_without_operations_feature`
   Assert: `PrismServer::production_tool_catalog().len() == 14` when compiled without
   `operations` feature. Wire-shape assertion: serialize `tools/list` response and assert
   `result.tools.len() == 14` in the JSON. Currently FAILS (returns 54).
   AC-001.
 
-- [ ] **RG-GATE-002**: `test_list_capabilities_not_registered_tools_empty_without_operations_feature`
+- [ ] **RG-GATE-002**: `test_BC_2_10_017_list_capabilities_not_registered_tools_empty_without_operations_feature`
   Assert: Calling `list_capabilities(client_id: "test-client")` on a PrismServer returns a
   response JSON where `not_registered_tools == []` (empty array). Wire-shape (SID-2): assert
   on serialized JSON bytes. Currently FAILS (returns 40-element array).
   AC-002.
 
-- [ ] **RG-GATE-003**: `test_ops_tool_invocation_returns_invalid_params_without_operations_feature`
+- [ ] **RG-GATE-003**: `test_BC_2_10_017_ops_tool_invocation_returns_invalid_params_without_operations_feature`
   Assert: Calling `tools/call` with `method = "get_diagnostics"` returns an MCP error response
   where `err.code == -32602` (InvalidParams, message `"tool not found"`). MUST NOT return
   `-32003` (fast-fail) and MUST NOT return `-32601`. Wire-shape: assert the exact code and
   message on the serialized response (SID-2). Currently FAILS (returns -32003 from not_yet_available_msg).
   AC-003.
 
-- [ ] **RG-GATE-004**: `test_live_tools_all_present_without_operations_feature`
+- [ ] **RG-GATE-004**: `test_BC_2_10_017_live_tools_all_present_without_operations_feature`
   Assert: `NOT_YET_AVAILABLE_TOOLS.len() == 0` (the const is the empty slice) AND all 14 names
   in `LIVE_TOOLS` appear in `PrismServer::production_tool_catalog()`. This is a compile-time
   safety check as a test. Currently FAILS (NOT_YET_AVAILABLE_TOOLS.len() == 40).
@@ -438,16 +438,18 @@ entries; tests fail on count assertions.
   enabled; there is no corresponding behavior to test when the feature is absent (the handlers
   do not exist).
 
-- [ ] **T-D04**: Gate the two integration tests in `crates/prism-mcp/tests/mcp_infrastructure.rs`
-  — `test_bc_2_10_017_not_yet_available_fast_fail_under_1s` and
-  `test_bc_2_10_017_not_yet_available_guard_precedes_audit` — by adding
+- [ ] **T-D04**: Gate the three integration tests in `crates/prism-mcp/tests/mcp_infrastructure.rs`
+  — `test_bc_2_10_017_not_yet_available_fast_fail_under_1s`,
+  `test_bc_2_10_017_not_yet_available_guard_precedes_audit`, and
+  `test_bc_2_10_017_sibling_handlers_guard_precedes_audit` — by adding
   `#[cfg(feature = "operations")]` as a function-level attribute on each `#[tokio::test]`
-  function. Rationale: both tests drive the -32003 fast-fail path through gated ops handlers
-  (they call ops handler methods that are moved into the `#[cfg(feature = "operations")]` impl
-  block by T-C01). Both will fail to compile in the default (no-`operations`) build after T-C01
-  gates those handlers. The behaviors they assert — fast-fail under 1s; guard precedes audit —
-  exist only when the `operations` feature is enabled; the tests have no valid target when the
-  feature is absent.
+  function. Rationale: all three tests drive the -32003 fast-fail path or guard ordering
+  through gated ops handlers (they call ops handler methods moved into the
+  `#[cfg(feature = "operations")]` impl block by T-C01). All three will fail to compile in
+  the default (no-`operations`) build after T-C01 gates those handlers. The behaviors they
+  assert — fast-fail under 1s; guard precedes audit; sibling-handler guard ordering —
+  exist only when the `operations` feature is enabled; the tests have no valid target when
+  the feature is absent.
 
 > **Phase D compile-safety constraint:** Do NOT add `#[cfg(feature = "operations")]` to the
 > parameter structs `ListInfusionsParams`, `InfusionStatusParams`, or `PluginStatusParams`
@@ -554,7 +556,7 @@ No new dependencies are introduced by this story.
 | `crates/prism-mcp/Cargo.toml` | Add `[features]` section with `operations = []` |
 | `crates/prism-mcp/src/server.rs` | Gate `NOT_YET_AVAILABLE_TOOLS` const (two `#[cfg]` variants); rename existing `#[tool_router]` → `#[tool_router(router = live_tool_router)]`; create new `#[cfg(feature = "operations")] #[tool_router(router = operations_tool_router)]` impl block with all 40 ops `#[tool]` methods; add plain combiner `fn tool_router()`; relocate/gate `not_yet_available_msg`; update `test_MCP_01_partition_positive_coverage` (T-D01); gate `test_operations_tools_return_not_implemented_error_code` (T-D03) |
 | `crates/prism-mcp/src/tools/operations.rs` | Add `#[cfg(feature = "operations")]` to module |
-| `crates/prism-mcp/tests/mcp_infrastructure.rs` | Gate `test_bc_2_10_017_not_yet_available_fast_fail_under_1s` and `test_bc_2_10_017_not_yet_available_guard_precedes_audit` with `#[cfg(feature = "operations")]` (T-D04) |
+| `crates/prism-mcp/tests/mcp_infrastructure.rs` | Gate `test_bc_2_10_017_not_yet_available_fast_fail_under_1s`, `test_bc_2_10_017_not_yet_available_guard_precedes_audit`, and `test_bc_2_10_017_sibling_handlers_guard_precedes_audit` with `#[cfg(feature = "operations")]` (T-D04) |
 | `CHANGELOG.md` | Add [Unreleased] > Fixed entry (T-F01) |
 
 ### Files NOT to touch
@@ -583,6 +585,7 @@ Holdout scenarios are stored in the holdout directory that test-writer/implement
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.6 | 2026-09-18 | OBS-1 (LOCAL pass-3): complete test-name reconciliation sweep (docs-only; no code or behavior change; feature HEAD 09658db3a frozen). All 4 RG-GATE test names corrected to include `test_BC_2_10_017_` infix (RG-GATE-001..004). T-S01 step-3 spike test name `test_spike_tool_catalog_count_without_operations_feature` updated to shipped name `test_BC_2_10_017_tools_list_returns_14_tools_without_operations_feature` (spike placeholder superseded by RG-GATE-001 in shipped code). T-D04 and §File Structure MODIFY updated to include third gated test `test_bc_2_10_017_sibling_handlers_guard_precedes_audit` (present in worktree; was omitted from T-D04 which previously cited only two tests). Token Budget file-row note updated from RG-GATE-001..003 to RG-GATE-001..004 + OBS-2 e2e. TD-VSDD-097 3-dim sweep: (1) sibling pair — §Red Gate list and §Tasks T-D01/T-D04 references to the same tests swept together; (2) downstream copy — none (test names not copied into BC/ADR/VP artifacts); (3) mandate anchor — no new MUST added. |
 | 1.5 | 2026-09-18 | OBS-A (LOCAL pass-2): AC-005 + T-D01 prose corrected — operations-absent inline arm asserts get_diagnostics catalog-ABSENCE (calling it cannot compile when gated out, E0599); -32602 wire behavior discharged by RG-GATE-003. No code or behavior change; implementation already correct. input-hash updated to reflect current inputs state (17d6c8f). |
 | 1.4 | 2026-09-18 | Template conformance (D-2567 resume; Canonical Principle Rule 4 fix-in-scope): added missing frontmatter keys (level/cycle/inputs/input-hash/timestamp/traces_to) + Purity Classification section, values derived from sibling E-BETA3-REMEDIATION stories. No AC/RG/task/BC/ADR content change. |
 | 1.3 | 2026-09-18 | Phase D compile-safety cfg-gate tasks added (D-2567 resume, SAC-1 completeness): T-D03 gates inline server.rs `test_operations_tools_return_not_implemented_error_code`; T-D04 gates `tests/mcp_infrastructure.rs` `test_bc_2_10_017_not_yet_available_fast_fail_under_1s` + `test_bc_2_10_017_not_yet_available_guard_precedes_audit` — all three call gated ops methods and would fail no-operations-build compilation after T-C01. `mcp_infrastructure.rs` added to Files-to-MODIFY. Explicit no-gate constraint on param structs (`ListInfusionsParams`/`InfusionStatusParams`/`PluginStatusParams`). No BC/ADR/AC change; no new Red Gate test (RG density unchanged 4/5). |
