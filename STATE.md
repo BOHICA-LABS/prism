@@ -1,18 +1,18 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "10.072"
-last_amended: "2026-09-18 (v10.072) — state-manager — SESSION-WRAP-PAUSE: factory PAUSED for cold resume; develop_head f38604da4; story 1/10 delivered."
+version: "10.073"
+last_amended: "2026-09-18 (v10.073) — state-manager — D-2567 SESSION RESUME: factory unpaused from D-2566; worktree-health PASS; heartbeat ce231b80 verified; sidecar-learning.md reconciled; resuming BETA.3 Batch-1 story 2/10 S-MCP-TOOL-GATE-001."
 producer: state-manager
-timestamp: 2026-09-18T15:29:51Z
+timestamp: 2026-09-18T15:58:11Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
 project: prism
 mode: brownfield
-phase: "PAUSED 2026-09-18. Phase 3 wave-5-e-demo-fidelity BETA.3 Batch-1 TDD delivery — story 1/10 S-JSON-EXTRACT-UDF-001 DELIVERED (PR #296 @f38604da4); next story 2/10 S-MCP-TOOL-GATE-001."
+phase: "Phase 3 wave-5-e-demo-fidelity BETA.3 Batch-1 TDD delivery — story 1/10 S-JSON-EXTRACT-UDF-001 DELIVERED (PR #296 @f38604da4); next story 2/10 S-MCP-TOOL-GATE-001."
 status: IN-PROGRESS
-pipeline: PAUSED
+pipeline: IN-PROGRESS
 started: 2026-04-13
 repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, tally, axiathon, ocsf-proto-gen, mcp-claroty-xdome]
 safe_to_compact: true
@@ -69,7 +69,7 @@ vsdd_factory_version: "1.0.0-rc.25"
 # NOTE: D-2518 — vsdd-factory 1.0.0-rc.23→rc.25 installed + re-activated (darwin-arm64; default agent orchestrator; rc.25 hooks.json + dispatcher binary verified). settings.local.json machine-local refreshed. No pipeline change.
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2566 SESSION-WRAP-PAUSE-2026-09-18 — factory paused for context-clear; story 1/10 delivered+merged; 8 stories remain (2 facade); autonomous admin-merge wired. trajectory-tail →2→0→0→0."
+current_step: "D-2567 SESSION-RESUME 2026-09-18 — factory unpaused from D-2566 (D-2566 SESSION-WRAP-PAUSE). Worktree-health PASS (factory-artifacts @d2e2922b8 in-sync, lock FREE, develop @f38604da4). Heartbeat ce231b80 verified. sidecar-learning.md reconciled (2 session-end entries staged). Resuming BETA.3 Batch-1 story 2/10 S-MCP-TOOL-GATE-001; next action = story-writer adds Phase D cfg-gate tasks (SAC-1) per D-2566 checkpoint (c). trajectory-tail →2→0→0→0."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -108,7 +108,7 @@ pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/: decisions-archive-D17
 pre_compact_snapshot_at: "2026-09-08"
 ---
 
-<!-- STATE.md SIZE BUDGET: 251 lines (wc-l) | target 200 lines (soft) | margin from soft-target: -51 | hard-cap 500 | margin from hard-cap: 249 | margin from actual: 249 | safe_to_compact: true | D-2566 SESSION-WRAP-PAUSE factory PAUSED 2026-09-18 -->
+<!-- STATE.md SIZE BUDGET: 251 lines (wc-l) | target 200 lines (soft) | margin from soft-target: -51 | hard-cap 500 | margin from hard-cap: 249 | margin from actual: 249 | safe_to_compact: true | D-2567 SESSION-RESUME factory IN-PROGRESS 2026-09-18 -->
 
 # VSDD Pipeline State — Prism
 
@@ -121,7 +121,7 @@ pre_compact_snapshot_at: "2026-09-08"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-09-18 D-2565: S-JSON-EXTRACT-UDF-001 DELIVERED — PR #296 @f38604da4 squash-merged (D-2445); BC-2.11.025 draft→active (POL-14); STORY-INDEX v3.053; BC-INDEX v10.29. 1/10 beta.3 MERGED. STATE v10.070→v10.071. trajectory-tail →2→0→0→0. |
+| **Last Updated** | 2026-09-18 D-2567: SESSION RESUME — factory unpaused from D-2566; pipeline PAUSED→IN-PROGRESS; sidecar-learning.md reconciled; STATE v10.072→v10.073. trajectory-tail →2→0→0→0. |
 
 ## Phase Progress
 
@@ -162,27 +162,27 @@ _Current cycle: wave-5-e-demo-fidelity. No parallel cycles running._
 
 ## Current Phase Steps
 
-_Steps D-735..D-2489 (exhaustive) archived: see cycles/wave-5-e-demo-fidelity/burst-log.md + decisions-archive-D1789-D2199.md + decisions-archive-D2200-D2299.md + decisions-archive-D2300-D2489.md. D-2491..D-2529 archived to burst-log (D-2509+D-2510+D-2511+D-2512+D-2513+D-2514+D-2515+D-2516+D-2517+D-2518+D-2519+D-2520+D-2521+D-2522+D-2523+D-2524+D-2525+D-2526+D-2527+D-2528+D-2529+D-2530+D-2531+D-2532+D-2533+D-2534+D-2535+D-2536+D-2537+D-2538+D-2539+D-2540+D-2541+D-2542+D-2543+D-2544+D-2545+D-2546+D-2547+D-2548+D-2549+D-2550+D-2551+D-2552+D-2553+D-2554+D-2555+D-2556+D-2557+D-2558+D-2559+D-2560+D-2561+D-2562+D-2563+D-2564+D-2565 rotations). Showing last 5 steps._
+_Steps D-735..D-2489 (exhaustive) archived: see cycles/wave-5-e-demo-fidelity/burst-log.md + decisions-archive-D1789-D2199.md + decisions-archive-D2200-D2299.md + decisions-archive-D2300-D2489.md. D-2491..D-2529 archived to burst-log (D-2509+D-2510+D-2511+D-2512+D-2513+D-2514+D-2515+D-2516+D-2517+D-2518+D-2519+D-2520+D-2521+D-2522+D-2523+D-2524+D-2525+D-2526+D-2527+D-2528+D-2529+D-2530+D-2531+D-2532+D-2533+D-2534+D-2535+D-2536+D-2537+D-2538+D-2539+D-2540+D-2541+D-2542+D-2543+D-2544+D-2545+D-2546+D-2547+D-2548+D-2549+D-2550+D-2551+D-2552+D-2553+D-2554+D-2555+D-2556+D-2557+D-2558+D-2559+D-2560+D-2561+D-2562+D-2563+D-2564+D-2565+D-2566 rotations). Showing last 5 steps._
 
 | Step | Date | Summary |
 |------|------|---------|
+| D-2567 | 2026-09-18 | SESSION-RESUME 2026-09-18 — factory unpaused from D-2566. Worktree-health PASS (factory-artifacts @d2e2922b8 in-sync, lock FREE, develop @f38604da4). Heartbeat ce231b80 verified armed. sidecar-learning.md reconciled (2 session-end entries). pipeline PAUSED→IN-PROGRESS. STATE v10.072→v10.073. COMPLETE. (state-manager) |
 | D-2566 | 2026-09-18 | SESSION-WRAP-PAUSE-2026-09-18 — factory PAUSED for cold resume; story 1/10 delivered+merged; 8 stories remain (2 facade); autonomous admin-merge wired. STATE v10.071→v10.072. COMPLETE. (state-manager) |
 | D-2565 | 2026-09-18 | S-JSON-EXTRACT-UDF-001 DELIVERED — PR #296 squash-merged to develop @f38604da4 (D-2445 human admin-merge; ancestry PC3 exit 0; CI 50/50 PASS; PR-LEVEL 8-cycle cascade CONVERGED; security CLEAN). BC-2.11.025 promoted draft→active (POL-14). STORY-INDEX v3.053. BC-INDEX v10.29. develop_head 561d8baccc→f38604da4. 1/10 beta.3 MERGED. 3 PROCESS-GAPs recorded (D-2565a validate-pr-review-posted self-authored; D-2565b self-authored COMMENTED state; D-2565c demo-recorder fabricated evidence). records-lint PASS. STATE v10.070→v10.071. trajectory-tail →2→0→0→0. |
 | D-2564 | 2026-09-17 | S-JSON-EXTRACT-UDF-001 story-level holdout gate PASS — corrected HS-040 v1.1 re-run vs frozen HEAD 83fa7ff51: 3/3 satisfied, mean 1.00, min 1.00 (HS-001 non-literal-key E-QUERY-045(a) 1.00; HS-002 257-byte E-QUERY-045(b) CWE-400 1.00; HS-003 dotted-literal/UDF-registration 1.00). All 3 marked used:true/consumed. Code unchanged (83fa7ff51); LOCAL 3/3 + holdout BOTH satisfied. develop_head 561d8baccc UNCHANGED. records-lint PASS. STATE v10.069→v10.070. |
 | D-2563 | 2026-09-17 | HS-040 holdout FAIL (strict) ADJUDICATED as SCENARIO-AUTHORING ARTIFACT (product-owner): HS-001/002 rubric corrected to result.isError:true + content[0].text assertions; HS-001/002 re-authored v1.1; CODE on feature HEAD 83fa7ff51 CORRECT; LOCAL 3/3 CLEAN(strict) STANDS. records-lint PASS. STATE v10.068→v10.069. |
-| D-2562 | 2026-09-17 | S-JSON-EXTRACT-UDF-001 LOCAL adversarial cascade CONVERGED — BC-5.39.001 strict 3/3 CLEAN(strict) on frozen HEAD 83fa7ff51 (passes abf31097/a6e1e33e/a2fccd45; zero-findings). F-JEX-P1-HIGH-001 WHERE/HAVING gate-bypass fix validated. Full just check 6106/0. records-lint PASS. STATE v10.067→v10.068. |
 
 ## Decisions Log
 
-_D-2300..D-2489 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/decisions-archive-D2300-D2489.md (D-2494 compaction). Earlier: decisions-archive-D2200-D2299.md + decisions-archive-D1789-D2199.md. D-2491..D-2529 archived to burst-log (D-2509+D-2510+D-2511+D-2512+D-2513+D-2514+D-2515+D-2516+D-2517+D-2518+D-2519+D-2520+D-2521+D-2522+D-2523+D-2524+D-2525+D-2526+D-2527+D-2528+D-2529+D-2530+D-2531+D-2532+D-2533+D-2534+D-2535+D-2536+D-2537+D-2538+D-2539+D-2540+D-2541+D-2542+D-2543+D-2544+D-2545+D-2546+D-2547+D-2548+D-2549+D-2550+D-2551+D-2552+D-2553+D-2554+D-2555+D-2556+D-2557+D-2558+D-2559+D-2560+D-2561+D-2562+D-2563+D-2564+D-2565 rotations). Showing last 5 decisions._
+_D-2300..D-2489 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/decisions-archive-D2300-D2489.md (D-2494 compaction). Earlier: decisions-archive-D2200-D2299.md + decisions-archive-D1789-D2199.md. D-2491..D-2529 archived to burst-log (D-2509+D-2510+D-2511+D-2512+D-2513+D-2514+D-2515+D-2516+D-2517+D-2518+D-2519+D-2520+D-2521+D-2522+D-2523+D-2524+D-2525+D-2526+D-2527+D-2528+D-2529+D-2530+D-2531+D-2532+D-2533+D-2534+D-2535+D-2536+D-2537+D-2538+D-2539+D-2540+D-2541+D-2542+D-2543+D-2544+D-2545+D-2546+D-2547+D-2548+D-2549+D-2550+D-2551+D-2552+D-2553+D-2554+D-2555+D-2556+D-2557+D-2558+D-2559+D-2560+D-2561+D-2562+D-2563+D-2564+D-2565+D-2566 rotations). Showing last 5 decisions._
 
 | ID | Agent | Date | Summary | Cycle | Committed |
 |----|-------|------|---------|-------|-----------|
-| D-2561 | state-manager | 2026-09-17 | S-JSON-EXTRACT-UDF-001 LOCAL re-gate (post-HIGH-fix) pass NOT CLEAN — 1 MED + 1 OBS, both code-comment-only. F-JEX-P2-MED-001: engine.rs check_json_extract_key_literal DML-skip comment stale pre-T-09a reason (1) + phantom test cite — TD-VSDD-097 Dim-2 downstream-copy miss (specs BC v1.11/ADR-066 v1.7 swept; parallel code comment missed). Fixed @83fa7ff51: reason (1) rewritten to post-T-09a truth (DML emits JsonExtractString via parity; gate safe-skips via write-path-no-SessionContext + read-path-empty), phantom cite replaced with test_jex_dml_ast_safe_skip_with_jex_variant (TD-VSDD-059). F-JEX-P2-OBS-001: volatile doc-header version pins dropped from 4 test/proof files (ID+anchor only; ends re-stale churn; TD-VSDD-091). Comprehensive worktree sweep CLEAN. Full just check PASS 6106/0. No spec bumps. FROZEN HEAD advances to feature @83fa7ff51; LOCAL 3-CLEAN streak restarts 0/3 on this HEAD; adversary re-gate next. develop_head 561d8baccc UNCHANGED. records-lint PASS. STATE v10.066→v10.067. | wave-5-e-demo-fidelity | factory-artifacts |
 | D-2562 | state-manager | 2026-09-17 | S-JSON-EXTRACT-UDF-001 LOCAL adversarial cascade CONVERGED — BC-5.39.001 strict 3/3 CLEAN(strict) on frozen HEAD 83fa7ff51 (pass 1 abf31097, pass 2 a6e1e33e, pass 3 a2fccd45; all zero-findings). F-JEX-P1-HIGH-001 WHERE/HAVING E-QUERY-045 gate-bypass fix validated. Full just check 6106/0. DEFERRED OBS-DEFER-1 (out-of-perimeter, pre-existing, not in story diff): crates/prism-query/src/ast.rs ScalarFunc::JsonExtractString doc-comment reads 'JSONPath extraction UDF' — semantically stale (beta.3 literal-key-only per ADR-066 §D4 / BC-2.11.025 EC-11-025-009); anchored to fast-follow S-JSON-EXTRACT-NESTED-001 per Canonical Principle Rule 3 concrete-story-anchor. NEXT: story-level holdout gate HS-040 (blocking) → demo → PR → merge. develop_head 561d8baccc UNCHANGED. records-lint PASS. STATE v10.067→v10.068. | wave-5-e-demo-fidelity | factory-artifacts |
 | D-2563 | state-manager | 2026-09-17 | HS-040 holdout FAIL (strict) ADJUDICATED as SCENARIO-AUTHORING ARTIFACT (product-owner, spec+code evidence): prism's ratified MCP convention surfaces E-QUERY-045 errors as Ok(CallToolResult{isError:true}) via server.rs handle_query_tool → prism_error_to_structured_call_result (BC-2.10.007 CRIT-1 envelope), NOT top-level JSON-RPC error.code:-32602 (map_prism_error internal only); corroborated by BC-2.11.001 E-QUERY-037 test vector. Two scenario-authoring defects fixed: (1) HS-001/002 rubric corrected to result.isError:true + content[0].text assertions; (2) malformed pipe+SELECT query corrected to SQL-projection form. HS-001/002 re-authored v1.1 used:false; HS-003 unchanged (scored 1.00). CODE on feature HEAD 83fa7ff51 CORRECT — NO code change; LOCAL 3/3 CLEAN(strict) convergence STANDS. PROCESS-GAP [process-gap]: first occurrence — holdout-authoring transport-envelope rubric contradicted ratified MCP error convention; note for holdout-authoring guidance. NEXT: holdout-evaluator re-run on corrected HS-040 vs 83fa7ff51 (in flight). develop_head 561d8baccc UNCHANGED. records-lint PASS. STATE v10.068→v10.069. | wave-5-e-demo-fidelity | factory-artifacts |
 | D-2564 | state-manager | 2026-09-17 | S-JSON-EXTRACT-UDF-001 story-level holdout gate PASS — corrected HS-040 v1.1 re-run vs frozen HEAD 83fa7ff51: 3/3 satisfied, mean 1.00, min 1.00 (HS-001 non-literal-key E-QUERY-045(a) 1.00; HS-002 257-byte E-QUERY-045(b) CWE-400 1.00; HS-003 dotted-literal/UDF-registration 1.00). All 3 marked used:true/consumed. Code unchanged (83fa7ff51); LOCAL 3/3 + holdout BOTH satisfied. Minor non-blocking authoring note: HS-003 still carries pipe+SELECT query form (passes on absence-based rubric; SQL-projection alignment recommended in future holdout-authoring pass). NEXT: demo-recorder per-AC (in flight) → push → pr-manager 9-step PR → merge. develop_head 561d8baccc UNCHANGED. records-lint PASS. STATE v10.069→v10.070. | wave-5-e-demo-fidelity | factory-artifacts |
 | D-2565 | state-manager | 2026-09-18 | POST-MERGE BURST: S-JSON-EXTRACT-UDF-001 (PR #296 @f38604da4) squash-merged to develop (D-2445 human admin-merge; ancestry PC3 exit 0; CI 50/50 PASS; security CLEAN; PR-LEVEL 8-cycle cascade CONVERGED). POL-14: BC-2.11.025 promoted draft→active (anchor story merged; status-only; v1.11 unchanged). STORY-INDEX v3.052→v3.053 (S-JSON-EXTRACT-UDF-001 ready→merged). BC-INDEX v10.28→v10.29 (draft_contracts 5→4; active_contracts 260→261; total 278 UNCHANGED). develop_head 561d8baccc→f38604da4 (out-of-session df5f12f00 reconciled). 3 PROCESS-GAPs added to Blocking Issues (validate-pr-review-posted self-authored; self-authored COMMENTED state; demo-recorder fabricated evidence). TD-VSDD-097: Dim-1 CLEAR (BC-2.11.025 has no sibling twin). Dim-2 CLEAR (status-only; no copy-source section modified). Dim-3 CLEAR (no new MUSTs). records-lint L1/L7/L9/L10 PASS. STATE v10.070→v10.071. | wave-5-e-demo-fidelity | factory-artifacts |
+| D-2567 | state-manager | 2026-09-18 | SESSION RESUME — factory unpaused from D-2566 (SESSION-WRAP-PAUSE). Worktree-health PASS (factory-artifacts @d2e2922b8 in-sync, lock FREE, develop @f38604da4). Heartbeat cron ce231b80 (8,23,38,53 * * * *) verified armed. sidecar-learning.md reconciled: 2 legitimate session-end entries (2026-09-18T15:32:38Z + 2026-09-18T15:46:59Z) staged and committed. pipeline PAUSED→IN-PROGRESS. STATE v10.072→v10.073. Resuming BETA.3 Batch-1 story 2/10 S-MCP-TOOL-GATE-001; next action = story-writer adds Phase D cfg-gate tasks (SAC-1) per D-2566 checkpoint (c). records-lint PASS. trajectory-tail →2→0→0→0. | wave-5-e-demo-fidelity | factory-artifacts |
 
 ## Skip Log
 
@@ -229,7 +229,7 @@ _D-2300..D-2489 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/decisions
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md, convergence-trajectory.md, decisions-archive-D1789-D2199.md, decisions-archive-D2200-D2299.md, decisions-archive-D2300-D2489.md, session-handoff-archive.md, lessons.md, session-checkpoints.md. Prior cycles: wave-0-plugin-prereqs/, wave-3-multi-tenant/, wave-4-operations/.
 
-## Session Resume Checkpoint (D-2566 — SESSION-WRAP-PAUSE 2026-09-18; STATE v10.072)
+## Session Resume Checkpoint (D-2567 — SESSION-RESUME 2026-09-18; STATE v10.073)
 
 ### RESUME IN ONE BREATH
 Prism at develop@f38604da4 — FACTORY PAUSED (SESSION-WRAP-PAUSE D-2566; STATE v10.072). (a) POSITION: Phase 3, cycle wave-5-e-demo-fidelity, BETA.3 Batch-1 TDD delivery. Story 1/10 S-JSON-EXTRACT-UDF-001 DELIVERED — PR #296 squash-merged develop @f38604da4 (human-authorized admin-merge; ancestry PC3 exit 0). BC-2.11.025 active. NEXT = story 2/10 S-MCP-TOOL-GATE-001. (b) CONVERGENCE COUNTER: none active (story #1 converged 3/3 + holdout PASS + PR-LEVEL 8-cycle APPROVE, merged). (c) IN-FLIGHT at wrap: STORY-2 PRE-TDD REMOVE-UNCERTAINTY COMPLETE (research-agent ac29a673069be3261, verdict SOUND): rmcp 1.7.0 pin + two-named-router (#[tool_router(router=live_tool_router)] / router=operations_tool_router) + `+` combiner CONFIRMED; default-off cargo feature `operations = []` CONFIRMED; unregistered-tool -32602 + feature-enabled -32003 CONFIRMED. ONE CORRECTED COMPLETENESS GAP — RESUME MUST dispatch vsdd-factory:story-writer BEFORE story-2 stubs/TDD (SAC-1 strict task list): 3 currently-ungated tests call gated ops methods directly and will FAIL TO COMPILE in no-operations build once T-C01 cfg-gates ops #[tool] methods; add Phase D tasks to gate with #[cfg(feature="operations")] — (1) server.rs inline test_operations_tools_return_not_implemented_error_code; (2) tests/mcp_infrastructure.rs test_bc_2_10_017_not_yet_available_fast_fail_under_1s + test_bc_2_10_017_not_yet_available_guard_precedes_audit; (3) expand story Files-to-MODIFY to include crates/prism-mcp/tests/mcp_infrastructure.rs. Do NOT gate param structs (ListInfusionsParams/InfusionStatusParams/PluginStatusParams — outside impl blocks). NO BC/ADR/code change required. (d) PENDING HUMAN DECISIONS / BLOCKERS: (i) OPTIONAL — human may add allow-rules `Bash(gh pr comment *)` + `Bash(gh pr review *)` to .claude/settings.local.json permissions.allow + extend autoMode.allow solo-dev directive (autonomous admin-MERGE already works without them; AI CANNOT self-edit settings — [Self-Modification]). (ii) S-BETA3-RELEASE-001 (story 10, W4) DELIVERY-BLOCKED until RELEASE_PROMOTE_TOKEN PAT re-scoped for BOHICA-LABS (human action). (iii) process-gaps D-2565a/b/c open (self-approval hook / COMMENTED-state enforcement / demo-recorder fabrication) — route at cycle-close. (iv) OBS-DEFER-1 ast.rs "JSONPath" doc → deferred to S-JSON-EXTRACT-NESTED-001. (e) WIP BRANCHES: none (story-#1 worktree+branch torn down; no story-#2 worktree yet). Parked worktrees unchanged (S-3.09, W3-FIX-S307-001 DIRTY-do-not-touch, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001, S-CLAROTY-VULNS-001, E-REL-NOTES, S-REL-NIGHTLY-001). (f) RESUME COMMAND: /vsdd-factory:rehydrate-wave  then  /vsdd-factory:next-step.
