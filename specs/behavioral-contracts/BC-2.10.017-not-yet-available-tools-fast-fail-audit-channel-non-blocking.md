@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: active
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
@@ -21,7 +21,7 @@ removal_reason: null
 inputs:
   - ".factory/specs/domain-spec/capabilities.md"
   - ".factory/specs/architecture/decisions/ADR-046-three-mode-correctness-filter-sql-pipe-mode-bridge-error-and-execution-validation.md"
-input-hash: "883049c"
+input-hash: "89dac26"
 traces_to: ["CAP-034"]
 extracted_from: null
 ---
@@ -102,7 +102,7 @@ Note: These vectors cover two mutually exclusive compilation states. Rows marked
 
 ## Story Anchor
 
-TBD
+S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 (original implementing story — fast-fail guard reorder + audit-non-blocking; AC-017/AC-018; merged PR #203 2026-06-26); S-MCP-TOOL-GATE-001 (amendment story — operations feature-gate, INV-OPERATIONS-FEATURE-GATE; AC-001/AC-003/AC-004/AC-005; RG-GATE-001/RG-GATE-003/RG-GATE-004) (POL-4/POL-5)
 
 ## VP Anchors
 
@@ -123,6 +123,7 @@ TBD
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | S-MCP-TOOL-GATE-001-LOCAL-pass-5-F-001 | 2026-09-18 | product-owner | §Story Anchor populated: S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 (original implementing story, merged PR #203, AC-017/AC-018) + S-MCP-TOOL-GATE-001 (amendment story, operations feature-gate postconditions, v1.2→v1.4) — was literal "TBD"; POL-4/POL-5 back-reference completeness (LOCAL pass-5 F-001); no postcondition/mechanism/error-table change. |
 | 1.4 | S-MCP-TOOL-GATE-001-LOCAL-pass-1-OBS-3 | 2026-09-18 | product-owner | Additive table completeness. §Error Cases: added operations-ABSENT row (`operations` feature absent + previously-stubbed tool name invoked → MCP −32602 `"tool not found"`, NOT −32003). §Canonical Test Vectors: added compilation-state column and operations-absent row (`tools/call get_diagnostics` operations-absent → `{code: -32602, message: "tool not found"}`). Tables now enumerate both compilation states (operations-enabled → −32003; operations-absent/default → −32602), consistent with §Postconditions and INV-OPERATIONS-FEATURE-GATE (already correct at v1.3). No behavioral change — RG-GATE-003 already tests −32602. Pre-existing duplicate v1.1 changelog rows merged into single row. Closes S-MCP-TOOL-GATE-001 LOCAL pass-1 OBS-3. |
 | 1.3 | beta3-remediation-BC-2.10.017-v1.3 | 2026-09-16 | product-owner | Factual correction: −32601 (MethodNotFound) → −32602 (InvalidParams, `"tool not found"`). §Postconditions (absent-feature path) and INV-OPERATIONS-FEATURE-GATE updated to reflect rmcp 1.7.0 `handler/server/router/tool.rs` → `ErrorData::invalid_params("tool not found")` and prism `error_mapping.rs` tool-not-found → −32602 (deliberately NOT −32601 per inline comment at `error_mapping.rs:86-91`). Story anchor S-MCP-TOOL-GATE-001 AC-003/RG-GATE-003 now correctly cites −32602. TD-VSDD-097 sibling note: the −32602 fact also appears in S-MCP-TOOL-GATE-001 body (AC-003/RG-GATE-003/T-D01); story-writer is correcting that in parallel — no story edits made here. |
 | 1.2 | beta3-remediation-BC-amendments | 2026-09-16 | product-owner | Operations feature gate: amended §Description to capture absent-feature default. Added feature-gate postcondition block (absent = NOT_YET_AVAILABLE_TOOLS &[], 14-tool catalog, -32601 for unknown tool; enabled = existing -32003 fast-fail). Replaced stale "registered in tools/list" invariant with INV-OPERATIONS-FEATURE-GATE. Anchors: S-MCP-TOOL-GATE-001 AC-001/AC-003/AC-004/AC-005 (RG-GATE-001, RG-GATE-003, RG-GATE-004). Resolves beta.3 issues 1 and 2 (beta3-remediation-delta-analysis.md §Issue 1). |

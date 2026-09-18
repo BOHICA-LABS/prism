@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: active
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
@@ -21,7 +21,7 @@ removal_reason: null
 inputs:
   - ".factory/specs/domain-spec/capabilities.md"
   - ".factory/specs/architecture/decisions/ADR-046-three-mode-correctness-filter-sql-pipe-mode-bridge-error-and-execution-validation.md"
-input-hash: "TBD"
+input-hash: "89dac26"
 traces_to: ["CAP-034"]
 extracted_from: null
 ---
@@ -101,7 +101,7 @@ All registered MCP prompts (`triage_alerts`, `investigate_host`, `client_overvie
 
 ## Story Anchor
 
-TBD
+S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 (original implementing story — MCP prompts fast-return guarantee, no-hang invariant; merged PR #203 2026-06-26) (POL-4/POL-5)
 
 ## VP Anchors
 
@@ -122,7 +122,7 @@ TBD
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | TD-VSDD-097-dim1-sibling-sweep-F-001 | 2026-09-18 | product-owner | §Story Anchor populated S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 (was TBD) — POL-4/POL-5 back-reference completeness; TD-VSDD-097 Dim-1 sibling sweep alongside BC-2.10.017 F-001; no postcondition/mechanism change. Also merges pre-existing duplicate v1.1 rows (records-only, no behavioral change). |
 | 1.2 | demo-fidelity-remediation-2026-06-26 | 2026-06-26 | product-owner | **AUDIT-004 contract fix (S-DEMO-FIDELITY-REMEDIATION-001):** Added postcondition requiring all registered prompts that embed PrismQL queries use FROM-ready sensor-prefixed underscore-qualified table names (e.g., `FROM crowdstrike_detections`), never dot-notation (e.g., `FROM crowdstrike.detections`). Added EC-10-016-005 (query_tutorial dot-notation guard) and EC-10-016-006 (cross_client_status dot-notation guard). Added two AUDIT-004 test vectors using regex scan over rendered message text. Enforcement point: `render_*` functions in `crates/prism-mcp/src/prompts.rs` must only emit underscore-qualified FROM-ready table names in embedded PrismQL examples. The implementer fix is to audit all `render_*` string literals for `FROM <sensor>.<table>` patterns and replace with `FROM <sensor>_<table>`. This is a content-correctness amendment; the fast-return (≤5s) guarantee from v1.0–v1.1 is unchanged. |
-| 1.1 | PR-203-post-merge-POL-14 | 2026-06-26 | state-manager | **POL-14 BC auto-promotion: draft → active.** Anchor story S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 squash-merged via PR #203 to develop@7e60df03 (2026-06-26; CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) cascade on frozen HEAD 356e0573). `status: draft → active`. No behavioral change; frontmatter status field only. |
-| 1.1 | S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 | 2026-06-25 | product-owner | Spec-internal-consistency reconciliation (OBS-2b from PR-LEVEL adversary). INV-PROMPT-REQUIRED-ARGS already sanctioned option (a) placeholder substitution; §Error Cases row and EC-10-016-003 incorrectly stated "Returns structured MCP error" for a missing required arg, contradicting the invariant. Updated §Error Cases, EC-10-016-003, and INV-PROMPT-REQUIRED-ARGS prose to reflect the shipped option-(a) behavior (`(unknown)` substitution, returns Ok within 5s). The no-hang / within-5s guarantee is unchanged. No code change. |
+| 1.1 | S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 + PR-203-post-merge-POL-14 | 2026-06-25..2026-06-26 | product-owner + state-manager | Spec consistency fix (OBS-2b): INV-PROMPT-REQUIRED-ARGS, §Error Cases, EC-10-016-003 updated to reflect option-(a) `(unknown)` placeholder substitution — returns Ok within 5s, no structured MCP error. **POL-14 auto-promotion: draft → active** on PR #203 squash-merge to develop@7e60df03 (2026-06-26; CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) cascade on frozen HEAD 356e0573). |
 | 1.0 | demo-readiness-2026-06-24 | 2026-06-24 | product-owner | Initial contract. Authored per demo-readiness-remediation-design-2026-06-24.md + ADR-046 D6. Closes BLOCKER-003. Implementer must investigate `#[prompt_handler]` macro expansion + `PromptRoute::new_dyn` closure before fixing. |

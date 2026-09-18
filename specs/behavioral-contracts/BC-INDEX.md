@@ -1,10 +1,11 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "10.30"
+version: "10.31"
 status: draft
 producer: state-manager
 timestamp: 2026-09-18T00:00:00Z
+# NOTE: D-2574 — BC-INDEX v10.30→v10.31: S-MCP-TOOL-GATE-001 LOCAL pass-5 fix-burst — BC-2.10.016 row pin v1.2→v1.3 (§Story Anchor populated; TD-VSDD-097 Dim-1 sibling sweep); BC-2.10.017 row pin v1.4→v1.5 (§Story Anchor populated dual-anchor; F-001 closed). Contract counts UNCHANGED: draft_contracts 4 / active_contracts 261 / total_contracts 278.
 # NOTE: D-2570 — BC-INDEX v10.29→v10.30: S-MCP-TOOL-GATE-001 LOCAL pass-1 OBS-3 spec fix — BC-2.10.017 row pin v1.3→v1.4 (operations-absent −32602 rows added; additive table completeness). Contract counts UNCHANGED: draft_contracts 4 / active_contracts 261 / total_contracts 278.
 # NOTE: D-2565 — BC-INDEX v10.28→v10.29: S-JSON-EXTRACT-UDF-001 PR #296 squash-merged @f38604da4 — BC-2.11.025 promoted draft→active (POL-14); row pin stays v1.11 (status-only promotion, no content change). draft_contracts 5→4 / active_contracts 260→261 / total_contracts 278 UNCHANGED.
 # NOTE: D-2560 — BC-INDEX v10.27→v10.28: D-2560 F-JEX-P1-HIGH-001 predicate-parity cascade — BC-2.11.025 row pin v1.10→v1.11 (DML-exclusion reason cleanup; EC-11-025-012 WHERE/HAVING/pipe-where predicate gate coverage; 4-code-paths invariant). Contract counts UNCHANGED: draft_contracts 5 / active_contracts 260 / total_contracts 278.
@@ -316,8 +317,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT | 10 - MCP Interface | CAP-034 | P0 | active |
 | BC-2.10.011 | list_capabilities Meta-Tool | 10 - MCP Interface | CAP-005 | P0 | active v1.7 |
 | BC-2.10.015 | `list_capabilities` Consults `OrgRegistry` for `client_registered` Check | 10 - MCP Interface | CAP-005 | P0 | active v1.2 |
-| BC-2.10.016 | MCP Prompts Fast-Return Guarantee — No Indefinite Hang | 10 - MCP Interface | CAP-034 | P0 | active v1.2 |
-| BC-2.10.017 | Not-Yet-Available Tools Fast-Fail — Audit Channel Non-Blocking | 10 - MCP Interface | CAP-034 | P0 | active v1.4 |
+| BC-2.10.016 | MCP Prompts Fast-Return Guarantee — No Indefinite Hang | 10 - MCP Interface | CAP-034 | P0 | active v1.3 |
+| BC-2.10.017 | Not-Yet-Available Tools Fast-Fail — Audit Channel Non-Blocking | 10 - MCP Interface | CAP-034 | P0 | active v1.5 |
 | BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | 11 - Query Execution | CAP-015 | P0 | active v1.38 (D-2547 2026-09-17: EC-11-095 PaginationCursor.total_count notation fix; S-QUERY-TRUE-TOTAL-001 anchor; was v1.37) |
 | BC-2.11.002 | PrismQL Filter Mode Parsing | 11 - Query Execution | CAP-015 | P0 | active v1.6 |
 | BC-2.11.003 | PrismQL SQL Mode Parsing | 11 - Query Execution | CAP-015 | P0 | active v1.13 |
@@ -568,6 +569,10 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v10.31 (2026-09-18, D-2574):** state-manager | SINGLE-COMMIT BURST (TD-VSDD-053) — S-MCP-TOOL-GATE-001 LOCAL pass-5 fix-burst. BC-2.10.016 row pin v1.2→v1.3 (§Story Anchor populated S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001; TD-VSDD-097 Dim-1 sibling sweep; records-only). BC-2.10.017 row pin v1.4→v1.5 (§Story Anchor populated dual-anchor S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 + S-MCP-TOOL-GATE-001; F-001 closed; records-only). OBS-1 CLOSED (AC-002 wire round-trip test added; feature HEAD advanced 09658db3a→0af76be5c). D-2574 records: feature HEAD 0af76be5c; LOCAL 3-CLEAN streak RESETS 0/3 on 0af76be5c (BC-5.39.001 frozen-HEAD rule). Contract counts UNCHANGED: draft_contracts 4 / active_contracts 261 / total_contracts 278. TD-VSDD-097: Dim-1 DISCHARGED (BC-2.10.016 twin of BC-2.10.017 swept same burst). Dim-2 CLEAR (no copy-source section in §Story Anchor). Dim-3 CLEAR (no new MUSTs). TD-VSDD-091/POL-39 CLEAN (no volatile line/version cites). records-lint L1/L7/L9/L10 PASS. BC-INDEX v10.30→v10.31. STATE v10.079→v10.080.
+
+**v10.30 (2026-09-18, D-2570):** state-manager | SINGLE-COMMIT BURST (TD-VSDD-053) — S-MCP-TOOL-GATE-001 LOCAL pass-1 OBS-3 spec fix. BC-2.10.017 row pin v1.3→v1.4 (operations-absent −32602 rows added; additive table completeness). Contract counts UNCHANGED: draft_contracts 4 / active_contracts 261 / total_contracts 278. BC-INDEX v10.29→v10.30.
 
 **v10.29 (2026-09-18, D-2565):** state-manager | SINGLE-COMMIT BURST (TD-VSDD-053) — POST-MERGE BURST: S-JSON-EXTRACT-UDF-001 PR #296 squash-merged to develop @f38604da4 (human admin-merge D-2445). BC-2.11.025 promoted draft→active (POL-14); row pin stays v1.11 (status-only promotion). STORY-INDEX v3.052→v3.053 (S-JSON-EXTRACT-UDF-001 v1.8 ready→merged). develop_head 561d8baccc→f38604da4 (out-of-session df5f12f00 reconciled). draft_contracts 5→4 / active_contracts 260→261 / total_contracts 278 UNCHANGED. TD-VSDD-097: Dim-1 CLEAR (BC-2.11.025 no sibling twin). Dim-2 CLEAR (status-only field change; no copy-source section modified). Dim-3 CLEAR (no new MUSTs). TD-VSDD-091/POL-39 CLEAN (no volatile line/version cites). records-lint L1/L7/L9/L10 PASS. BC-INDEX v10.28→v10.29. STATE v10.070→v10.071.
 
