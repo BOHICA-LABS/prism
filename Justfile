@@ -26,7 +26,7 @@ test:
 # for rationale + measured savings.
 check:
     cargo fmt --check
-    RUSTFLAGS="" cargo clippy --all-features -- -D warnings
+    RUSTFLAGS="" cargo clippy --all-features --all-targets -- -D warnings
     RUSTFLAGS="" PROPTEST_CASES=100 cargo nextest run --workspace --all-features --profile prepush
     # S-MCP-TOOL-GATE-001: the `operations` feature is default-off; --all-features above enables
     # it and compiles out the #![cfg(not(feature="operations"))] RG tests in prism-mcp. This
@@ -60,7 +60,7 @@ iter crate test_filter='':
 # edit → `just check-fast` → `just check` dev loop reuses clippy artifacts instead
 # of re-checking. See story S-PERF-GATE-006 for full rationale.
 check-fast:
-    RUSTFLAGS="" cargo clippy --all-features -- -D warnings
+    RUSTFLAGS="" cargo clippy --all-features --all-targets -- -D warnings
 
 # Generate a build-timings report for diagnostics. Outputs HTML at
 # target/cargo-timings/cargo-timing.html. See research sidecar §7 for
@@ -76,7 +76,7 @@ timings:
 # nextest runs under the default profile and silently skips those overrides.
 check-ci:
     cargo fmt --check
-    cargo clippy --all-features -- -D warnings
+    cargo clippy --all-features --all-targets -- -D warnings
     cargo nextest run --workspace --all-features --no-fail-fast --profile ci
     # S-MCP-TOOL-GATE-001: operations is default-off; --all-features above enables it and
     # hides the operations-OFF RG tests. Re-run prism-mcp with default features so
