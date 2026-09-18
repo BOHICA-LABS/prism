@@ -28,6 +28,12 @@ check:
     cargo fmt --check
     RUSTFLAGS="" cargo clippy --all-features -- -D warnings
     RUSTFLAGS="" PROPTEST_CASES=100 cargo nextest run --workspace --all-features --profile prepush
+    # S-MCP-TOOL-GATE-001: the `operations` feature is default-off; --all-features above enables
+    # it and compiles out the #![cfg(not(feature="operations"))] RG tests in prism-mcp. This
+    # targeted run re-exercises prism-mcp with default features so RG-GATE-001..004 and the OBS-2
+    # e2e round-trip test are included in the canonical pre-push gate (not only CI's
+    # test-no-default-features job).
+    RUSTFLAGS="" PROPTEST_CASES=100 cargo nextest run -p prism-mcp --profile prepush
     RUSTFLAGS="" PROPTEST_CASES=100 cargo test --workspace --all-features --doc
     @scripts/check-crate-layout.sh
     @scripts/check-non-exhaustive.sh
@@ -72,6 +78,10 @@ check-ci:
     cargo fmt --check
     cargo clippy --all-features -- -D warnings
     cargo nextest run --workspace --all-features --no-fail-fast --profile ci
+    # S-MCP-TOOL-GATE-001: operations is default-off; --all-features above enables it and
+    # hides the operations-OFF RG tests. Re-run prism-mcp with default features so
+    # RG-GATE-001..004 and the OBS-2 e2e test are covered by the local CI-equivalent gate.
+    cargo nextest run -p prism-mcp --no-fail-fast --profile ci
     cargo test --workspace --all-features --doc
     cargo deny check
     cargo audit
