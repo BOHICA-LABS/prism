@@ -6,8 +6,8 @@
     "bc_clause": "EC-11-025-007 / E-QUERY-045(b) / CWE-400",
     "scenario": "257-byte key rejected; 256-byte key accepted (inclusive boundary)",
     "binary": "target/debug/prism",
-    "commit": "7deb3674f",
-    "re_recorded": "cycle-2 B-2 fix: replaced hand-authored file (had non-MCP fields note/content_summary/query_note) with real MCP stdio capture"
+    "commit": "1487d2d9b",
+    "re_recorded": "cycle-6: re-captured at 1487d2d9b (B-C6-1 fix — trim_end_matches eliminates double period)"
   },
   "demo_257_byte_rejection": {
     "mcp_request": {
@@ -31,7 +31,7 @@
         "content": [
           {
             "type": "text",
-            "text": "ERROR: [validation] - E-QUERY-045: json_extract_string key is 257 bytes, which exceeds the 256-byte maximum (CWE-400).. Reduce the json_extract_string key to 256 UTF-8 bytes or fewer."
+            "text": "ERROR: [validation] - E-QUERY-045: json_extract_string key is 257 bytes, which exceeds the 256-byte maximum (CWE-400). Reduce the json_extract_string key to 256 UTF-8 bytes or fewer."
           }
         ],
         "structuredContent": {

@@ -8,8 +8,8 @@
     "test_file": "crates/prism-query/tests/test_json_extract_udf.rs"
   },
   "test_results_summary": {
-    "total_tests": 12,
-    "passed": 12,
+    "total_tests": 15,
+    "passed": 15,
     "failed": 0,
     "run_command": "cargo nextest run -p prism-query -E 'test(test_jex_rg00)' --no-fail-fast"
   },
@@ -74,7 +74,7 @@
       "integer_42": "\"42\"",
       "bool_true": "\"true\"",
       "array_1_2": "\"[1,2]\"",
-      "object_nested": "{\"nested\":\"value\"} -> \"{\\\"nested\\\":\\\"value\\\"}\""
+      "object_nested": "{\"k\":\"v\"}"
     },
     "bc_clause": "EC-11-025-008 / postcondition §Non-string value",
     "note": "serde_json::Value::to_string() coercion — NOT SQL NULL. Callers can cast downstream."

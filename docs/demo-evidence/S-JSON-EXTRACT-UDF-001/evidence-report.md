@@ -145,9 +145,9 @@ Query: `SELECT json_extract_string(raw_extensions, '<256 a-chars>') FROM claroty
 **Tests (4 variants):** `test_jex_rg008_non_string_json_value_coerced_to_string`, `test_jex_rg008_bool_true_coerced_to_string`, `test_jex_rg008_array_coerced_to_string`, `test_jex_rg008_object_coerced_to_string` — all PASS  
 **Observed behaviors:**
 - `'{"count":42}' + 'count'` → `"42"` (NOT SQL NULL)
-- `'{"active":true}' + 'active'` → `"true"`
-- `'{"tags":["a","b"]}' + 'tags'` → `"[\"a\",\"b\"]"`
-- `'{"nested":{"k":"v"}}' + 'nested'` → `"{\"k\":\"v\"}"`  
+- `'{"flag":true}' + 'flag'` → `"true"`
+- `'{"items":[1,2]}' + 'items'` → `"[1,2]"`
+- `'{"meta":{"k":"v"}}' + 'meta'` → `"{\"k\":\"v\"}"`  
 **Traces to:** BC-2.11.025 EC-11-025-008
 
 ---
@@ -320,9 +320,9 @@ cargo nextest run -p prism-mcp -E 'test(JSON_EXTRACT_UDF)' --no-fail-fast
 | `AC-006-007-012-plan-gate.gif` | VHS GIF recording | AC-006, AC-007, AC-011, AC-012 | cycle-1 |
 | `AC-006-007-012-plan-gate.webm` | VHS WEBM recording | AC-006, AC-007, AC-011, AC-012 | cycle-1 |
 | `AC-006-007-012-plan-gate.tape` | VHS tape source | AC-006, AC-007, AC-011, AC-012 | cycle-1 |
-| `AC-006-non-literal-key-rejection.json` | MCP wire transcript (cycle-2, HEAD 7deb3674f) | AC-006 | cycle-2 |
-| `AC-007-key-length-boundary.json` | MCP wire transcript (cycle-2, HEAD 7deb3674f) | AC-007 | cycle-2 |
+| `AC-006-non-literal-key-rejection.json` | MCP wire transcript (cycle-6, HEAD 1487d2d9b) | AC-006 | cycle-6 |
+| `AC-007-key-length-boundary.json` | MCP wire transcript (cycle-6, HEAD 1487d2d9b) | AC-007 | cycle-6 |
 | `AC-011-pipe-mode-udf-registration.json` | MCP wire transcript + unit test summary | AC-011 | cycle-1 |
-| `AC-012-where-predicate-gate.json` | MCP wire transcript (cycle-2, HEAD 7deb3674f) | AC-012 | cycle-2 |
+| `AC-012-where-predicate-gate.json` | MCP wire transcript (cycle-6, HEAD 1487d2d9b) | AC-012 | cycle-6 |
 | `AC-001-010-functional-unit-tests.json` | Unit test assertion summary | AC-001..005, AC-008..010 | cycle-1 |
 | `prism_plan_gate_demo.py` | Demo driver script (VHS source) | AC-006, AC-007, AC-011, AC-012 | cycle-1 |

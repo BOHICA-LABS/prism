@@ -50,8 +50,8 @@
     "key_assertions": [
       "total_rows == 3 (mock adapter returns 3 rows)",
       "extracted_col.value(0) == 'critical' (row 0: {\"severity\":\"critical\",...})",
-      "extracted_col.is_null(1) == true (row 1: {} missing key → SQL NULL)",
-      "extracted_col.is_null(2) == true (row 2: null column → SQL NULL)"
+      "extracted_col.is_null(1) == true (row 1: {\"severity\":null,...} → SQL NULL (JSON null at key))",
+      "extracted_col.is_null(2) == true (row 2: {\"host\":\"server03\"} → SQL NULL (key absent))"
     ],
     "sap3_compliance": "Test exercises full prism_query public API: QueryEngine::execute() → pipe_sql_emitter → DataFusion → json_extract_string UDF → result batches"
   }

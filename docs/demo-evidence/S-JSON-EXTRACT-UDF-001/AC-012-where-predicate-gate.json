@@ -6,8 +6,8 @@
     "bc_clause": "EC-11-025-012 / predicate-position parity via T-09a filter_parser.rs fix",
     "scenario": "WHERE predicate position: non-literal key rejected; valid literal key executes",
     "binary": "target/debug/prism",
-    "commit": "7deb3674f",
-    "re_recorded": "cycle-2 B-2 fix: replaced hand-authored file (had non-MCP fields note/content_summary) with real MCP stdio capture"
+    "commit": "1487d2d9b",
+    "re_recorded": "cycle-6: re-captured at 1487d2d9b (B-C6-1 fix — trim_end_matches eliminates double period)"
   },
   "demo_where_non_literal_rejection": {
     "mcp_request": {
@@ -31,7 +31,7 @@
         "content": [
           {
             "type": "text",
-            "text": "ERROR: [validation] - E-QUERY-045: json_extract_string requires a literal string key (e.g., json_extract_string(col, 'key_name')). Dynamic key expressions are not supported.. Provide a string literal as the second argument, e.g., json_extract_string(raw_extensions, 'severity')."
+            "text": "ERROR: [validation] - E-QUERY-045: json_extract_string requires a literal string key (e.g., json_extract_string(col, 'key_name')). Dynamic key expressions are not supported. Provide a string literal as the second argument, e.g., json_extract_string(raw_extensions, 'severity')."
           }
         ],
         "structuredContent": {

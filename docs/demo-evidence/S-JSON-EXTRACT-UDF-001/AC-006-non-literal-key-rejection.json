@@ -7,8 +7,8 @@
     "scenario": "Non-literal key argument rejected at plan time",
     "query": "SELECT json_extract_string(raw_extensions, severity_id) FROM claroty_alerts",
     "binary": "target/debug/prism",
-    "commit": "7deb3674f",
-    "re_recorded": "cycle-2: suggestion text updated to current HEAD (N4 fix)"
+    "commit": "1487d2d9b",
+    "re_recorded": "cycle-6: re-captured at 1487d2d9b (B-C6-1 fix — trim_end_matches eliminates double period)"
   },
   "mcp_request": {
     "jsonrpc": "2.0",
@@ -31,7 +31,7 @@
       "content": [
         {
           "type": "text",
-          "text": "ERROR: [validation] - E-QUERY-045: json_extract_string requires a literal string key (e.g., json_extract_string(col, 'key_name')). Dynamic key expressions are not supported.. Provide a string literal as the second argument, e.g., json_extract_string(raw_extensions, 'severity')."
+          "text": "ERROR: [validation] - E-QUERY-045: json_extract_string requires a literal string key (e.g., json_extract_string(col, 'key_name')). Dynamic key expressions are not supported. Provide a string literal as the second argument, e.g., json_extract_string(raw_extensions, 'severity')."
         }
       ],
       "structuredContent": {
