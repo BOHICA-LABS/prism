@@ -732,25 +732,86 @@ async fn test_jex_rg007_b_key_at_exactly_max_len_accepted() {
     let result = engine.execute(&query, QueryOptions::default()).await;
 
     // Must NOT return E-QUERY-045(b) — the key is exactly at the limit, not over it.
-    match &result {
-        Err(prism_core::error::PrismError::JsonExtractKeyTooLong { key_len, max_len }) => {
-            panic!(
-                "RG-JEX-007-b BOUNDARY VIOLATION: a 256-byte key must NOT trigger \
-                 E-QUERY-045(b). The gate fires only when key_len > {max_len} (strictly \
-                 greater than). Got: key_len={key_len}, max_len={max_len}. \
-                 This likely indicates the gate uses >= instead of >."
-            );
-        }
-        Err(prism_core::error::PrismError::JsonExtractNonLiteralKey) => {
-            panic!("RG-JEX-007-b: got E-QUERY-045(a) for a literal-key query — unexpected.");
-        }
-        // Any other outcome (Ok or other Err) is acceptable — the key passed the 256-byte gate.
-        // (The gate engine has no registered adapters so the query may return a table-not-found
-        //  error; that is fine — the point is that E-QUERY-045(b) must NOT fire.)
-        Ok(_) | Err(_) => {
-            // Not E-QUERY-045(b): gate correctly did not fire for a 256-byte key.
-        }
-    }
+    // N-g fix: use explicit assert! macros instead of silent match arms.
+    // A test with zero assertions provides no regression protection.
+    assert!(
+        !matches!(result, Err(ref e) if matches!(e, prism_core::error::PrismError::JsonExtractKeyTooLong { .. })),
+        "RG-JEX-007-b BOUNDARY VIOLATION: a 256-byte key (exactly at max) must NOT trigger \
+         E-QUERY-045(b). The gate fires only when key_len > 256 (strictly greater than). \
+         Likely indicates the gate uses >= instead of >."
+    );
+    assert!(
+        !matches!(result, Err(ref e) if matches!(e, prism_core::error::PrismError::JsonExtractNonLiteralKey)),
+        "RG-JEX-007-b: 256-byte literal key must not trigger E-QUERY-045(a) (non-literal key gate)."
+    );
+    // The gate correctly passed the 256-byte key. The result is OK or another non-045 error (e.g., table not found).
+}
+
+// ===========================================================================
+// RG-JEX-007-c/d — N-a: multibyte Unicode key boundary tests
+// ===========================================================================
+
+/// N-a fix: multibyte Unicode key boundary test.
+///
+/// The 256-byte cap uses `key.len()` (UTF-8 byte length), which is correct per ADR-066 §D3
+/// ("256-byte maximum"). A 128-char string of 2-byte UTF-8 characters (e.g., U+00E9 'é' = 2 bytes)
+/// = 256 bytes exactly — must be ACCEPTED (at boundary). 129 such chars = 258 bytes — must be
+/// REJECTED (over boundary). This test prevents a regression from `len()` → `chars().count()`.
+///
+/// ADR-066 §D3; BC-2.11.025 EC-11-025-007; S-JSON-EXTRACT-UDF-001 AC-007.
+#[tokio::test]
+async fn test_jex_rg007_c_multibyte_key_at_boundary_accepted() {
+    let engine = make_gate_engine();
+
+    // U+00E9 'é' encodes as 2 UTF-8 bytes. 128 × 2 = 256 bytes exactly (at limit).
+    let key_256_bytes_unicode = "é".repeat(128); // 128 chars × 2 bytes = 256 bytes
+    assert_eq!(
+        key_256_bytes_unicode.len(),
+        256,
+        "Test setup: key must be exactly 256 UTF-8 bytes"
+    );
+
+    let query =
+        format!("SELECT json_extract_string(raw_data, '{key_256_bytes_unicode}') FROM test_events");
+    let result = engine.execute(&query, QueryOptions::default()).await;
+
+    assert!(
+        !matches!(result, Err(ref e) if matches!(e, PrismError::JsonExtractKeyTooLong { .. })),
+        "RG-JEX-007-c: a 256-byte Unicode key (128 × é = 256 bytes) must NOT trigger \
+         E-QUERY-045(b). The byte-length check must use .len() (byte count), not .chars().count()."
+    );
+}
+
+/// N-a fix: multibyte Unicode key OVER boundary rejected.
+///
+/// 129 × U+00E9 'é' = 258 bytes — must be REJECTED with E-QUERY-045(b).
+#[tokio::test]
+async fn test_jex_rg007_d_multibyte_key_over_boundary_rejected() {
+    let engine = make_gate_engine();
+
+    // 129 × 'é' (2 bytes each) = 258 bytes — over the 256-byte limit.
+    let key_258_bytes_unicode = "é".repeat(129); // 129 chars × 2 bytes = 258 bytes
+    assert_eq!(
+        key_258_bytes_unicode.len(),
+        258,
+        "Test setup: key must be exactly 258 UTF-8 bytes"
+    );
+
+    let query =
+        format!("SELECT json_extract_string(raw_data, '{key_258_bytes_unicode}') FROM test_events");
+    let result = engine.execute(&query, QueryOptions::default()).await;
+
+    assert!(
+        matches!(
+            result,
+            Err(PrismError::JsonExtractKeyTooLong {
+                key_len: 258,
+                max_len: 256
+            })
+        ),
+        "RG-JEX-007-d: a 258-byte Unicode key (129 × é) must trigger E-QUERY-045(b). \
+         Got: {result:?}"
+    );
 }
 
 // ===========================================================================
@@ -1720,7 +1781,7 @@ async fn test_jex_rg012_d_where_valid_literal_key_executes_correctly() {
 ///
 /// BC-2.11.025 EC-11-025-012 / AC-012 — ADR-066 §B3.
 #[test]
-fn test_jex_dml_ast_safe_skip_with_jex_variant() {
+fn test_jex_dml_ast_safe_skip_with_jex_variant_integration() {
     // Part (1): parse a real DML DELETE with json_extract_string in WHERE clause.
     // After T-09a fix: fn_call_comparison maps "json_extract_string" →
     // ScalarFunc::JsonExtractString for DML WHERE predicates too.
@@ -1765,4 +1826,77 @@ fn test_jex_dml_ast_safe_skip_with_jex_variant() {
         },
         other => panic!("DML rework proof (1): expected Predicate::Compare, got {other:?}"),
     }
+}
+
+// ===========================================================================
+// RG-JEX-013 — SAP-3 pipe-mode | where gate: non-literal key and key-too-long
+// ===========================================================================
+
+/// RG-JEX-013: SAP-3 probe — pipe-mode `| where` clause with non-literal key triggers
+/// E-QUERY-045(a) at plan time.
+///
+/// Query: `SELECT raw_data FROM test_events | where json_extract_string(raw_data, severity_col) == 'high'`
+///
+/// The `severity_col` is a column reference (non-literal) in the pipe `| where` predicate.
+/// The `PipeStage::Where` / `Ast::Pipe` / `Ast::Filter` path must route through
+/// `check_json_extract_key_literal` just like SQL WHERE/HAVING.
+///
+/// SAP-3 compliance: exercises `QueryEngine::execute` (public surface), not internal handlers.
+///
+/// BC-2.11.025 EC-11-025-006 / AC-006 — ADR-066 §B3 + §H.
+#[tokio::test]
+async fn test_jex_rg013_pipe_where_non_literal_key_rejected_e_query_045_a() {
+    // SAP-3: make_gate_engine() uses the public QueryEngine::execute surface.
+    let engine = make_gate_engine();
+
+    // `severity_col` (no quotes) is a column reference in pipe | where predicate.
+    // The gate must fire here, same as for SQL WHERE (RG-JEX-012).
+    let result = engine
+        .execute(
+            "SELECT raw_data FROM test_events | where json_extract_string(raw_data, severity_col) == 'high'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(result, Err(PrismError::JsonExtractNonLiteralKey)),
+        "RG-JEX-013: pipe-mode `| where` non-literal key must trigger E-QUERY-045(a). \
+         Got: {result:?}. The PipeStage::Where / Ast::Pipe / Ast::Filter arm must route \
+         through check_json_extract_key_literal per ADR-066 §B3."
+    );
+}
+
+/// RG-JEX-013-b: SAP-3 probe — pipe-mode `| where` clause with 257-byte literal key triggers
+/// E-QUERY-045(b) at plan time.
+///
+/// The `PipeStage::Where` path must enforce the 256-byte cap (ADR-066 §D3) just like SQL WHERE.
+///
+/// SAP-3 compliance: exercises `QueryEngine::execute` (public surface).
+///
+/// BC-2.11.025 EC-11-025-007 / AC-007 — ADR-066 §D3 + §H.
+#[tokio::test]
+async fn test_jex_rg013_b_pipe_where_key_too_long_rejected_e_query_045_b() {
+    let engine = make_gate_engine();
+
+    // A 257-byte ASCII key — one byte over the 256-byte cap.
+    let key_257 = "a".repeat(257);
+    let query = format!(
+        "SELECT raw_data FROM test_events | where json_extract_string(raw_data, '{key_257}') == 'high'"
+    );
+
+    let result = engine.execute(&query, QueryOptions::default()).await;
+
+    assert!(
+        matches!(
+            result,
+            Err(PrismError::JsonExtractKeyTooLong {
+                key_len: 257,
+                max_len: 256
+            })
+        ),
+        "RG-JEX-013-b: pipe-mode `| where` 257-byte key must trigger E-QUERY-045(b) \
+         (JsonExtractKeyTooLong {{ key_len: 257, max_len: 256 }}). \
+         Got: {result:?}. The PipeStage::Where / Ast::Filter path must enforce the \
+         256-byte cap (ADR-066 §D3)."
+    );
 }

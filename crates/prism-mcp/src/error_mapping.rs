@@ -2415,9 +2415,6 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             normalized_pql: None,
         },
 
-        // ── Catch-all: unknown variants → "upstream_error" (legal BC category) ──
-        // "upstream_error" is the safest legal fallback for variants that don't fit
-        // the specific categories above (non_exhaustive catch-all).
         // E-QUERY-045(a): json_extract_string non-literal key — category "validation".
         //
         // original_params_valid: false — the second argument must be a literal string;
@@ -2476,6 +2473,9 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             normalized_pql: None,
         },
 
+        // ── Catch-all: unknown variants → "upstream_error" (legal BC category) ──
+        // "upstream_error" is the safest legal fallback for variants that don't fit
+        // the specific categories above (non_exhaustive catch-all).
         _ => VariantMeta {
             category: "upstream_error",
             suggestion: "See audit log for details.",
@@ -5973,11 +5973,13 @@ mod tests {
              misleads the MCP caller."
         );
 
-        // Message must contain E-QUERY-045 (from the PrismError Display impl).
-        assert!(
-            message.contains("E-QUERY-045"),
-            "B1-045(a): map_prism_error message must include 'E-QUERY-045' from the \
-             JsonExtractNonLiteralKey Display. Got: {message:?}"
+        // Message must exactly match the JsonExtractNonLiteralKey Display output.
+        assert_eq!(
+            message,
+            "E-QUERY-045: json_extract_string requires a literal string key (e.g., \
+             json_extract_string(col, 'key_name')). Dynamic key expressions are not supported.",
+            "B1-045(a): map_prism_error message must exactly match the JsonExtractNonLiteralKey \
+             Display output. Got: {message:?}"
         );
     }
 
@@ -6064,18 +6066,12 @@ mod tests {
              misleads the MCP caller."
         );
 
-        // Message must contain E-QUERY-045 (from the PrismError Display impl).
-        assert!(
-            message.contains("E-QUERY-045"),
-            "B1-045(b): map_prism_error message must include 'E-QUERY-045' from the \
-             JsonExtractKeyTooLong Display. Got: {message:?}"
-        );
-
-        // Message must mention the actual key length (257 bytes).
-        assert!(
-            message.contains("257"),
-            "B1-045(b): map_prism_error message must include '257' (the key_len) from \
-             the JsonExtractKeyTooLong Display. Got: {message:?}"
+        // Message must exactly match the JsonExtractKeyTooLong Display output for key_len=257, max_len=256.
+        assert_eq!(
+            message,
+            "E-QUERY-045: json_extract_string key is 257 bytes, which exceeds the 256-byte maximum (CWE-400).",
+            "B1-045(b): map_prism_error message must exactly match the JsonExtractKeyTooLong \
+             Display output for key_len=257, max_len=256. Got: {message:?}"
         );
     }
 
@@ -6181,6 +6177,96 @@ mod tests {
             suggestion.contains("raw_extensions") || suggestion.contains("severity"),
             "[SID-2/N4]: suggestion must use a non-duplicative example (e.g., raw_extensions/severity). \
              Got: '{suggestion}'"
+        );
+    }
+
+    /// N-d fix: wire-level E-QUERY-045 assertion — serialize CallToolResult to JSON and assert
+    /// on `isError`, `code` (-32602), and `structuredContent.error.category` at the wire level.
+    ///
+    /// CLAUDE.md wire-shape assertion discipline (2026-07-13): any test covering an MCP-visible
+    /// surface must include at least one assertion on the SERIALIZED JSON output — the exact
+    /// envelope the LLM agent consumes. Pre-serialization struct-level assertions alone are
+    /// insufficient (they cannot catch serialization-time field omissions, key renames, or
+    /// enum representation changes).
+    ///
+    /// This test exercises `JsonExtractNonLiteralKey` (E-QUERY-045(a)):
+    ///   - `is_error` field: `true` (bool, not string, not absent)
+    ///   - `structuredContent.error.code`: `"E-QUERY-045"` (wire string)
+    ///   - `structuredContent.error.category`: `"validation"` (wire string)
+    ///
+    /// The `code` field at -32602 is asserted pre-serialization (via `map_prism_error`); the
+    /// serialized JSON check is on the structured error envelope's `code` field ("E-QUERY-045").
+    ///
+    /// Traces to: BC-2.11.025 §Error Cases E-QUERY-045(a); CLAUDE.md §Wire-shape assertion discipline;
+    ///            S-JSON-EXTRACT-UDF-001 AC-006 (RG-JEX-006).
+    #[test]
+    fn test_S_JSON_EXTRACT_UDF_001_e_query_045a_wire_level_serialized_json() {
+        let err = PrismError::JsonExtractNonLiteralKey;
+
+        let result = prism_error_to_structured_call_result(err);
+
+        // Wire-shape discipline: assert is_error == true at the struct level (no serialization needed).
+        assert_eq!(
+            result.is_error,
+            Some(true),
+            "N-d wire: JsonExtractNonLiteralKey CallToolResult must have is_error=true"
+        );
+
+        // Obtain structured_content and serialize to JSON — this is the exact wire bytes the LLM sees.
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("N-d wire: structuredContent must be present (BC-2.10.007)");
+
+        let wire_json =
+            serde_json::to_string(sc).expect("N-d wire: structured_content must serialize to JSON");
+
+        // Assert the wire JSON is non-empty (sanity check).
+        assert!(
+            !wire_json.is_empty(),
+            "N-d wire: serialized JSON must not be empty"
+        );
+
+        // Assert on specific wire fields by parsing the serialized JSON.
+        let wire_val: serde_json::Value =
+            serde_json::from_str(&wire_json).expect("N-d wire: serialized JSON must be valid JSON");
+
+        // structuredContent.error.category must be "validation" at the wire level.
+        let category = wire_val
+            .get("error")
+            .and_then(|e| e.get("category"))
+            .and_then(|v| v.as_str())
+            .expect(
+                "N-d wire: structuredContent.error.category must be a string in serialized JSON",
+            );
+        assert_eq!(
+            category, "validation",
+            "N-d wire: structuredContent.error.category must be 'validation' in serialized JSON. \
+             Got: {category:?}"
+        );
+
+        // structuredContent.error.code must be "E-QUERY-045" at the wire level.
+        let code_str = wire_val
+            .get("error")
+            .and_then(|e| e.get("code"))
+            .and_then(|v| v.as_str())
+            .expect("N-d wire: structuredContent.error.code must be a string in serialized JSON");
+        assert_eq!(
+            code_str, "E-QUERY-045",
+            "N-d wire: structuredContent.error.code must be 'E-QUERY-045' in serialized JSON. \
+             Got: {code_str:?}"
+        );
+
+        // original_params_valid must be false at the wire level.
+        let opv = wire_val
+            .get("error")
+            .and_then(|e| e.get("original_params_valid"))
+            .and_then(|v| v.as_bool())
+            .expect("N-d wire: original_params_valid must be a bool in serialized JSON");
+        assert!(
+            !opv,
+            "N-d wire: original_params_valid must be false in serialized JSON for \
+             JsonExtractNonLiteralKey (the non-literal key IS the bad param)"
         );
     }
 }
