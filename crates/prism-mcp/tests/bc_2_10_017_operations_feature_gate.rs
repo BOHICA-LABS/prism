@@ -1,3 +1,11 @@
+// File-level gate: this entire test file tests the behavior when `operations` is ABSENT.
+// When built with `--all-features` (e.g. `just check`) the `operations` feature is
+// enabled and these tests must be excluded — they assert catalog.len()==14 which is only
+// true without the feature. `#![cfg(not(feature = "operations"))]` provides that
+// exclusion. The operations-on behavior is covered by the existing tests in
+// `mcp_infrastructure.rs` and `server.rs` that carry `#[cfg(feature = "operations")]`.
+#![cfg(not(feature = "operations"))]
+
 /// Red Gate tests for BC-2.10.017 — INV-OPERATIONS-FEATURE-GATE
 ///
 /// Story: S-MCP-TOOL-GATE-001 (gate operations stubs behind default-off Cargo feature)

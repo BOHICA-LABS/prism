@@ -18,6 +18,7 @@
 //! via the `injection_scanner` field on PrismServer (constructed at boot via `new()`).
 
 pub mod config;
+#[cfg(feature = "operations")]
 pub mod operations;
 /// `prism_describe` L2 schema discovery tool (BC-2.10.012).
 ///

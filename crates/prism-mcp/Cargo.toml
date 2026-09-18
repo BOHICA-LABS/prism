@@ -89,6 +89,12 @@ arrow = "58"
 # and the peer client APIs needed to drive get_prompt via wire.
 rmcp = { workspace = true, features = ["client"] }
 
+[features]
+# Gate all prism-operations stub tool handlers.
+# Default-off: production binaries do not expose stub tools in tools/list.
+# Enable with: cargo build -p prism-mcp --features operations
+operations = []
+
 [lints.clippy]
 # From workspace
 await_holding_lock = "deny"

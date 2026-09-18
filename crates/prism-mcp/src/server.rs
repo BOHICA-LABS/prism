@@ -1480,9 +1480,15 @@ const LIVE_TOOLS: &[&str] = &[
     "check_sensor_health",
 ];
 
-/// Tools registered in the catalog whose handlers return `-32003 not
-/// implemented` (`not_yet_available_msg`) — they cannot be invoked regardless
-/// of feature-flag state, so `list_capabilities` reports them as `false`.
+/// When the `operations` feature is enabled, stub tool names are registered in the
+/// MCP catalog and return -32003. When the feature is absent (default), this slice
+/// is empty — stub tools are not registered and not visible in tools/list.
+/// BC-2.10.017 §Postconditions (amended: beta.3 remediation, S-MCP-TOOL-GATE-001).
+///
+/// Every tool name here must appear in exactly one of LIVE_TOOLS / NOT_YET_AVAILABLE_TOOLS.
+/// When `operations` feature is absent, the union is just LIVE_TOOLS and the catalog
+/// contains exactly 14 entries.
+#[cfg(feature = "operations")]
 const NOT_YET_AVAILABLE_TOOLS: &[&str] = &[
     "get_diagnostics",
     "create_schedule",
@@ -1525,6 +1531,12 @@ const NOT_YET_AVAILABLE_TOOLS: &[&str] = &[
     "delete_action",
     "get_help",
 ];
+/// When the `operations` feature is absent (the default, production build),
+/// NOT_YET_AVAILABLE_TOOLS is empty — stub tools are not registered, not visible
+/// in tools/list, and `list_capabilities.not_registered_tools` returns [].
+/// BC-2.10.017 §Postconditions (amended: beta.3 remediation, S-MCP-TOOL-GATE-001).
+#[cfg(not(feature = "operations"))]
+const NOT_YET_AVAILABLE_TOOLS: &[&str] = &[];
 
 // ─── Helper functions ─────────────────────────────────────────────────────────
 
@@ -1741,6 +1753,11 @@ fn build_query_options(
 /// format (not raw string Err or a Forbidden-class policy denial; the
 /// `FeatureFlagDisabled` variant referenced by the original finding was removed
 /// in P2-03, 2026-06-10 review pass-2).
+///
+/// Gated behind `#[cfg(feature = "operations")]` — only compiled when the ops stubs
+/// that call it are compiled. Dead-code warning absent when feature is off.
+/// BC-2.10.017 §Postconditions (amended: S-MCP-TOOL-GATE-001).
+#[cfg(feature = "operations")]
 fn not_yet_available_msg(feature: &str) -> rmcp::model::ErrorData {
     rmcp::model::ErrorData::new(
         rmcp::model::ErrorCode(codes::NOT_IMPLEMENTED),
@@ -1896,7 +1913,7 @@ async fn emit_tool_audit(
 
 // ─── Tool router + ServerHandler impl ─────────────────────────────────────────
 
-#[tool_router]
+#[tool_router(router = live_tool_router)]
 impl PrismServer {
     // ─── Query tools ─────────────────────────────────────────────────────────
 
@@ -3468,45 +3485,6 @@ impl PrismServer {
         }
     }
 
-    /// Retrieve diagnostic information for a specific sensor or all sensors.
-    ///
-    /// DATA TRUST LEVEL: External/untrusted — diagnostic data is sensor-originated.
-    /// SECURITY NOTE: Not yet available — length-bounds the `sensor` text parameter (returns
-    /// INVALID_PARAMS/-32602 on oversized input), then returns E-INFRA-NYA/-32003; no
-    /// scan/audit/business-logic processing occurs.
-    /// DATA SOURCE: Configured sensor adapters.
-    #[tool(
-        description = "Retrieve diagnostic information for a specific sensor or all sensors.\n\
-        DATA TRUST LEVEL: External/untrusted — diagnostic data is sensor-originated.\n\
-        SECURITY NOTE: Not yet available — length-bounds the `sensor` text parameter (returns \
-INVALID_PARAMS/-32602 on oversized input), then returns E-INFRA-NYA/-32003; no \
-scan/audit/business-logic processing occurs.\n\
-        DATA SOURCE: Configured sensor adapters.\n\
-        WHEN TO USE: when investigating sensor adapter behavior or performance issues\n\
-        WHEN NOT TO USE: do not use for data retrieval — use query tool instead\n\
-        PARAMETERS: sensor (optional specific sensor name; omit for all sensors)\n\
-        PAGINATION: not applicable\n\
-        RESPONSE: diagnostic data per sensor (request counts, latency, error rates)\n\
-        ERRORS: -32003 not yet implemented, -32000 internal error",
-        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
-    )]
-    pub async fn get_diagnostics(
-        &self,
-        Parameters(params): Parameters<GetDiagnosticsParams>,
-    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // F-PR163-PASS3-MED-1: sensor name is length-bounded before guard (256-byte cap).
-        if let Some(ref sensor) = params.sensor {
-            validate_text_field("sensor", sensor.as_str(), 256)?;
-        }
-        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
-        // CRIT-4 fix: sensor diagnostics require live adapter queries (GAP-002-A).
-        // AdapterRegistry is intentionally empty — all sensor auth routes through WASM
-        // PluginAuthProvider (ADR-028 §D10). Direct adapter wiring is in S-5.04.
-        Err(not_yet_available_msg(
-            "sensor diagnostics — adapter registry empty (GAP-002-A; full sensor adapter dispatch wires in S-5.04-SENSOR-HEALTH-ADAPTER-DISPATCH)",
-        ))
-    }
-
     // ─── Config tools ─────────────────────────────────────────────────────────
 
     /// Core reload logic — separated so the existing audit-failure unit test can
@@ -4465,6 +4443,105 @@ is NOT an error — returns matrix with client_registered: false",
                     detail: format!("Failed to serialize response: {e}"),
                 })
             })
+    }
+
+    // ─── L2 schema discovery (BC-2.10.012) ───────────────────────────────────
+
+    /// Discover the table and column schema available for a specific client.
+    ///
+    /// DATA TRUST LEVEL: Internal — schema data is Prism-generated from sensor specs.
+    /// SECURITY NOTE: client_id scanned for prompt injection and validated via OrgSlug.
+    /// DATA SOURCE: sensor spec layer via query_engine.resolved_spec_map() or config_manager.
+    /// ALWAYS-REGISTERED: this tool is never feature-gated (BC-2.10.012 precondition 1).
+    /// Call this tool before writing a PrismQL query to discover which tables and columns
+    /// are available.
+    #[tool(
+        description = "Discover the table and column schema available for a specific client.\n\
+        DATA TRUST LEVEL: Internal — schema data is Prism-generated from sensor specs.\n\
+        SECURITY NOTE: client_id is validated via OrgSlug (rejects path traversal and injections).\n\
+        DATA SOURCE: sensor spec layer (query_engine.resolved_spec_map or config_manager fallback).\n\
+        WHEN TO USE: Call this tool before writing a PrismQL query to discover which tables and columns are available.\n\
+        WHEN NOT TO USE: not for data retrieval — use query tool for sensor data\n\
+        PARAMETERS: client_id (required — the client scope to describe)\n\
+        PAGINATION: not applicable — full schema catalog returned in one response\n\
+        RESPONSE: client_id, tables array (name, sensor_type, columns, example_query), pql_hints\n\
+        ERRORS: E-MCP-001 invalid client_id format; empty tables array for unknown/empty clients (not error)\n\
+        ANNOTATIONS: readOnlyHint:true, destructiveHint:false, idempotentHint:true, openWorldHint:false",
+        annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true, open_world_hint = false),
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn prism_describe(
+        &self,
+        Parameters(params): Parameters<crate::tools::prism_describe::PrismDescribeParams>,
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // BC-2.09.001 NON-NEGOTIABLE: injection scan BEFORE domain logic.
+        self.scan_inputs_audited(
+            "prism_describe",
+            &[("client_id", params.client_id.as_str())],
+        )
+        .await?;
+
+        crate::tools::prism_describe::handle_prism_describe(
+            params.client_id,
+            self.query_engine.as_ref(),
+            self.config_manager.as_ref(),
+            self.audit_writer.as_ref(),
+        )
+        .await
+    }
+}
+
+// ─── Operations stubs — default-off `operations` Cargo feature ────────────────────
+//
+// When the `operations` feature is absent (the default, production build), the 40
+// stub tool handlers below are NOT compiled and NOT registered in the MCP catalog.
+// `tools/list` returns only the 14 LIVE_TOOLS.
+// `list_capabilities.not_registered_tools` returns [] (NOT_YET_AVAILABLE_TOOLS = &[]).
+//
+// When the feature is enabled (`cargo build --features operations`), the stubs are
+// compiled and registered; each handler returns -32003 (E-INFRA-NYA / NotImplemented).
+//
+// BC-2.10.017 §Postconditions (amended: beta.3 remediation, S-MCP-TOOL-GATE-001).
+#[cfg(feature = "operations")]
+#[tool_router(router = operations_tool_router)]
+impl PrismServer {
+    /// Retrieve diagnostic information for a specific sensor or all sensors.
+    ///
+    /// DATA TRUST LEVEL: External/untrusted — diagnostic data is sensor-originated.
+    /// SECURITY NOTE: Not yet available — length-bounds the `sensor` text parameter (returns
+    /// INVALID_PARAMS/-32602 on oversized input), then returns E-INFRA-NYA/-32003; no
+    /// scan/audit/business-logic processing occurs.
+    /// DATA SOURCE: Configured sensor adapters.
+    #[tool(
+        description = "Retrieve diagnostic information for a specific sensor or all sensors.\n\
+        DATA TRUST LEVEL: External/untrusted — diagnostic data is sensor-originated.\n\
+        SECURITY NOTE: Not yet available — length-bounds the `sensor` text parameter (returns \
+INVALID_PARAMS/-32602 on oversized input), then returns E-INFRA-NYA/-32003; no \
+scan/audit/business-logic processing occurs.\n\
+        DATA SOURCE: Configured sensor adapters.\n\
+        WHEN TO USE: when investigating sensor adapter behavior or performance issues\n\
+        WHEN NOT TO USE: do not use for data retrieval — use query tool instead\n\
+        PARAMETERS: sensor (optional specific sensor name; omit for all sensors)\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: diagnostic data per sensor (request counts, latency, error rates)\n\
+        ERRORS: -32003 not yet implemented, -32000 internal error",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn get_diagnostics(
+        &self,
+        Parameters(params): Parameters<GetDiagnosticsParams>,
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // F-PR163-PASS3-MED-1: sensor name is length-bounded before guard (256-byte cap).
+        if let Some(ref sensor) = params.sensor {
+            validate_text_field("sensor", sensor.as_str(), 256)?;
+        }
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
+        // CRIT-4 fix: sensor diagnostics require live adapter queries (GAP-002-A).
+        // AdapterRegistry is intentionally empty — all sensor auth routes through WASM
+        // PluginAuthProvider (ADR-028 §D10). Direct adapter wiring is in S-5.04.
+        Err(not_yet_available_msg(
+            "sensor diagnostics — adapter registry empty (GAP-002-A; full sensor adapter dispatch wires in S-5.04-SENSOR-HEALTH-ADAPTER-DISPATCH)",
+        ))
     }
 
     // ─── Operations tools (NotImplemented — prism-operations not merged) ───────
@@ -5586,50 +5663,30 @@ E-INFRA-NYA/-32003; no scan/audit/business-logic processing occurs.\n\
         // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("help system"))
     }
+}
 
-    // ─── L2 schema discovery (BC-2.10.012) ───────────────────────────────────
-
-    /// Discover the table and column schema available for a specific client.
-    ///
-    /// DATA TRUST LEVEL: Internal — schema data is Prism-generated from sensor specs.
-    /// SECURITY NOTE: client_id scanned for prompt injection and validated via OrgSlug.
-    /// DATA SOURCE: sensor spec layer via query_engine.resolved_spec_map() or config_manager.
-    /// ALWAYS-REGISTERED: this tool is never feature-gated (BC-2.10.012 precondition 1).
-    /// Call this tool before writing a PrismQL query to discover which tables and columns
-    /// are available.
-    #[tool(
-        description = "Discover the table and column schema available for a specific client.\n\
-        DATA TRUST LEVEL: Internal — schema data is Prism-generated from sensor specs.\n\
-        SECURITY NOTE: client_id is validated via OrgSlug (rejects path traversal and injections).\n\
-        DATA SOURCE: sensor spec layer (query_engine.resolved_spec_map or config_manager fallback).\n\
-        WHEN TO USE: Call this tool before writing a PrismQL query to discover which tables and columns are available.\n\
-        WHEN NOT TO USE: not for data retrieval — use query tool for sensor data\n\
-        PARAMETERS: client_id (required — the client scope to describe)\n\
-        PAGINATION: not applicable — full schema catalog returned in one response\n\
-        RESPONSE: client_id, tables array (name, sensor_type, columns, example_query), pql_hints\n\
-        ERRORS: E-MCP-001 invalid client_id format; empty tables array for unknown/empty clients (not error)\n\
-        ANNOTATIONS: readOnlyHint:true, destructiveHint:false, idempotentHint:true, openWorldHint:false",
-        annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true, open_world_hint = false),
-        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
-    )]
-    pub async fn prism_describe(
-        &self,
-        Parameters(params): Parameters<crate::tools::prism_describe::PrismDescribeParams>,
-    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // BC-2.09.001 NON-NEGOTIABLE: injection scan BEFORE domain logic.
-        self.scan_inputs_audited(
-            "prism_describe",
-            &[("client_id", params.client_id.as_str())],
-        )
-        .await?;
-
-        crate::tools::prism_describe::handle_prism_describe(
-            params.client_id,
-            self.query_engine.as_ref(),
-            self.config_manager.as_ref(),
-            self.audit_writer.as_ref(),
-        )
-        .await
+// ─── Tool router combiner ─────────────────────────────────────────────────────
+//
+// `#[tool_handler]` on `ServerHandler for PrismServer` calls `self.tool_router()`.
+// `production_tool_catalog()` calls `Self::tool_router().list_all()`.
+// Both paths go through this manual combiner.
+//
+// Without `operations` feature: only `live_tool_router` is registered (14 tools).
+// With `operations` feature:    `live_tool_router + operations_tool_router` (54 tools).
+//
+// D-1110 rationale: `#[cfg]` inside a single `#[tool_router]` block does not compile
+// (E0599 — cfg-disabled methods are still visible to the macro). The two-router-block
+// + manual combiner is the ratified mechanism for conditional tool registration.
+impl PrismServer {
+    fn tool_router() -> rmcp::handler::server::tool::ToolRouter<Self> {
+        #[cfg(not(feature = "operations"))]
+        {
+            Self::live_tool_router()
+        }
+        #[cfg(feature = "operations")]
+        {
+            Self::live_tool_router() + Self::operations_tool_router()
+        }
     }
 }
 
@@ -5798,9 +5855,9 @@ impl ServerHandler for PrismServer {
 /// Public accessor for the production tool catalog.
 ///
 /// IMP-5: exposes `tool_router().list_all()` for testing via the bc_2_09_006_test.rs
-/// live catalog verification test. The underlying `tool_router()` method is private
-/// (generated by `#[tool_router]`); this wrapper makes the catalog accessible to
-/// external test crates without exposing the mutable router internals.
+/// live catalog verification test. `tool_router()` is the manual combiner defined above;
+/// without the `operations` feature it returns only the 14 LIVE tools; with the feature
+/// it returns all 54 tools.
 impl PrismServer {
     /// Return all tools registered in the production MCP tool catalog.
     ///
@@ -6593,6 +6650,8 @@ mod tests {
     }
 
     /// MED-001 / HIGH-008: operations tools return NOT_IMPLEMENTED (-32003), not raw string.
+    /// Gated on `operations` feature: stubs are not compiled without it.
+    #[cfg(feature = "operations")]
     #[tokio::test]
     async fn test_operations_tools_return_not_implemented_error_code() {
         let server = PrismServer::new();
@@ -6710,6 +6769,8 @@ mod tests {
     }
 
     /// not_yet_available_msg uses NOT_IMPLEMENTED code.
+    /// Gated on `operations` feature: the helper is not compiled without it.
+    #[cfg(feature = "operations")]
     #[test]
     fn test_not_yet_available_msg_uses_not_implemented_code() {
         let err = not_yet_available_msg("test feature");
@@ -6730,6 +6791,8 @@ mod tests {
     /// If validate_id_field("pack_id", ...) is removed from explain_pack,
     /// this test fails because explain_pack returns NOT_IMPLEMENTED (-32003)
     /// instead of INVALID_PARAMS (-32602).
+    /// Gated on `operations` feature: explain_pack is not compiled without it.
+    #[cfg(feature = "operations")]
     #[tokio::test]
     async fn test_validate_id_field_swept_to_explain_pack() {
         let server = PrismServer {
@@ -7603,6 +7666,8 @@ mod tests {
     ///
     /// Mental-deletion proof: if validate_id_field("id", params.id.as_str())?  is removed
     /// from delete_rule, the handler reaches not_yet_available_msg → -32003, not -32602.
+    /// Gated on `operations` feature: delete_rule is not compiled without it.
+    #[cfg(feature = "operations")]
     #[tokio::test]
     async fn test_F_PASS16_MED_1_delete_rule_id_length_bounded() {
         let server = PrismServer {
@@ -7638,6 +7703,8 @@ mod tests {
     ///
     /// Mental-deletion proof: if validate_id_field("id", params.id.as_str())?  is removed
     /// from get_case, the handler reaches not_yet_available_msg → -32003, not -32602.
+    /// Gated on `operations` feature: get_case is not compiled without it.
+    #[cfg(feature = "operations")]
     #[tokio::test]
     async fn test_F_PASS16_MED_1_get_case_id_length_bounded() {
         let server = PrismServer {
@@ -7672,6 +7739,8 @@ mod tests {
     ///
     /// Mental-deletion proof: if validate_id_field("id", params.id.as_str())?  is removed
     /// from update_case, the handler reaches not_yet_available_msg → -32003, not -32602.
+    /// Gated on `operations` feature: update_case is not compiled without it.
+    #[cfg(feature = "operations")]
     #[tokio::test]
     async fn test_F_PASS16_MED_1_update_case_id_length_bounded() {
         let server = PrismServer {
@@ -8127,6 +8196,8 @@ mod tests {
     }
 
     /// F-PR163-PASS2-IMP-2: create_pack rejects oversized pack_name (> 256 B).
+    /// Gated on `operations` feature: create_pack is not compiled without it.
+    #[cfg(feature = "operations")]
     #[tokio::test]
     async fn test_F_PR163_PASS2_IMP_2_create_pack_pack_name_length_bounded() {
         let server = PrismServer::new();
@@ -8149,6 +8220,8 @@ mod tests {
     }
 
     /// F-PR163-PASS2-IMP-2: create_pack rejects oversized queries Vec (> 100 items).
+    /// Gated on `operations` feature: create_pack is not compiled without it.
+    #[cfg(feature = "operations")]
     #[tokio::test]
     async fn test_F_PR163_PASS2_IMP_2_create_pack_queries_vec_length_bounded() {
         let server = PrismServer::new();
@@ -8171,6 +8244,8 @@ mod tests {
     }
 
     /// F-PR163-PASS2-IMP-2: create_action rejects oversized spec_toml (> 256 KiB).
+    /// Gated on `operations` feature: create_action is not compiled without it.
+    #[cfg(feature = "operations")]
     #[tokio::test]
     async fn test_F_PR163_PASS2_IMP_2_create_action_spec_toml_length_bounded() {
         let server = PrismServer::new();
@@ -8190,6 +8265,8 @@ mod tests {
     }
 
     /// F-PR163-PASS2-IMP-2: fire_action rejects oversized context (> 4 KiB).
+    /// Gated on `operations` feature: fire_action is not compiled without it.
+    #[cfg(feature = "operations")]
     #[tokio::test]
     async fn test_F_PR163_PASS2_IMP_2_fire_action_context_length_bounded() {
         let server = PrismServer::new();
@@ -8210,6 +8287,8 @@ mod tests {
     }
 
     /// F-PR163-PASS2-IMP-2: get_help rejects oversized topic (> 256 B).
+    /// Gated on `operations` feature: get_help is not compiled without it.
+    #[cfg(feature = "operations")]
     #[tokio::test]
     async fn test_F_PR163_PASS2_IMP_2_get_help_topic_length_bounded() {
         let server = PrismServer::new();
@@ -8229,6 +8308,8 @@ mod tests {
     }
 
     /// F-PR163-PASS2-IMP-2: configure_credential_source rejects oversized name (> 256 B).
+    /// Gated on `operations` feature: configure_credential_source is not compiled without it.
+    #[cfg(feature = "operations")]
     #[tokio::test]
     async fn test_F_PR163_PASS2_IMP_2_configure_credential_source_name_length_bounded() {
         let server = PrismServer::new();
@@ -8251,6 +8332,8 @@ mod tests {
     }
 
     /// F-PR163-PASS2-IMP-2: configure_credential_source rejects oversized source (> 1 KiB).
+    /// Gated on `operations` feature: configure_credential_source is not compiled without it.
+    #[cfg(feature = "operations")]
     #[tokio::test]
     async fn test_F_PR163_PASS2_IMP_2_configure_credential_source_source_length_bounded() {
         let server = PrismServer::new();
@@ -8273,6 +8356,8 @@ mod tests {
     }
 
     /// F-PR163-PASS2-IMP-2: delete_credential rejects oversized name (> 256 B).
+    /// Gated on `operations` feature: delete_credential is not compiled without it.
+    #[cfg(feature = "operations")]
     #[tokio::test]
     async fn test_F_PR163_PASS2_IMP_2_delete_credential_name_length_bounded() {
         let server = PrismServer::new();
@@ -8294,6 +8379,8 @@ mod tests {
     }
 
     /// F-PR163-PASS2-IMP-2: list_alerts rejects oversized severity (> 256 B).
+    /// Gated on `operations` feature: list_alerts is not compiled without it.
+    #[cfg(feature = "operations")]
     #[tokio::test]
     async fn test_F_PR163_PASS2_IMP_2_list_alerts_severity_length_bounded() {
         let server = PrismServer::new();
@@ -8317,6 +8404,8 @@ mod tests {
     }
 
     /// F-PR163-PASS2-IMP-2: list_alerts rejects oversized status (> 256 B).
+    /// Gated on `operations` feature: list_alerts is not compiled without it.
+    #[cfg(feature = "operations")]
     #[tokio::test]
     async fn test_F_PR163_PASS2_IMP_2_list_alerts_status_length_bounded() {
         let server = PrismServer::new();
@@ -8340,6 +8429,8 @@ mod tests {
     }
 
     /// F-PR163-PASS2-IMP-2: list_alerts rejects oversized since (> 256 B).
+    /// Gated on `operations` feature: list_alerts is not compiled without it.
+    #[cfg(feature = "operations")]
     #[tokio::test]
     async fn test_F_PR163_PASS2_IMP_2_list_alerts_since_length_bounded() {
         let server = PrismServer::new();
@@ -8433,6 +8524,8 @@ mod tests {
     }
 
     /// F-PR163-PASS3-MED-1: create_rule rejects a 257-byte scope with INVALID_PARAMS.
+    /// Gated on `operations` feature: create_rule is not compiled without it.
+    #[cfg(feature = "operations")]
     #[tokio::test]
     async fn test_F_PR163_PASS3_MED_1_create_rule_scope_length_bounded() {
         let server = PrismServer::new();
@@ -8453,6 +8546,8 @@ mod tests {
     }
 
     /// F-PR163-PASS3-MED-1: create_case rejects a 257-byte scope with INVALID_PARAMS.
+    /// Gated on `operations` feature: create_case is not compiled without it.
+    #[cfg(feature = "operations")]
     #[tokio::test]
     async fn test_F_PR163_PASS3_MED_1_create_case_scope_length_bounded() {
         let server = PrismServer::new();
@@ -8473,6 +8568,8 @@ mod tests {
     }
 
     /// F-PR163-PASS3-MED-1: create_schedule rejects a 257-byte scope with INVALID_PARAMS.
+    /// Gated on `operations` feature: create_schedule is not compiled without it.
+    #[cfg(feature = "operations")]
     #[tokio::test]
     async fn test_F_PR163_PASS3_MED_1_create_schedule_scope_length_bounded() {
         let server = PrismServer::new();
@@ -8517,6 +8614,8 @@ mod tests {
     }
 
     /// F-PR163-PASS3-MED-1: get_diagnostics rejects a 257-byte sensor name with INVALID_PARAMS.
+    /// Gated on `operations` feature: get_diagnostics is not compiled without it.
+    #[cfg(feature = "operations")]
     #[tokio::test]
     async fn test_F_PR163_PASS3_MED_1_get_diagnostics_sensor_length_bounded() {
         let server = PrismServer::new();
@@ -9258,19 +9357,34 @@ mod tests {
 
         let server = PrismServer::new();
 
-        // ── NOT_YET_AVAILABLE tool: must return -32003 (NOT_IMPLEMENTED) ──────
-        let diag_result = server
-            .get_diagnostics(Parameters(GetDiagnosticsParams { sensor: None }))
-            .await;
-        let diag_err =
-            diag_result.expect_err("get_diagnostics is NOT_YET_AVAILABLE → must return Err");
-        assert_eq!(
-            diag_err.code.0,
-            codes::NOT_IMPLEMENTED,
-            "OBS-4/PG-1: get_diagnostics (NOT_YET_AVAILABLE) must return -32003; \
-             got code {}",
-            diag_err.code.0
-        );
+        // ── NOT_YET_AVAILABLE tool: gated on `operations` feature ────────────
+        // With feature: get_diagnostics exists and must return -32003.
+        // Without feature: get_diagnostics is not registered in the catalog.
+        #[cfg(feature = "operations")]
+        {
+            let diag_result = server
+                .get_diagnostics(Parameters(GetDiagnosticsParams { sensor: None }))
+                .await;
+            let diag_err =
+                diag_result.expect_err("get_diagnostics is NOT_YET_AVAILABLE → must return Err");
+            assert_eq!(
+                diag_err.code.0,
+                codes::NOT_IMPLEMENTED,
+                "OBS-4/PG-1: get_diagnostics (NOT_YET_AVAILABLE) must return -32003; \
+                 got code {}",
+                diag_err.code.0
+            );
+        }
+        #[cfg(not(feature = "operations"))]
+        {
+            let catalog = PrismServer::production_tool_catalog();
+            let names: Vec<String> = catalog.iter().map(|t| t.name.to_string()).collect();
+            assert!(
+                !names.contains(&"get_diagnostics".to_string()),
+                "OBS-4/PG-1 (no operations feature): get_diagnostics must NOT be in the \
+                 catalog when `operations` feature is disabled; got catalog: {names:?}"
+            );
+        }
 
         // ── LIVE tool (check_sensor_health): must NOT return -32003 ───────────
         // Use a valid client_id so the handler proceeds past the empty-check guard.
