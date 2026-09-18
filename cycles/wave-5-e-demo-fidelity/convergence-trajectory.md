@@ -451,3 +451,34 @@ Frozen feature HEAD: `0af76be5c` (code UNCHANGED). Story at v1.9 (`@946fe7b16`) 
 **TD-VSDD-091/POL-39 CLEAN** (docs fix is symbol-anchor form; no volatile line-cites or version pins introduced). feature HEAD 0af76be5c UNCHANGED. No code/spec/BC/ADR/VP/index version changes in the code fix. story_index_version 3.059→3.060. trajectory-tail →2→3→0→1.
 
 **Next (after D-2577 docs fix-burst):** adversary LOCAL pass-10 re-gate on frozen feature HEAD `0af76be5c` + story v1.10 → if CLEAN(strict): streak 1/3 → continue to 3/3 → holdout → demo → PR → admin-merge.
+
+---
+
+**LOCAL Pass 10 finding summary (CLEAN(strict): YES; zero findings; streak 1/3):**
+
+Frozen feature HEAD: `0af76be5c` (code UNCHANGED since pass-5 code fix). Story at v1.10 (`@8afffe10b`). Zero findings. All RG-GATE-001..004 test bodies, AC-001..005, BC-2.10.017 v1.5 §Operations-absent −32602 wire behavior, both-state CI coverage (default-features + no-default-features), module doc scrutiny, sibling-sweep, POL-7/32/39/40/42, SAP-1/SAP-3, SAC-1 all confirmed clean. Streak advances 0/3 → 1/3.
+
+**Next (after pass-10 CLEAN):** adversary LOCAL pass-11 re-gate on frozen feature HEAD `0af76be5c` + story v1.10.
+
+---
+
+**LOCAL Pass 11 finding summary (CLEAN(strict): NO; 1 LOW RESOLVED; streak 0/3 RESET; feature HEAD advances):**
+
+Frozen feature HEAD at review: `0af76be5c` (code UNCHANGED). Story at v1.10 (`@8afffe10b`).
+
+**LOW-001 [LOW] (implementer, doc-comment fix):** `crates/prism-mcp/src/tools/mod.rs` module doc stale in two respects: (a) L4 context — old single-macro `server_handler` phrasing vs. the two-router-block + combiner architecture the story introduced; (b) L12-L14 context — "NotImplemented" fallback language vs. actual default-absent compile-time behavior when `operations` feature is off. Zero behavioral impact; gate mechanism is correct. Fix: implementer updates module doc (no logic/gate change). Committed @6a0986ace; both builds compile; 6/6 `bc_2_10_017` tests PASS.
+
+**Out-of-diff observation (non-blocking, pre-existing):** Same stale `server_handler` phrasing in 5 unmodified tool submodule docs (sensor_health.rs/config.rs/write.rs/query.rs/operations.rs). Deferred to S-MAINT-TOOLS-MODULE-DOC-SWEEP-001 (draft-stub).
+
+**Targeted scrutiny (all PASS):** AC-001..005, BC-2.10.017 v1.5, BC-INDEX no drift, TD-VSDD-097 Dim-1/2/3 CLEAR, CI both-state, POL-7/32/39/40/42, SAP-1/SAP-3, SAC-1. 8th consecutive code-clean pass.
+
+**D-2578 fix-burst:** implementer doc-only fix @6a0986ace. Feature HEAD advances `0af76be5c`→`6a0986ace`. LOCAL 3-CLEAN streak RESETS 0/3 on `6a0986ace` per BC-5.39.001 frozen-HEAD rule. HUMAN DECISION 2026-09-18: "KEEP GRINDING to strict 3-CLEAN." STORY-INDEX v3.060 UNCHANGED (no story-spec change).
+
+**TD-VSDD-097 sweep verdict (D-2578):**
+- Dim-1: CLEAR (no sibling twin story for S-MCP-TOOL-GATE-001).
+- Dim-2: CLEAR (tools/mod.rs module doc is not a copy-source section for any downstream artifact).
+- Dim-3: CLEAR (no new unanchored MUSTs; doc-comment fix only).
+
+**TD-VSDD-091/POL-39 CLEAN** (doc fix uses mechanism/behavior description form; no volatile line-cites or version pins). No code/spec/BC/ADR/VP/index version changes in the fix. story_index_version 3.060 UNCHANGED. trajectory-tail →3→0→1→1.
+
+**Next (after D-2578 doc fix-burst):** adversary LOCAL pass-12 re-gate on new frozen feature HEAD `6a0986ace` + story v1.10 → if CLEAN(strict): streak 1/3 → continue to 3/3 → holdout → demo → PR → admin-merge.
