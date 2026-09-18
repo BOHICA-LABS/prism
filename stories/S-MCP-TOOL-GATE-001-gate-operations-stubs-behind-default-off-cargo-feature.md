@@ -5,7 +5,7 @@ title: "Gate 40 operations stubs behind default-off Cargo feature to eliminate -
 level: "L4"
 wave: 1
 epic_id: E-BETA3-REMEDIATION
-version: "1.7"
+version: "1.8"
 status: ready
 producer: story-writer
 timestamp: "2026-09-18T00:00:00Z"
@@ -27,7 +27,7 @@ inputs:
   - .factory/specs/behavioral-contracts/BC-2.10.017-not-yet-available-tools-fast-fail-audit-channel-non-blocking.md
   - .factory/specs/behavioral-contracts/BC-2.10.011-list-capabilities-meta-tool.md
   - crates/prism-mcp/src/server.rs
-input-hash: "17d6c8f"
+input-hash: "4ea5f2a"
 traces_to: .factory/cycles/wave-5-e-demo-fidelity/beta3-remediation-delta-analysis.md
 depends_on: []
 # depends_on anchor justification:
@@ -273,7 +273,7 @@ Derived from the Architecture Mapping table above.
 | `server.rs` (LIVE_TOOLS/NOT_YET_AVAILABLE_TOOLS + all 40 stub handlers) | ~40,000 | Large file; implementer reads entire file |
 | `Cargo.toml` (prism-mcp) | ~1,000 | Small; add [features] section |
 | `tools/operations.rs` (stub module) | ~3,000 | Gate with #[cfg(feature = "operations")] |
-| New test file `bc_2_10_017_operations_feature_gate.rs` | ~3,000 | RG-GATE-001..004 + OBS-2 e2e |
+| New test file `bc_2_10_017_operations_feature_gate.rs` | ~3,000 | RG-GATE-001..004 (unit/catalog assertions) + OBS-1 e2e `test_BC_2_10_017_list_capabilities_not_registered_tools_empty_via_end_to_end_client_roundtrip` (AC-002) + OBS-2 e2e `test_BC_2_10_017_tools_list_14_via_end_to_end_client_roundtrip` (AC-001); 6 tests total |
 | beta3-remediation-delta-analysis.md §Issue 1 + §S-MCP-TOOL-GATE-001 | ~3,000 | Reference |
 | **Total estimated** | **~94,500** | Well within one context window |
 
@@ -555,15 +555,16 @@ No new dependencies are introduced by this story.
 |------|--------|
 | `crates/prism-mcp/Cargo.toml` | Add `[features]` section with `operations = []` |
 | `crates/prism-mcp/src/server.rs` | Gate `NOT_YET_AVAILABLE_TOOLS` const (two `#[cfg]` variants); rename existing `#[tool_router]` → `#[tool_router(router = live_tool_router)]`; create new `#[cfg(feature = "operations")] #[tool_router(router = operations_tool_router)]` impl block with all 40 ops `#[tool]` methods; add plain combiner `fn tool_router()`; relocate/gate `not_yet_available_msg`; update `test_MCP_01_partition_positive_coverage` (T-D01); gate `test_operations_tools_return_not_implemented_error_code` (T-D03) |
-| `crates/prism-mcp/src/tools/operations.rs` | Add `#[cfg(feature = "operations")]` to module |
+| `crates/prism-mcp/src/tools/mod.rs` | Add `#[cfg(feature = "operations")]` to the `pub mod operations;` module declaration (T-C02; feature gate applied at the module declaration, not inside `operations.rs` directly) |
 | `crates/prism-mcp/tests/mcp_infrastructure.rs` | Gate `test_bc_2_10_017_not_yet_available_fast_fail_under_1s`, `test_bc_2_10_017_not_yet_available_guard_precedes_audit`, and `test_bc_2_10_017_sibling_handlers_guard_precedes_audit` with `#[cfg(feature = "operations")]` (T-D04) |
 | `CHANGELOG.md` | Add [Unreleased] > Fixed entry (T-F01) |
+| `Justfile` | Add operations-OFF `cargo nextest run -p prism-mcp` leg to `check` and `check-ci` so the default-feature (operations-absent) RG-GATE tests execute in the canonical local gate (the existing `--all-features` legs compile OUT the `#![cfg(not(feature="operations"))]` RG-GATE test file, so these default-feature legs are the ONLY way those tests run) |
 
 ### Files NOT to touch
 
 - `crates/prism-mcp/src/tools/prism_describe.rs` — out of scope (Wave 2 story)
 - `crates/prism-mcp/src/safety_envelope.rs` — out of scope (Wave 2 story)
-- Any file outside `crates/prism-mcp/` — no cross-crate changes for this story
+- Any file outside `crates/prism-mcp/` **except** the following repo-root files which are EXPECTED modifications: `Justfile` (operations-OFF default-feature gate legs in `check` + `check-ci`) and `CHANGELOG.md` (release notes entry T-F01). All other crates' `src/` directories, `prism-query`, `prism-core`, `prism-sensors`, etc. are out of scope (no cross-crate src changes).
 
 ---
 
@@ -585,6 +586,7 @@ Holdout scenarios are stored in the holdout directory that test-writer/implement
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.8 | 2026-09-18 | LOCAL pass-6 F-MED-001/F-LOW-001 docs reconciliation: §File Structure reconciled against actual f38604da4..0af76be5c diff (added Justfile [load-bearing operations-off gate legs] + confirmed CHANGELOG.md/mcp_infrastructure.rs); tools/operations.rs corrected to tools/mod.rs (T-C02 gated module declaration in mod.rs, not operations.rs directly); 'Files NOT to touch' corrected to carve out repo-root Justfile+CHANGELOG.md as EXPECTED modifications; test inventory documents both e2e round-trip tests (OBS-1 list_capabilities AC-002 + OBS-2 tools_list_14 AC-001; 6 tests total); frozen-HEAD ref updated to 0af76be5c. No code/behavior change; feature HEAD 0af76be5c frozen. TD-VSDD-097 3-dim sweep: (1) sibling pair — §File-Structure MODIFY table + 'Files NOT to touch' list + §Token Budget rows all swept together; (2) downstream copy — none; (3) mandate anchor — no new MUST. |
 | 1.7 | 2026-09-18 | LOCAL pass-4 LOW-1/LOW-2 records-only sweep (TD-VSDD-096): exhaustive de-pin of volatile BC-version pins in §Authority/§Token Budget narrative (POL-39) + removed server.rs line-number cite from §Tasks Phase-D note (TD-VSDD-091); cite ID+§anchor form only. No code/behavior change; feature HEAD 09658db3a frozen. TD-VSDD-097 3-dim sweep: (1) sibling pair — §Authority NOTE and §Token Budget rows both carried BC pins, swept together; (2) downstream copy — none; (3) mandate anchor — no new MUST. |
 | 1.6 | 2026-09-18 | OBS-1 (LOCAL pass-3): complete test-name reconciliation sweep (docs-only; no code or behavior change; feature HEAD 09658db3a frozen). All 4 RG-GATE test names corrected to include `test_BC_2_10_017_` infix (RG-GATE-001..004). T-S01 step-3 spike test name `test_spike_tool_catalog_count_without_operations_feature` updated to shipped name `test_BC_2_10_017_tools_list_returns_14_tools_without_operations_feature` (spike placeholder superseded by RG-GATE-001 in shipped code). T-D04 and §File Structure MODIFY updated to include third gated test `test_bc_2_10_017_sibling_handlers_guard_precedes_audit` (present in worktree; was omitted from T-D04 which previously cited only two tests). Token Budget file-row note updated from RG-GATE-001..003 to RG-GATE-001..004 + OBS-2 e2e. TD-VSDD-097 3-dim sweep: (1) sibling pair — §Red Gate list and §Tasks T-D01/T-D04 references to the same tests swept together; (2) downstream copy — none (test names not copied into BC/ADR/VP artifacts); (3) mandate anchor — no new MUST added. |
 | 1.5 | 2026-09-18 | OBS-A (LOCAL pass-2): AC-005 + T-D01 prose corrected — operations-absent inline arm asserts get_diagnostics catalog-ABSENCE (calling it cannot compile when gated out, E0599); -32602 wire behavior discharged by RG-GATE-003. No code or behavior change; implementation already correct. input-hash updated to reflect current inputs state (17d6c8f). |
