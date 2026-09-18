@@ -1,10 +1,11 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "10.29"
+version: "10.30"
 status: draft
 producer: state-manager
 timestamp: 2026-09-18T00:00:00Z
+# NOTE: D-2570 — BC-INDEX v10.29→v10.30: S-MCP-TOOL-GATE-001 LOCAL pass-1 OBS-3 spec fix — BC-2.10.017 row pin v1.3→v1.4 (operations-absent −32602 rows added; additive table completeness). Contract counts UNCHANGED: draft_contracts 4 / active_contracts 261 / total_contracts 278.
 # NOTE: D-2565 — BC-INDEX v10.28→v10.29: S-JSON-EXTRACT-UDF-001 PR #296 squash-merged @f38604da4 — BC-2.11.025 promoted draft→active (POL-14); row pin stays v1.11 (status-only promotion, no content change). draft_contracts 5→4 / active_contracts 260→261 / total_contracts 278 UNCHANGED.
 # NOTE: D-2560 — BC-INDEX v10.27→v10.28: D-2560 F-JEX-P1-HIGH-001 predicate-parity cascade — BC-2.11.025 row pin v1.10→v1.11 (DML-exclusion reason cleanup; EC-11-025-012 WHERE/HAVING/pipe-where predicate gate coverage; 4-code-paths invariant). Contract counts UNCHANGED: draft_contracts 5 / active_contracts 260 / total_contracts 278.
 # NOTE: D-2559 — BC-INDEX v10.26→v10.27: D-2559 state-manager burst — BC-2.11.025 row pin v1.9→v1.10 (LOW-001 registration phrasing corrected per ephemeral SessionContext; MED-001 FALSE POSITIVE test-verified via 2 unit tests @6256a893e). Contract counts UNCHANGED: draft_contracts 5 / active_contracts 260 / total_contracts 278.
@@ -316,7 +317,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.10.011 | list_capabilities Meta-Tool | 10 - MCP Interface | CAP-005 | P0 | active v1.7 |
 | BC-2.10.015 | `list_capabilities` Consults `OrgRegistry` for `client_registered` Check | 10 - MCP Interface | CAP-005 | P0 | active v1.2 |
 | BC-2.10.016 | MCP Prompts Fast-Return Guarantee — No Indefinite Hang | 10 - MCP Interface | CAP-034 | P0 | active v1.2 |
-| BC-2.10.017 | Not-Yet-Available Tools Fast-Fail — Audit Channel Non-Blocking | 10 - MCP Interface | CAP-034 | P0 | active v1.3 |
+| BC-2.10.017 | Not-Yet-Available Tools Fast-Fail — Audit Channel Non-Blocking | 10 - MCP Interface | CAP-034 | P0 | active v1.4 |
 | BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | 11 - Query Execution | CAP-015 | P0 | active v1.38 (D-2547 2026-09-17: EC-11-095 PaginationCursor.total_count notation fix; S-QUERY-TRUE-TOTAL-001 anchor; was v1.37) |
 | BC-2.11.002 | PrismQL Filter Mode Parsing | 11 - Query Execution | CAP-015 | P0 | active v1.6 |
 | BC-2.11.003 | PrismQL SQL Mode Parsing | 11 - Query Execution | CAP-015 | P0 | active v1.13 |
