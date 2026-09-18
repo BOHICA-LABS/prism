@@ -679,23 +679,15 @@ async fn test_jex_rg007_key_exceeds_max_len_rejected_e_query_045_b() {
                 max_len, 256,
                 "RG-JEX-007: max_len must be 256 (ADR-066 §D3 / BC-2.11.025 EC-11-025-007). Got: {max_len}"
             );
-            // Wire-shape assertion: Display must match MCP INVALID_PARAMS message.
+            // Wire-shape assertion: Display must match the spec-verbatim E-QUERY-045(b) message
+            // (ADR-066 §F / BC-2.11.025 §Error Cases / POL-24 byte-verbatim rule).
             let display = format!("{}", PrismError::JsonExtractKeyTooLong { key_len, max_len });
-            assert!(
-                display.starts_with("E-QUERY-045:"),
-                "RG-JEX-007 wire-shape: error must start with 'E-QUERY-045:'. Got: {display:?}"
-            );
-            assert!(
-                display.contains("257 bytes"),
-                "RG-JEX-007 wire-shape: Display must contain '257 bytes'. Got: {display:?}"
-            );
-            assert!(
-                display.contains("256-byte maximum"),
-                "RG-JEX-007 wire-shape: Display must contain '256-byte maximum'. Got: {display:?}"
-            );
-            assert!(
-                display.contains("CWE-400"),
-                "RG-JEX-007 wire-shape: Display must contain 'CWE-400'. Got: {display:?}"
+            assert_eq!(
+                display,
+                "E-QUERY-045: json_extract_string key is 257 bytes, which exceeds the \
+                 256-byte maximum (CWE-400).",
+                "RG-JEX-007 wire-shape: Display must be the spec-verbatim E-QUERY-045(b) \
+                 message (ADR-066 §F). Got: {display:?}"
             );
         }
         Err(other) => {
@@ -711,6 +703,52 @@ async fn test_jex_rg007_key_exceeds_max_len_rejected_e_query_045_b() {
                  E-QUERY-045(b) plan gate must reject keys exceeding 256 bytes.",
                 qr.batches.len()
             );
+        }
+    }
+}
+
+// ===========================================================================
+// RG-JEX-007-b — Boundary: key at exactly 256 bytes MUST be accepted
+// ===========================================================================
+
+/// RG-JEX-007-b: a literal key of EXACTLY 256 bytes must be accepted (boundary-inclusive).
+///
+/// The E-QUERY-045(b) gate fires when `key_len > 256` (strictly greater than).
+/// A key of exactly 256 UTF-8 bytes is at the boundary and MUST pass without error.
+///
+/// This test guards against a mutation of `> 256` to `>= 256`, which would silently
+/// reject valid 256-byte keys.
+///
+/// SAP-3: Uses QueryEngine::execute (public surface).
+/// BC-2.11.025 EC-11-025-007 — ADR-066 §D3 (MAX_KEY_BYTES = 256, CWE-400, strictly-greater).
+#[tokio::test]
+async fn test_jex_rg007_b_key_at_exactly_max_len_accepted() {
+    let engine = make_gate_engine();
+
+    // Construct a 256-byte ASCII key — exactly at the maximum (boundary-inclusive).
+    let key_256 = "a".repeat(256);
+    let query = format!("SELECT json_extract_string(raw_data, '{key_256}') FROM test_events");
+
+    let result = engine.execute(&query, QueryOptions::default()).await;
+
+    // Must NOT return E-QUERY-045(b) — the key is exactly at the limit, not over it.
+    match &result {
+        Err(prism_core::error::PrismError::JsonExtractKeyTooLong { key_len, max_len }) => {
+            panic!(
+                "RG-JEX-007-b BOUNDARY VIOLATION: a 256-byte key must NOT trigger \
+                 E-QUERY-045(b). The gate fires only when key_len > {max_len} (strictly \
+                 greater than). Got: key_len={key_len}, max_len={max_len}. \
+                 This likely indicates the gate uses >= instead of >."
+            );
+        }
+        Err(prism_core::error::PrismError::JsonExtractNonLiteralKey) => {
+            panic!("RG-JEX-007-b: got E-QUERY-045(a) for a literal-key query — unexpected.");
+        }
+        // Any other outcome (Ok or other Err) is acceptable — the key passed the 256-byte gate.
+        // (The gate engine has no registered adapters so the query may return a table-not-found
+        //  error; that is fine — the point is that E-QUERY-045(b) must NOT fire.)
+        Ok(_) | Err(_) => {
+            // Not E-QUERY-045(b): gate correctly did not fire for a 256-byte key.
         }
     }
 }
@@ -1262,17 +1300,9 @@ async fn test_jex_f4_coerce_arm_engine_execute() {
          Got: {:?}",
         col.value(0)
     );
-
-    // Wire-shape: non-null value serializes as the coerced string.
-    let wire = serde_json::json!({
-        "extracted": serde_json::Value::String(col.value(0).to_string())
-    });
-    assert_eq!(
-        wire["extracted"].as_str().unwrap(),
-        "42",
-        "F-4-B wire-shape: coerced integer must serialize as JSON string \"42\". Got: {:?}",
-        wire["extracted"]
-    );
+    // Wire-shape coverage (BC-2.11.001 EC-11-079) lives in prism-mcp:
+    // test_BC_2_11_025_json_extract_string_null_row_wire_null_not_absent
+    // The Arrow-level assertion above is the source of truth for the extracted value.
 }
 
 /// F-4-C (SAP-3): JSON parse failure → SQL NULL via QueryEngine::execute.
@@ -1393,17 +1423,9 @@ async fn test_jex_f4_dot_in_key_arm_engine_execute() {
          NOT the nested path a→b → \"nested\". Got: {:?}",
         col.value(0)
     );
-
-    // Wire-shape: non-null value serializes as the extracted string.
-    let wire = serde_json::json!({
-        "extracted": serde_json::Value::String(col.value(0).to_string())
-    });
-    assert_eq!(
-        wire["extracted"].as_str().unwrap(),
-        "dotted",
-        "F-4-D wire-shape: dot-in-key arm must serialize as JSON string \"dotted\". Got: {:?}",
-        wire["extracted"]
-    );
+    // Wire-shape coverage (BC-2.11.001 EC-11-079) lives in prism-mcp; see
+    // test_BC_2_11_025_json_extract_string_null_row_wire_null_not_absent.
+    // The Arrow-level assertion above is the source of truth for the extracted value.
 }
 
 // ===========================================================================
@@ -1514,23 +1536,17 @@ async fn test_jex_rg012_b_where_key_too_long_rejected_e_query_045_b() {
                 max_len, 256,
                 "RG-JEX-012-b: max_len must be 256. Got: {max_len}"
             );
-            // SID-2: assert spec-verbatim E-QUERY-045(b) substrings (same approach as RG-JEX-007).
+            // SID-2: assert spec-verbatim E-QUERY-045(b) full message (ADR-066 §F / POL-24).
             // Spec: "E-QUERY-045: json_extract_string key is {key_len} bytes, which exceeds the
             //        {max_len}-byte maximum (CWE-400)." — error-taxonomy.md §E-QUERY-045(b),
             //        BC-2.11.025 §Error Cases, ADR-066 §F.
             let display = format!("{}", PrismError::JsonExtractKeyTooLong { key_len, max_len });
-            assert!(
-                display.starts_with("E-QUERY-045:"),
-                "RG-JEX-012-b wire-shape: error must start with 'E-QUERY-045:'. Got: {display:?}"
-            );
-            assert!(
-                display.contains("257 bytes"),
-                "RG-JEX-012-b wire-shape: Display must contain '257 bytes'. Got: {display:?}"
-            );
-            assert!(
-                display.contains("256-byte maximum (CWE-400)"),
-                "RG-JEX-012-b wire-shape: Display must contain '256-byte maximum (CWE-400)'. \
-                 Got: {display:?}"
+            assert_eq!(
+                display,
+                "E-QUERY-045: json_extract_string key is 257 bytes, which exceeds the \
+                 256-byte maximum (CWE-400).",
+                "RG-JEX-012-b wire-shape: Display must be the spec-verbatim E-QUERY-045(b) \
+                 message (ADR-066 §F / POL-24). Got: {display:?}"
             );
         }
         Err(other) => panic!(
@@ -1681,12 +1697,13 @@ async fn test_jex_rg012_d_where_valid_literal_key_executes_correctly() {
 /// `Ok(())` immediately for `Ast::Sql(SqlStatement::Dml(...))` — the write path has no
 /// read-execute scope and DML filter validation is a future concern (S-3.07).
 ///
-/// Verification splits into two parts tested here:
-///   (1) Parser: `parse_and_plan("DELETE ... WHERE json_extract_string(col, other_col) = 'x'")`
+/// Verification splits into two parts:
+///   (1) Parser (tested here): `parse_and_plan("DELETE ... WHERE json_extract_string(col, other_col) = 'x'")`
 ///       produces `ScalarFunc::JsonExtractString` in the filter predicate (RED until T-09a).
-///   (2) Gate safe-skip: engine.execute("DELETE ...") does NOT return
-///       `Err(JsonExtractNonLiteralKey)` — the DML arm of `check_json_extract_key_literal`
-///       returns `Ok(())` regardless of filter contents (remains GREEN throughout).
+///   (2) Gate safe-skip (NOT tested here — covered by inline engine.rs test
+///       `test_jex_dml_ast_returns_ok_no_scope`): `check_json_extract_key_literal` is called
+///       directly with a synthetic `Ast::Sql(Dml)` containing `ScalarFunc::JsonExtractString`
+///       and must return `Ok(())` immediately (safe-skip arm).
 ///
 /// The deeper gate proof (2) — which requires calling `check_json_extract_key_literal`
 /// directly with a synthetic `Ast::Sql(Dml)` containing `ScalarFunc::JsonExtractString` —
