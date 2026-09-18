@@ -1010,3 +1010,15 @@ Prism at develop@f38604da4 — PIPELINE IN-PROGRESS (S-JSON-EXTRACT-UDF-001 MERG
 **STANDING DECISIONS D-2565 (carry forward):** (a) No pragmatic convergence. (b) D-989 + D-2445 autonomy grant. (c) D-2410 no live-test output. (d) AUTONOMOUS MERGE+TAG (D-2445). (e) v1 sensor scope: Claroty xDome (D-2443). (f) RELEASING.md; quality_gates vsdd-partial. (g) BETA channel. (h) ADR-063 v1.14 §D7 SHIPPED PR #281. (i) v1.0.0-beta.2 PUBLISHED. (j) ORG RENAME COMPLETE: BOHICA-LABS/prism D-2516. (k) vsdd-factory rc.25 D-2518. (l) BATCH-0 SPEC-GATE CLOSED (D-2541). (m) F3 MATERIALIZATION COMPLETE (D-2550): 10/10 READY. (n-z) All prior standing decisions in D-2552..D-2564 (exhaustive) carry forward. (aa) D-2565 S-JSON-EXTRACT-UDF-001 MERGED (PR #296 @f38604da4); BC-2.11.025 active; develop_head f38604da4.
 
 **NOTE: Superseded by D-2566 — SESSION-WRAP-PAUSE 2026-09-18; STATE v10.072.**
+
+---
+
+## Archived: D-2576 — PASS7-REPORT-DOCS-FIX-BURST 2026-09-18; STATE v10.082 — S-MCP-TOOL-GATE-001 LOCAL pass-7 docs fix; story v1.9; feature HEAD 0af76be5c; streak 0/3; re-gate pass-8 PENDING
+
+**RESUME IN ONE BREATH (D-2576):** Prism at develop@f38604da4 — IN-PROGRESS. (a) POSITION: Phase 3, cycle wave-5-e-demo-fidelity, BETA.3 Batch-1 TDD delivery. Story 1/10 S-JSON-EXTRACT-UDF-001 DELIVERED (PR #296 @f38604da4). BC-2.11.025 active. CURRENT = story 2/10 S-MCP-TOOL-GATE-001. (b) CONVERGENCE COUNTER: LOCAL pass-7 REPORT + DOCS FIX-BURST (D-2576): F-MED-001 §Tasks Phase-D false closed-set (T-D03 1 vs 21; E0599) + OBS-1 POL-7 H1-verbatim (BC-2.10.012 backticks+(L2)) closed; OBS-2 POL-39 EXEMPT (frozen-snapshot; footnote; PROCESS-GAP D-2576 opened); story v1.8→v1.9 @946fe7b16; NO code change; feature HEAD 0af76be5c FROZEN; LOCAL streak 0/3 UNCHANGED. FEDERATION: RATIFICATION HELD (BLOCKER-FED-SPOTLIGHT-001 OPEN; vulns path blocked; detections unblocked; Batch-1 unaffected). (c) IN-FLIGHT: story-2 S-MCP-TOOL-GATE-001 LOCAL cascade — pass-7 docs fix complete (story v1.9), re-gate pass-8 on frozen HEAD 0af76be5c PENDING. (d) PENDING HUMAN DECISIONS / BLOCKERS: (i) BLOCKER-FED-SPOTLIGHT-001. (ii) PROCESS-GAP D-2576: POL-39 frozen-snapshot exemption (human decision). (iii) S-BETA3-RELEASE-001 DELIVERY-BLOCKED until RELEASE_PROMOTE_TOKEN PAT re-scoped. (iv) process-gaps D-2565a/b/c open. (v) OBS-DEFER-1 deferred to S-JSON-EXTRACT-NESTED-001. (e) WIP BRANCHES: none. (f) RESUME COMMAND: /vsdd-factory:rehydrate-wave then /vsdd-factory:next-step.
+
+**RESUME STEP 0 (D-2576):** `CronList` → re-arm heartbeat cron (8,23,38,53 * * * *) if absent/expired (.factory/ops/vsdd-heartbeat-autorecovery.md).
+
+**RESUME story-2 order (D-2576):** adversary LOCAL pass-8 re-gate on frozen HEAD 0af76be5c + story v1.9 → if CLEAN(strict) → 1/3; repeat to 3/3 → holdout → demo → PR → autonomous admin-merge.
+
+**NOTE: Superseded by D-2577 — PASS9-REPORT-DOCS-FIX-BURST 2026-09-18; STATE v10.083.**

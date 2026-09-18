@@ -419,3 +419,35 @@ Frozen PR HEAD at pass-6 start: c09d63593 (code UNCHANGED throughout — both fi
 **TD-VSDD-091/POL-39 CLEAN** (no volatile line/version cites; all spec fixes use section/symbol anchor form). develop_head a4cd1b3fd UNCHANGED. bc_index v10.06 / vp_index v2.22 UNCHANGED. total_stories 337 UNCHANGED. arch_index v2.378→v2.379. story_index v3.023→v3.024. trajectory-tail UNCHANGED →8→0→1→2.
 
 **Next (after PR-LEVEL pass-6 / D-2490 spec-fix burst):** Restart PR-LEVEL adversary 3-pass sequence on frozen code HEAD c09d63593 (code UNCHANGED; spec fixes committed to factory-artifacts as D-2490) → 3-CLEAN(strict) → CI 4-platform green → (explicit human-auth) admin squash-merge PR #264 → BETA1-NOTES-001 execution (generate `## [1.0.0-beta.1]` section via `git cliff --unreleased --tag v1.0.0-beta.1` + human curation) → (explicit human-auth) tag v1.0.0-beta.1.
+
+## S-MCP-TOOL-GATE-001 LOCAL Cascade (Batch-1 Story 2/10)
+
+Frozen feature HEAD throughout: `0af76be5c` (code fix from pass-5; no code change since). Story versions: v1.9 at pass-8 and pass-9 entry; v1.10 after D-2577 fix-burst.
+
+Passes 1–7 tracked in STATE.md `Pass count` row + burst-log (D-2570..D-2576). Pass-8 and pass-9 recorded here.
+
+| Pass | Date | Findings | HIGH | MED | LOW | OBS | Streak | Verdict |
+|------|------|----------|------|-----|-----|-----|--------|---------|
+| LOCAL Pass 8 | 2026-09-18 | 0 | 0 | 0 | 0 | 0 | 1/3 | CLEAN(strict): YES; CLEAN(PR-merge): YES — zero findings. Feature HEAD 0af76be5c FROZEN. Story v1.9. Streak advances 0/3→1/3. NEXT: adversary LOCAL pass-9 on same frozen HEAD. |
+| LOCAL Pass 9 | 2026-09-18 | 1 | 0 | 0 | 1 | 0 | 0/3 RESET | CLEAN(strict): NO; CLEAN(PR-merge): YES — F-LOCAL-LOW-001 [LOW] §RG-GATE-004 prose↔test-body drift (description cited `NOT_YET_AVAILABLE_TOOLS.len()==0` private const, unreachable from external test crate; shipped test correctly asserts `production_tool_catalog().len()==14` + 14 EXPECTED_LIVE_TOOLS + wire-shape); zero behavioral impact; 7th consecutive code-clean pass. Feature HEAD 0af76be5c FROZEN. Story v1.9 at review; v1.10 post fix-burst. Streak RESETS 0/3 (BC-5.39.001). D-2577 docs fix-burst: story-writer v1.9→v1.10 @8afffe10b. NEXT: adversary LOCAL pass-10 on frozen HEAD 0af76be5c + story v1.10. |
+
+**LOCAL Pass 8 finding summary (CLEAN(strict): YES; zero findings; streak 1/3):**
+
+Frozen feature HEAD: `0af76be5c` (code UNCHANGED since pass-5 code fix). Story at v1.9 (`@946fe7b16`). Zero findings. All RG-GATE-001..004 test bodies, AC-001..005, BC-2.10.017 §Operations-absent -32602 wire behavior, and the `operations`-off build leg all confirmed clean. Streak advances 0/3 → 1/3.
+
+**LOCAL Pass 9 finding summary (CLEAN(strict): NO; 1 LOW RESOLVED; streak 0/3 RESET):**
+
+Frozen feature HEAD: `0af76be5c` (code UNCHANGED). Story at v1.9 (`@946fe7b16`) at review time.
+
+**F-LOCAL-LOW-001 [LOW] (story-writer, docs fix):** §Red Gate planning list RG-GATE-004 description bullet cited `NOT_YET_AVAILABLE_TOOLS.len() == 0` (a private `const` item in the production module). This const is inaccessible from an external test crate — the description was never an accurate statement of what the shipped test asserts. The shipped test correctly asserts `production_tool_catalog().len() == 14`, verifies all 14 EXPECTED_LIVE_TOOLS entries are present, and includes a wire-shape assertion on the MCP list-tools JSON response. Zero behavioral impact; the test body is load-bearing and correct. Fix: story-writer v1.9→v1.10 (`@8afffe10b`) — RG-GATE-004 description rewritten to accurately describe the shipped test: `production_tool_catalog().len() == 14` + 14 EXPECTED_LIVE_TOOLS present + wire-shape. `NOT_YET_AVAILABLE_TOOLS.len() == 0` language removed. No code change.
+
+**Targeted scrutiny (all PASS):** operations-off RG file runs in `just check` AND `--no-default-features`; 14 EXPECTED_LIVE_TOOLS confirmed; `production_tool_catalog().len() == 14` load-bearing; wire-shape assertions confirmed; AC-002 wire round-trip present; zero code mechanism defects (7th consecutive code-clean pass).
+
+**TD-VSDD-097 sweep verdict (D-2577):**
+- Dim-1: CLEAR (S-MCP-TOOL-GATE-001 has no sibling twin story).
+- Dim-2: CLEAR (RG-GATE-004 description is not a copy-source section for any downstream artifact; no downstream copy target identified).
+- Dim-3: CLEAR (no new unanchored MUSTs; existing anchors intact; fix is description accuracy only).
+
+**TD-VSDD-091/POL-39 CLEAN** (docs fix is symbol-anchor form; no volatile line-cites or version pins introduced). feature HEAD 0af76be5c UNCHANGED. No code/spec/BC/ADR/VP/index version changes in the code fix. story_index_version 3.059→3.060. trajectory-tail →2→3→0→1.
+
+**Next (after D-2577 docs fix-burst):** adversary LOCAL pass-10 re-gate on frozen feature HEAD `0af76be5c` + story v1.10 → if CLEAN(strict): streak 1/3 → continue to 3/3 → holdout → demo → PR → admin-merge.
