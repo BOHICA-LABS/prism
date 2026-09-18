@@ -6,7 +6,7 @@
     "bc_clause": "EC-11-025-011 / SAP-3 pipe-mode reachability",
     "scenario": "json_extract_string executes via MCP query tool (UDF registered, no 'unknown function' error)",
     "binary": "target/debug/prism",
-    "commit": "83fa7ff51"
+    "commit": "1487d2d9b"
   },
   "mcp_wire_demo": {
     "description": "SQL-pipe mode query: json_extract_string in SELECT head with pipe | limit stage. Demonstrates UDF is registered in DataFusion SessionContext — query passes plan gate and proceeds to sensor fan-out. E-SENSOR-010 is returned because no live Claroty instance (dummy credentials), confirming the failure point is the sensor, NOT the UDF registration.",
