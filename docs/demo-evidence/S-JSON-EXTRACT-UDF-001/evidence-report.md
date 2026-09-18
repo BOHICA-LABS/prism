@@ -11,7 +11,7 @@
 
 Three files were re-captured at HEAD `7deb3674f` to close pr-reviewer findings:
 
-- **B-1 → `AC-005-non-literal-key-error.json` (new file):** Previous capture (old `AC-006-non-literal-key-rejection.json`) had stale suggestion text `"Use a literal string key: json_extract_string(col, 'key_name')."`. Current HEAD suggestion is `"Provide a string literal as the second argument, e.g., json_extract_string(raw_extensions, 'severity')."`. Both AC-005 and AC-006 re-captured at HEAD.
+- **B-1 → `AC-006-non-literal-key-rejection.json` (re-captured):** Previous capture had stale suggestion text `"Use a literal string key: json_extract_string(col, 'key_name')."`. Current HEAD suggestion is `"Provide a string literal as the second argument, e.g., json_extract_string(raw_extensions, 'severity')."`. AC-006 re-captured at HEAD. Note: an incorrectly-labelled duplicate `AC-005-non-literal-key-error.json` was created during this fix burst (it had `ac: AC-005` / `rg: RG-JEX-005` metadata but captured AC-006 behavior); that file was deleted in the B-C3-3 fix — AC-005 ("Non-object JSON column returns SQL NULL") is covered by `AC-001-010-functional-unit-tests.json` §AC-005_non_object_json.
 - **B-2 → `AC-007-key-length-boundary.json` and `AC-012-where-predicate-gate.json`:** Previous files were hand-authored with non-MCP fields (`note`, `content_summary`, `query_note`) and contained no `content[]` array or `_meta` key. Replaced with genuine JSON-RPC stdio captures from the running prism binary.
 - **N-e:** Evidence report updated with correct test count (33, was 28), accurate wire-shape labeling (see AC-011 section), and current `captured_at` SHA.
 
@@ -280,7 +280,6 @@ cargo nextest run -p prism-query -E 'test(test_jex)' --no-fail-fast
 | `AC-006-007-012-plan-gate.gif` | VHS GIF recording | AC-006, AC-007, AC-011, AC-012 | cycle-1 |
 | `AC-006-007-012-plan-gate.webm` | VHS WEBM recording | AC-006, AC-007, AC-011, AC-012 | cycle-1 |
 | `AC-006-007-012-plan-gate.tape` | VHS tape source | AC-006, AC-007, AC-011, AC-012 | cycle-1 |
-| `AC-005-non-literal-key-error.json` | MCP wire transcript (cycle-2, HEAD 7deb3674f) | AC-006 (plan-gate E-QUERY-045(a)) | cycle-2 |
 | `AC-006-non-literal-key-rejection.json` | MCP wire transcript (cycle-2, HEAD 7deb3674f) | AC-006 | cycle-2 |
 | `AC-007-key-length-boundary.json` | MCP wire transcript (cycle-2, HEAD 7deb3674f) | AC-007 | cycle-2 |
 | `AC-011-pipe-mode-udf-registration.json` | MCP wire transcript + unit test summary | AC-011 | cycle-1 |
