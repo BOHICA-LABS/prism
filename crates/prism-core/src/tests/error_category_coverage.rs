@@ -194,6 +194,10 @@ fn assert_all_prism_error_variants_categorized(err: PrismError) {
         PrismError::AliasDependentsExist { .. } => {} // "validation"
         PrismError::AliasNameConflict { .. } => {} // "validation"
 
+        // ── E-QUERY-045: json_extract_string plan-time gate ───────────────────
+        PrismError::JsonExtractNonLiteralKey => {} // "validation"
+        PrismError::JsonExtractKeyTooLong { .. } => {} // "validation"
+
         // ── E-INT: internal catch-all ─────────────────────────────────────────
         PrismError::Internal { .. } => {} // "internal"
     }

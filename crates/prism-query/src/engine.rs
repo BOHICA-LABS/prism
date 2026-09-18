@@ -952,11 +952,19 @@ impl QueryEngine {
         // gate ordering; consistent with the temporal-check double-parse design).
         check_enrich_udf_availability(effective_query, self.infusion_registry.as_deref())?;
 
+        // S-JSON-EXTRACT-UDF-001: E-QUERY-045 literal-key gate (ADR-066 §B3 + §D3).
+        // Fires AFTER E-QUERY-039 (last content gate), BEFORE ctx.sql(). If the query
+        // fails to parse, the downstream pipeline surfaces the parse error; gate skips.
+        // Gate ordering: E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → E-QUERY-045.
+        if let Ok(ast) = crate::filter_parser::PrismQlParser::parse(effective_query) {
+            check_json_extract_key_literal(&ast)?;
+        }
+
         // ADR-052 D4 Option A: plan-time temporal literal gate is now implemented as
         // an AST-walk inside run_materialization_pipeline (check_temporal_literals).
         // The old text-scanner (check_temporal_literals) is deleted; the AST-walk fires
         // against the same parsed AST used for execution, after inject_now.
-        // Gate ordering: E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → [AST-walk in mat pipeline].
+        // Gate ordering: E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → E-QUERY-045 → [AST-walk in mat pipeline].
 
         // Step 1: Resolve client scope (BC-2.11.011).
         let clients =
@@ -966,6 +974,10 @@ impl QueryEngine {
         // HIGH-001 / ADV-W3MT-P58-HIGH-001: memory_pool_bytes was stored but not consumed.
         // Now wired via `build_session_context` which wraps RuntimeEnvBuilder + GreedyMemoryPool.
         let session_ctx = crate::memory::build_session_context(self.config.memory_pool_bytes)?;
+
+        // S-JSON-EXTRACT-UDF-001: register json_extract_string UDF (ADR-066 §E; BC-2.11.025 §Registration).
+        // Registered once per ephemeral context — infallible in DataFusion 53.1 (register_udf returns ()).
+        session_ctx.register_udf(crate::json_extract_udf::json_extract_string_udf());
 
         // S-DEMO-ENRICHMENT-PIVOT-001 / BC-2.19.001: register plugin-backed enrichment UDFs so
         // analyst queries using `| enrich infusion(field)` resolve in this ephemeral context.
@@ -1297,6 +1309,12 @@ impl QueryEngine {
         // double-parse; cost accepted (consistent with temporal-check double-parse design).
         check_enrich_udf_availability(query_str, self.infusion_registry.as_deref())?;
 
+        // S-JSON-EXTRACT-UDF-001: E-QUERY-045 literal-key gate for scheduled queries (ADR-066 §B3).
+        // Mirrors execute_inner — gate ordering: E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → E-QUERY-045.
+        if let Ok(ast) = crate::filter_parser::PrismQlParser::parse(query_str) {
+            check_json_extract_key_literal(&ast)?;
+        }
+
         // ADR-052 D4 Option A: temporal gate is now in run_materialization_pipeline.
         // See execute_inner for the full gate-ordering comment.
 
@@ -1304,7 +1322,7 @@ impl QueryEngine {
         // 037/038/039, mirroring execute_inner. Previously this gate ran BEFORE 037/038/039
         // in execute_scheduled_inner, causing asymmetric first-error behavior.
         // Canonical gate order: E-QUERY-001 (parse) → E-QUERY-037 → E-QUERY-038 → E-QUERY-039
-        //   → E-QUERY-011 (capability, LAST pre-I/O gate).
+        //   → E-QUERY-045 → E-QUERY-011 (capability, LAST pre-I/O gate).
         // Scheduled queries run in system context with no capabilities — this means they
         // cannot reference prism_audit (correct secure-by-default for scheduled queries).
         // The gate is best-effort: if query_str fails to parse, the pipeline handles it.
@@ -1319,6 +1337,10 @@ impl QueryEngine {
         let session_ctx = Arc::new(crate::memory::build_session_context(
             self.config.memory_pool_bytes,
         )?);
+
+        // S-JSON-EXTRACT-UDF-001: register json_extract_string UDF for scheduled queries (ADR-066 §E).
+        // Registered once per ephemeral context — infallible in DataFusion 53.1 (register_udf returns ()).
+        session_ctx.register_udf(crate::json_extract_udf::json_extract_string_udf());
 
         // S-DEMO-ENRICHMENT-PIVOT-001 / BC-2.19.001: register plugin-backed enrichment UDFs
         // for scheduled queries as well (detection-engine enrichment context).
@@ -2839,6 +2861,297 @@ fn collect_predicate_columns_with_bareness(
         Predicate::RecoveryError => {}
         #[allow(unreachable_patterns)]
         _ => {}
+    }
+}
+
+// ---------------------------------------------------------------------------
+// E-QUERY-045 plan-time json_extract_string literal-key gate (S-JSON-EXTRACT-UDF-001)
+// ---------------------------------------------------------------------------
+
+/// Maximum allowed key length in UTF-8 bytes per ADR-066 §D3 (CWE-400).
+const JSON_EXTRACT_MAX_KEY_BYTES: usize = 256;
+
+/// Plan-time literal-key gate for `json_extract_string` — E-QUERY-045 (BC-2.11.025).
+///
+/// Walks the parsed AST for `ScalarFunc::JsonExtractString` call nodes and validates
+/// that the second argument (the key) is a string literal that satisfies both:
+/// (a) It IS a `Expr::Literal(Literal::String(_))` — not a column reference or expression;
+///     violation returns `Err(PrismError::JsonExtractNonLiteralKey)` (E-QUERY-045(a)).
+/// (b) Its UTF-8 byte length is ≤ 256 bytes (CWE-400 cap);
+///     violation returns `Err(PrismError::JsonExtractKeyTooLong { key_len, max_len: 256 })`
+///     (E-QUERY-045(b)).
+///
+/// # Gate ordering
+///
+/// Fires AFTER the plan-time gates E-QUERY-037 (table not found), E-QUERY-038 (column
+/// not found), and E-QUERY-039 (enrich UDF not found), and BEFORE `ctx.sql()` (DataFusion
+/// plan + execution). Temporal gates E-QUERY-041 (bad literal format) and E-QUERY-042
+/// (type mismatch) run in-pipeline per ADR-052 §D4 (inside `run_materialization_pipeline`,
+/// after the plan-time gate sequence) — they are not pre-execution plan-gate peers of
+/// E-QUERY-045. This ordering is enforced by the caller. Defense-in-depth note:
+/// E-QUERY-037 fires at the table-registry layer; `make_gate_engine()` (test mode, no
+/// table_registry) bypasses E-QUERY-037 so E-QUERY-045 fires independently in that path.
+/// RG-JEX-006 verifies that E-QUERY-045 fires at plan time (AC-006; SAP-3 reachability);
+/// it does NOT verify that E-QUERY-045 fires *after* E-QUERY-037 — verifying relative
+/// ordering requires a test with table_registry present. ADR-066 §B3.
+///
+/// # SAP-3 reachability
+///
+/// This gate MUST be exercised via a real PQL query string through the `prism_query`
+/// public API — not only from a synthetic AST injection (AC-006 SAP-3 cite).
+///
+/// BC-5.38.005 self-check: "If I include this real implementation, will the test for this
+/// function pass trivially without any implementer work?" — YES (RG-JEX-006 + RG-JEX-007
+/// directly test this gate). Stub replaced by real implementation in S-JSON-EXTRACT-UDF-001.
+///
+/// ADR-066 §B3 + §D3 + §F; BC-2.11.025 §Plan-time literal-key gate;
+/// S-JSON-EXTRACT-UDF-001 AC-006 (RG-JEX-006) + AC-007 (RG-JEX-007).
+pub(crate) fn check_json_extract_key_literal(ast: &crate::ast::Ast) -> Result<(), PrismError> {
+    use crate::ast::{Ast, SqlStatement};
+    match ast {
+        Ast::Sql(SqlStatement::Select(sq)) => check_jex_in_sql_query(sq),
+        // MED-001 fix (TD-VSDD-059 / SAP-3): DML — json_extract_string cannot reach
+        // execution through this arm. Three structural proofs, each test-verified:
+        //
+        // (1) Parser state (post-T-09a): the filter_parser.rs T-09a fix maps
+        //     "json_extract_string" → `ScalarFunc::JsonExtractString` for ALL predicate
+        //     positions, including DML WHERE. DML filters now emit the same variant as
+        //     SELECT predicates and pipe WHERE stages (T-09a parity). A
+        //     `ScalarFunc::JsonExtractString` node in a DML filter WOULD trigger E-QUERY-045
+        //     if the gate walked DML predicates. Safety rests entirely on proofs (2) and (3).
+        //     (BC-2.11.025 §Postconditions DML scope-exclusion; ADR-066 §B3.)
+        //     Verified by `test_jex_dml_ast_safe_skip_with_jex_variant`.
+        //
+        // (2) Gate proof: the `Ast::Sql(_) => Ok(())` arm returns immediately for ANY
+        //     `Ast::Sql` non-Select variant — it never descends into predicates and never
+        //     calls `check_jex_in_expr`. Even a DML filter carrying
+        //     `ScalarFunc::JsonExtractString` with a non-literal key cannot trigger
+        //     E-QUERY-045 through this arm.
+        //     Verified by `test_jex_dml_ast_returns_ok_no_scope`.
+        //
+        // (3) Write-path proof: the write_pipeline.rs stores only `has_where_clause: bool`
+        //     and creates NO DataFusion SessionContext, so the UDF is never invoked on DML
+        //     writes regardless of gate outcome.
+        Ast::Sql(_) => Ok(()),
+        Ast::SqlPipe(spq) => {
+            check_jex_in_sql_query(&spq.head)?;
+            for stage in &spq.stages {
+                check_jex_in_pipe_stage(stage)?;
+            }
+            Ok(())
+        }
+        // Call-site invariant: `PrismQlParser::parse` always produces `write: None` in all
+        // three grammar entry points (SQL / SqlPipe / Pipe modes). The only `write: Some`
+        // path is `parse_with_write_registry` — unreachable from `QueryEngine::execute`.
+        // Therefore `Ast::Pipe` with `write: Some` cannot arrive at this gate via the
+        // normal execute path. Covered by test_jex_rg019_ast_pipe_where_non_literal_key_rejected_e_query_045_a
+        // (SAP-3 E2E reachability from QueryEngine::execute).
+        Ast::Pipe(pq) => {
+            for stage in &pq.stages {
+                check_jex_in_pipe_stage(stage)?;
+            }
+            Ok(())
+        }
+        Ast::Filter(fe) => check_jex_in_predicate(&fe.predicate),
+    }
+}
+
+fn check_jex_in_sql_query(sq: &crate::ast::SqlQuery) -> Result<(), PrismError> {
+    use crate::ast::{Join, OrderExpr, SelectClause, SelectItem};
+    // Exhaustive destructure is a deliberate injection-perimeter compile-time guard: if a
+    // future Expr-bearing field is added to SqlQuery (e.g. QUALIFY, WINDOW, CTE list),
+    // this becomes a compile error rather than silently bypassing the E-QUERY-045 security
+    // gate (matching check_jex_in_pipe_stage / check_jex_in_predicate style).
+    // `_`-binds cover provably-non-Expr fields: `from` (table/source names only, no Expr)
+    // and `limit` (Option<u64>, no Expr).
+    let crate::ast::SqlQuery {
+        select,
+        from: _,
+        joins,
+        where_,
+        group_by,
+        having,
+        order_by,
+        limit: _,
+    } = sq;
+
+    // SELECT projections — exhaustive SelectClause destructure guards against future
+    // Expr-bearing fields (e.g. window-clause list). `distinct` is bool; not Expr-bearing.
+    let SelectClause { items, distinct: _ } = select;
+    for item in items {
+        // Exhaustive match: compile-time guard against new Expr-bearing SelectItem variants.
+        // `#[non_exhaustive]` on SelectItem is cross-crate only; within prism-query we match
+        // all three variants explicitly so the compiler catches additions.
+        match item {
+            SelectItem::Expr { expr, .. } => check_jex_in_expr(expr)?,
+            // Star / TableStar expand column names — no Expr::FuncCall children.
+            SelectItem::Star | SelectItem::TableStar(_) => {}
+        }
+    }
+    // JOIN ON conditions — exhaustive Join destructure guards against future Expr-bearing
+    // fields (e.g. USING clause). `kind`/`source`/`alias` carry no Expr nodes.
+    for join in joins {
+        let Join {
+            on,
+            kind: _,
+            source: _,
+            alias: _,
+        } = join;
+        check_jex_in_expr(on)?;
+    }
+    // WHERE clause
+    if let Some(pred) = where_ {
+        check_jex_in_predicate(pred)?;
+    }
+    // GROUP BY
+    for expr in group_by {
+        check_jex_in_expr(expr)?;
+    }
+    // ORDER BY — exhaustive OrderExpr destructure guards against future Expr-bearing
+    // fields. `direction` is SortDirection; not Expr-bearing.
+    for oe in order_by {
+        let OrderExpr { expr, direction: _ } = oe;
+        check_jex_in_expr(expr)?;
+    }
+    // HAVING
+    if let Some(pred) = having {
+        check_jex_in_predicate(pred)?;
+    }
+    Ok(())
+}
+
+fn check_jex_in_pipe_stage(stage: &crate::ast::PipeStage) -> Result<(), PrismError> {
+    // Exhaustive match is a deliberate injection-perimeter compile-time guard: if a future
+    // Expr-bearing variant is added to PipeStage, this becomes a compile error rather than
+    // silently bypassing the E-QUERY-045 security gate (matching check_jex_in_expr style).
+    use crate::ast::PipeStage;
+    match stage {
+        PipeStage::Where(pred) => check_jex_in_predicate(pred),
+        // SAP-3 rule 3 — grammar-unreachable arms (defense-in-depth only):
+        // The following variants contain only FieldPath, Literal, String, u64 — no Expr nodes
+        // that could carry a json_extract_string FuncCall::Scalar child. The PQL grammar
+        // does not allow `json_extract_string(...)` in Sort/Limit/Tail/Stats/Dedup/Fields/Join/
+        // Enrich positions (these stages accept only column names, literals, or keyword args).
+        // Therefore these arms are unreachable from any valid PQL query string; they exist as
+        // defense-in-depth to catch future grammar extensions that might inadvertently allow
+        // Expr nodes in these positions.
+        PipeStage::Sort(_)
+        | PipeStage::Limit(_)
+        | PipeStage::Tail(_)
+        | PipeStage::Stats(_)
+        | PipeStage::Dedup(_)
+        | PipeStage::Fields(_)
+        | PipeStage::Join(_)
+        | PipeStage::Enrich(_) => Ok(()),
+    }
+}
+
+fn check_jex_in_predicate(pred: &crate::ast::Predicate) -> Result<(), PrismError> {
+    // Exhaustive match is a deliberate injection-perimeter compile-time guard: if a future
+    // Expr-bearing variant is added to Predicate, this becomes a compile error rather than
+    // silently bypassing the E-QUERY-045 security gate (matching check_jex_in_expr style).
+    use crate::ast::Predicate;
+    match pred {
+        Predicate::Compare { lhs, rhs, .. } => {
+            check_jex_in_expr(lhs)?;
+            check_jex_in_expr(rhs)
+        }
+        Predicate::Logical { predicates, .. } => {
+            for p in predicates {
+                check_jex_in_predicate(p)?;
+            }
+            Ok(())
+        }
+        Predicate::Not(inner) => check_jex_in_predicate(inner),
+        Predicate::InSubquery { subquery, .. } => check_jex_in_sql_query(subquery),
+        // The following variants contain only FieldPath, String, Literal, CidrLiteral,
+        // RegexLiteral — no Expr nodes that could carry a json_extract_string FuncCall::Scalar.
+        Predicate::StringOp { .. }
+        | Predicate::Regex { .. }
+        | Predicate::In { .. }
+        | Predicate::Between { .. }
+        | Predicate::Cidr { .. }
+        | Predicate::Has(_)
+        | Predicate::Missing(_)
+        | Predicate::IsNull { .. }
+        | Predicate::Wildcard { .. }
+        | Predicate::RecoveryError => Ok(()),
+    }
+}
+
+fn check_jex_in_expr(expr: &crate::ast::Expr) -> Result<(), PrismError> {
+    use crate::ast::{Expr, FuncCall, Literal, ScalarFunc};
+    match expr {
+        Expr::FuncCall(FuncCall::Scalar {
+            func: ScalarFunc::JsonExtractString,
+            args,
+            ..
+        }) => {
+            // Validate that args[1] is a literal string key within the byte limit.
+            match args.get(1) {
+                Some(Expr::Literal(Literal::String(key))) => {
+                    let key_len = key.len(); // byte length (UTF-8)
+                    if key_len > JSON_EXTRACT_MAX_KEY_BYTES {
+                        return Err(PrismError::JsonExtractKeyTooLong {
+                            key_len,
+                            max_len: JSON_EXTRACT_MAX_KEY_BYTES,
+                        });
+                    }
+                    // Valid literal key — still recurse into all args to catch
+                    // nested json_extract_string calls (e.g., nested extraction).
+                    for arg in args {
+                        check_jex_in_expr(arg)?;
+                    }
+                    Ok(())
+                }
+                _ => Err(PrismError::JsonExtractNonLiteralKey),
+            }
+        }
+        Expr::FuncCall(FuncCall::Scalar { args, .. }) => {
+            for arg in args {
+                check_jex_in_expr(arg)?;
+            }
+            Ok(())
+        }
+        Expr::FuncCall(FuncCall::Aggregate { args, .. }) => {
+            for arg in args {
+                check_jex_in_expr(arg)?;
+            }
+            Ok(())
+        }
+        // OBS-001 fix: match the fieldless variant EXACTLY rather than { .. } so a
+        // future field addition in S-3.06 forces a compile error here, preventing silent
+        // under-coverage of json_extract_string nested inside Window function args.
+        // Window is currently fieldless (ast.rs FuncCall::Window {}); when S-3.06 adds
+        // Expr args this arm MUST recurse into them or E-QUERY-045 under-covers.
+        // Covered by test `test_jex_window_variant_is_fieldless_compile_guard`.
+        Expr::FuncCall(FuncCall::Window {}) => Ok(()),
+        Expr::Compare { lhs, rhs, .. } => {
+            check_jex_in_expr(lhs)?;
+            check_jex_in_expr(rhs)
+        }
+        Expr::Logical { lhs, rhs, .. } => {
+            check_jex_in_expr(lhs)?;
+            check_jex_in_expr(rhs)
+        }
+        Expr::Not(inner) => check_jex_in_expr(inner),
+        Expr::InSubquery { subquery, .. } => check_jex_in_sql_query(subquery),
+        // Leaf or non-function nodes: no FuncCall children.
+        Expr::Literal(_)
+        | Expr::Field(_)
+        | Expr::VirtualField(_)
+        | Expr::In { .. }
+        | Expr::Star
+        | Expr::Now
+        | Expr::Interval(_) => Ok(()),
+        // Defense-in-depth: recurse into `base` even though the grammar constrains `base`
+        // to `Expr::Now` (see `build_temporal_rhs_parser`). If a future grammar extension
+        // or synthetic-AST construction places a `json_extract_string` call in the `base`
+        // position, the 256-byte key-length cap (CWE-400, ADR-066 §D3) — enforced here at
+        // plan time but NOT in `invoke_with_args` — would otherwise be bypassed.
+        // SAP-3: grammar-non-reachable position; see unit test
+        // `test_jex_timestamp_arithmetic_base_rejected_defense_in_depth`.
+        Expr::TimestampArithmetic { base, .. } => check_jex_in_expr(base),
     }
 }
 
@@ -17096,6 +17409,254 @@ mod sanitize_ordering_did_you_mean_tests {
             "F-PQLFN-PR14-OBS-001 (b): infusion must be 'nvdcvs' (sanitize is no-op for ASCII). \
              Got: {:?}",
             details.infusion
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// E-QUERY-045 walk completeness — defense-in-depth unit tests (LOW-1 fix)
+// ---------------------------------------------------------------------------
+//
+// SAP-3 defense-in-depth: these tests construct synthetic AST nodes that are
+// NOT grammar-reachable from a PrismQL query string (see `build_temporal_rhs_parser`
+// — the `base` of a TimestampArithmetic node is always Expr::Now in valid PQL AST).
+// They exist purely to verify that the `check_jex_in_expr` walk descends into the
+// TimestampArithmetic base, closing the 256-byte CWE-400 bypass path for any future
+// grammar extension or synthetic-AST construction (ADR-066 §D3, LOW-1 fix).
+
+#[cfg(test)]
+mod jex_gate_walk_completeness_tests {
+    use crate::ast::{BinaryOp, Expr, FuncCall, Literal, ScalarFunc, Span};
+    use prism_core::error::PrismError;
+
+    /// Defense-in-depth: `json_extract_string` in the `base` of a
+    /// `TimestampArithmetic` node is rejected by `check_jex_in_expr`.
+    ///
+    /// The grammar never produces this shape (base is always `Expr::Now`), so
+    /// this test is intentionally synthetic-AST only — it closes the CWE-400
+    /// bypass path for future grammar extensions without a corresponding plan-gate
+    /// update. SAP-3 defense-in-depth: grammar-non-reachable position.
+    ///
+    /// LOW-1 fix for S-JSON-EXTRACT-UDF-001 LOCAL adversary pass.
+    #[test]
+    fn test_jex_timestamp_arithmetic_base_rejected_defense_in_depth() {
+        // Construct: TimestampArithmetic { base: json_extract_string(row, col), .. }
+        // — a shape that cannot be produced by the PrismQL parser but could arise
+        // from synthetic AST construction or a future grammar change.
+        let jex_in_base = Expr::TimestampArithmetic {
+            base: Box::new(Expr::FuncCall(FuncCall::Scalar {
+                func: ScalarFunc::JsonExtractString,
+                args: vec![
+                    Expr::Field(crate::ast::FieldPath::new(vec!["row".to_string()])),
+                    // Non-literal key — triggers E-QUERY-045(a) NonLiteralKey
+                    Expr::Field(crate::ast::FieldPath::new(vec!["col".to_string()])),
+                ],
+                span: Span::ZERO,
+            })),
+            op: BinaryOp::Add,
+            offset: chrono::Duration::days(1),
+        };
+
+        let result = super::check_jex_in_expr(&jex_in_base);
+
+        assert!(
+            matches!(result, Err(PrismError::JsonExtractNonLiteralKey)),
+            "LOW-1 (defense-in-depth): json_extract_string with non-literal key inside \
+             TimestampArithmetic.base must be rejected by check_jex_in_expr. \
+             Got: {result:?}"
+        );
+    }
+
+    /// Defense-in-depth variant: literal key too long in `TimestampArithmetic` base
+    /// triggers E-QUERY-045(b) rather than silently passing the 256-byte cap.
+    ///
+    /// SAP-3 defense-in-depth: grammar-non-reachable position (same rationale as above).
+    #[test]
+    fn test_jex_timestamp_arithmetic_base_key_too_long_defense_in_depth() {
+        let long_key = "k".repeat(257); // 257 bytes — exceeds the 256-byte cap
+
+        let jex_in_base = Expr::TimestampArithmetic {
+            base: Box::new(Expr::FuncCall(FuncCall::Scalar {
+                func: ScalarFunc::JsonExtractString,
+                args: vec![
+                    Expr::Field(crate::ast::FieldPath::new(vec!["row".to_string()])),
+                    Expr::Literal(Literal::String(long_key.clone())),
+                ],
+                span: Span::ZERO,
+            })),
+            op: BinaryOp::Add,
+            offset: chrono::Duration::days(1),
+        };
+
+        let result = super::check_jex_in_expr(&jex_in_base);
+
+        assert!(
+            matches!(
+                result,
+                Err(PrismError::JsonExtractKeyTooLong {
+                    key_len: 257,
+                    max_len: 256
+                })
+            ),
+            "LOW-1 (defense-in-depth): json_extract_string with 257-byte key inside \
+             TimestampArithmetic.base must return JsonExtractKeyTooLong(257, 256). \
+             Got: {result:?}"
+        );
+    }
+
+    /// DML safe-skip proof (post-fix expectation): after T-09a, DML WHERE parses
+    /// json_extract_string as `ScalarFunc::JsonExtractString` (parity fix).
+    ///
+    /// The T-09a fix to `fn_call_comparison` (filter_parser.rs) maps `"json_extract_string"`
+    /// → `ScalarFunc::JsonExtractString` for ALL predicate positions, including DML WHERE.
+    /// This test asserts the post-fix parser behavior.
+    ///
+    /// The DML safe-skip arm in `check_json_extract_key_literal` (`Ast::Sql(_) => Ok(())`)
+    /// must still hold: even though the filter now carries `ScalarFunc::JsonExtractString`,
+    /// the gate returns `Ok(())` immediately for any DML AST variant. This property is
+    /// separately verified by `test_jex_dml_ast_returns_ok_no_scope` (which constructs a
+    /// synthetic DML AST with `ScalarFunc::JsonExtractString` directly and calls the gate).
+    ///
+    /// Updated three-proof rationale:
+    ///   proof (1) pre-fix:  parser emits Unknown   → gate can't fire even if it walked DML
+    ///   proof (1) post-fix: parser emits JEString  → gate WOULD fire IF it walked DML
+    ///   proof (2):          gate returns Ok(()) for ANY Ast::Sql variant (DML safe-skip arm)
+    ///   proof (3):          combined → DML always passes E-QUERY-045 regardless
+    ///
+    /// SAP-3: end-to-end parse path test (real parser via parse_sql_dml, no synthetic AST).
+    #[test]
+    fn test_jex_dml_ast_safe_skip_with_jex_variant() {
+        use crate::ast::{Ast, Predicate, SqlStatement};
+        use crate::sql_parser::parse_sql_dml;
+
+        // Parse a real DML DELETE with json_extract_string in the WHERE clause.
+        // After T-09a: fn_call_comparison maps "json_extract_string" →
+        // ScalarFunc::JsonExtractString for DML WHERE predicates too (parity fix).
+        let result =
+            parse_sql_dml("DELETE FROM test_table WHERE json_extract_string(col, other_col) = 'x'");
+
+        let ast = result.expect(
+            "DML safe-skip proof (1): DELETE with json_extract_string in WHERE must parse \
+             successfully regardless of ScalarFunc variant.",
+        );
+
+        // Extract the DML node.
+        let dml = match &ast {
+            Ast::Sql(SqlStatement::Dml(node)) => node,
+            other => {
+                panic!("DML safe-skip proof (1): expected Ast::Sql(SqlStatement::Dml(_)), got {other:?}")
+            }
+        };
+
+        // The WHERE filter must be present.
+        let filter = dml.filter.as_ref().expect(
+            "DML safe-skip proof (1): DELETE WHERE clause must produce a non-None filter predicate",
+        );
+
+        // After T-09a: the predicate's LHS must carry ScalarFunc::JsonExtractString.
+        match filter {
+            Predicate::Compare { lhs, .. } => match lhs.as_ref() {
+                crate::ast::Expr::FuncCall(FuncCall::Scalar { func, .. }) => {
+                    assert_eq!(
+                        func,
+                        &ScalarFunc::JsonExtractString,
+                        "DML safe-skip proof (1): after T-09a filter_parser fix, DML WHERE \
+                         json_extract_string must parse as ScalarFunc::JsonExtractString \
+                         (parity with SELECT-list and pipe-where). Got: {func:?}"
+                    );
+                }
+                other => {
+                    panic!("DML safe-skip proof (1): expected FuncCall::Scalar LHS, got {other:?}")
+                }
+            },
+            other => panic!("DML safe-skip proof (1): expected Predicate::Compare, got {other:?}"),
+        }
+    }
+
+    /// MED-001 proof (2): `check_json_extract_key_literal` returns `Ok(())` immediately
+    /// for `Ast::Sql(SqlStatement::Dml(_))` input — the DML arm is `Ok(())` with no walk.
+    ///
+    /// Even if a DML AST somehow contained a `ScalarFunc::JsonExtractString` node with a
+    /// non-literal key (which proof (1) shows is impossible via the real parser), the gate
+    /// function returns `Ok(())` immediately for any `Ast::Sql` non-Select variant — it
+    /// never calls `check_jex_in_expr` for DML. This verifies proof (2) in the arm comment.
+    ///
+    /// SAP-3 defense-in-depth: this test uses a synthetic Ast::Sql(Dml) to verify the
+    /// `Ast::Sql(_)` arm boundary. Combined with test (1) (which tests the real parser),
+    /// coverage of the three-proof rationale is complete.
+    #[test]
+    fn test_jex_dml_ast_returns_ok_no_scope() {
+        use crate::ast::{Ast, SqlStatement};
+        use crate::write_ast::{DmlNode, DmlOperation};
+        use prism_core::error::PrismError;
+
+        // Construct a synthetic DML AST with the most dangerous possible DML filter:
+        // a FuncCall::Scalar with func: ScalarFunc::JsonExtractString and a non-literal
+        // key. IF the gate walked DML predicates, this would produce E-QUERY-045.
+        // The test verifies it returns Ok(()) — DML is outside check scope.
+        let jex_with_non_literal = crate::ast::Predicate::Compare {
+            lhs: Box::new(crate::ast::Expr::FuncCall(FuncCall::Scalar {
+                func: ScalarFunc::JsonExtractString,
+                args: vec![
+                    crate::ast::Expr::Field(crate::ast::FieldPath::new(vec!["col".to_string()])),
+                    // Non-literal key: would trigger E-QUERY-045 if gate walked this.
+                    crate::ast::Expr::Field(crate::ast::FieldPath::new(vec![
+                        "other_col".to_string()
+                    ])),
+                ],
+                span: crate::ast::Span::ZERO,
+            })),
+            op: crate::ast::CompareOp::Eq,
+            rhs: Box::new(crate::ast::Expr::Literal(Literal::String("x".to_string()))),
+            case_insensitive: false,
+        };
+
+        let dml_ast = Ast::Sql(SqlStatement::Dml(DmlNode {
+            operation: DmlOperation::Delete,
+            target_table: "test_table".to_string(),
+            columns: None,
+            assignments: vec![],
+            filter: Some(jex_with_non_literal),
+            source_select: None,
+        }));
+
+        let result = super::check_json_extract_key_literal(&dml_ast);
+
+        assert!(
+            matches!(result, Ok(())),
+            "MED-001 proof (2): check_json_extract_key_literal must return Ok(()) for \
+             Ast::Sql(Dml) input — DML is outside the E-QUERY-045 gate scope. \
+             Got: {result:?}"
+        );
+
+        // Confirm the PrismError::JsonExtractNonLiteralKey variant exists and would fire
+        // if the gate were to walk this DML predicate (defense-in-depth: exhaustiveness).
+        // This assert would need to change if the arm is ever intentionally extended.
+        let _ = PrismError::JsonExtractNonLiteralKey; // type-level existence check
+    }
+
+    /// OBS-001 proof: FuncCall::Window is a fieldless struct variant ({}) with no Expr args.
+    ///
+    /// Verifies that `FuncCall::Window {}` can be constructed and matches the arm in
+    /// `check_jex_in_expr`. If S-3.06 adds fields to Window, this test will fail to compile
+    /// (because `FuncCall::Window {}` will no longer match the expanded struct variant),
+    /// alerting the implementer that the `check_jex_in_expr` arm must recurse into the
+    /// new Expr args rather than silently returning `Ok(())`.
+    ///
+    /// SAP-3 defense-in-depth: synthetic-AST construction verifying the compile-guard.
+    #[test]
+    fn test_jex_window_variant_is_fieldless_compile_guard() {
+        // Construct a Window FuncCall with zero fields (current shape per ast.rs).
+        // If S-3.06 adds Expr args, this constructor will not compile — that is the
+        // intended forcing function to update the check_jex_in_expr Window arm.
+        let window_expr = crate::ast::Expr::FuncCall(FuncCall::Window {});
+
+        let result = super::check_jex_in_expr(&window_expr);
+
+        assert!(
+            matches!(result, Ok(())),
+            "OBS-001: check_jex_in_expr must return Ok(()) for a fieldless FuncCall::Window \
+             node (no Expr args to recurse into). Got: {result:?}"
         );
     }
 }

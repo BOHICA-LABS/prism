@@ -98,6 +98,7 @@ pub mod invalidation;
 // ── S-DEMO-ENRICHMENT-PIVOT-001 modules ───────────────────────────────────────
 // Infusion enrichment UDF registration for DataFusion SessionContext (BC-2.19.001).
 pub mod infusion_udf;
+pub mod json_extract_udf;
 // No-op CacheBackend placeholder for InfusionTier3Cache before real RocksDB is wired.
 pub(crate) mod null_cache;
 
