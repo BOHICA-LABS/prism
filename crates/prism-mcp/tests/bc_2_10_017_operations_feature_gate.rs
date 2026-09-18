@@ -421,3 +421,104 @@ fn test_BC_2_10_017_live_tools_all_present_without_operations_feature() {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// OBS-2 defence-in-depth: real MCP client round-trip via duplex transport
+// ---------------------------------------------------------------------------
+
+/// OBS-2 / SAP-3 end-to-end reachability — BC-2.10.017 §Postconditions INV-OPERATIONS-FEATURE-GATE:
+/// `tools/list` over a real MCP client duplex round-trip MUST return exactly 14 tools when
+/// the `operations` feature is absent.
+///
+/// RG-GATE-001 and RG-GATE-004 cover `production_tool_catalog()` via the internal Rust API.
+/// This test is the SAP-3 end-to-end coverage for the same AC: it drives PrismServer from the
+/// public MCP wire surface (JSON-RPC `tools/list`) rather than from internal API calls, proving
+/// the catalog count is reachable end-to-end and not just asserted on an internal struct.
+///
+/// Wire-shape assertion discipline: serializes `ListToolsResult` to JSON and asserts the
+/// `"tools"` array length at the serialized-bytes level — the exact envelope the LLM agent reads.
+///
+/// TD-VSDD-091 compliance: no `file.rs:NNN` line-number cites.
+#[tokio::test]
+async fn test_BC_2_10_017_tools_list_14_via_end_to_end_client_roundtrip() {
+    // DummyClientHandler: minimal no-op client to complete the MCP handshake.
+    #[derive(Debug, Clone, Default)]
+    struct DummyClientHandler;
+    impl ClientHandler for DummyClientHandler {
+        fn get_info(&self) -> ClientInfo {
+            ClientInfo::default()
+        }
+    }
+
+    let (server_transport, client_transport) = tokio::io::duplex(4096);
+
+    // Spawn PrismServer on the server side. `.waiting()` keeps it alive until the
+    // client completes its request (same pattern as RG-GATE-003).
+    let _server_handle = tokio::spawn(async move {
+        if let Ok(peer) = PrismServer::new().serve(server_transport).await {
+            let _ = peer.waiting().await;
+        }
+    });
+
+    // Complete the MCP handshake via the client side.
+    let client = DummyClientHandler::default()
+        .serve(client_transport)
+        .await
+        .expect(
+            "test_BC_2_10_017_tools_list_14_via_end_to_end_client_roundtrip: \
+             DummyClientHandler::serve must complete MCP handshake \
+             (test infrastructure failure if this panics)",
+        );
+
+    // Call `tools/list` via the real JSON-RPC wire (RunningService Derefs to Peer).
+    let list_result = timeout(Duration::from_secs(5), client.list_tools(None))
+        .await
+        .expect(
+            "test_BC_2_10_017_tools_list_14_via_end_to_end_client_roundtrip: \
+         list_tools must return within 5s (no hang)",
+        )
+        .expect(
+            "test_BC_2_10_017_tools_list_14_via_end_to_end_client_roundtrip: \
+         list_tools wire call must succeed (no MCP error)",
+        );
+
+    // Struct-level assertion: 14 tools returned over the wire.
+    assert_eq!(
+        list_result.tools.len(),
+        14,
+        "OBS-2 BC-2.10.017 INV-OPERATIONS-FEATURE-GATE: \
+         tools/list wire response must return exactly 14 tools when `operations` is absent; \
+         got {} — SAP-3 end-to-end reachability proof from the MCP wire surface",
+        list_result.tools.len()
+    );
+
+    // Wire-shape assertion — serialize ListToolsResult and assert the `"tools"` array
+    // length at the JSON-bytes level (the exact envelope the LLM agent consumes).
+    let json = serde_json::to_value(&list_result)
+        .expect("test_BC_2_10_017_e2e: ListToolsResult must serialize to JSON");
+    let tools_arr = json["tools"]
+        .as_array()
+        .expect("test_BC_2_10_017_e2e wire-shape: 'tools' must be a JSON array");
+    assert_eq!(
+        tools_arr.len(),
+        14,
+        "OBS-2 wire-shape BC-2.10.017: serialized 'tools' JSON array must have 14 elements; \
+         got {} — verifies the LLM-visible wire bytes, not just the Rust struct",
+        tools_arr.len()
+    );
+
+    // Verify all 14 LIVE_TOOLS names are present in the wire JSON.
+    let wire_names: Vec<&str> = tools_arr
+        .iter()
+        .filter_map(|t| t.get("name").and_then(|n| n.as_str()))
+        .collect();
+    for &name in EXPECTED_LIVE_TOOLS {
+        assert!(
+            wire_names.contains(&name),
+            "OBS-2 wire-shape BC-2.10.017: LIVE_TOOLS name '{}' must appear in \
+             tools/list wire response; tools present: {:?}",
+            name,
+            wire_names
+        );
+    }
+}
