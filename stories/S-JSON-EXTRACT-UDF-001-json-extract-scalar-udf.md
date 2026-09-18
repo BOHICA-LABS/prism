@@ -4,9 +4,9 @@ story_id: S-JSON-EXTRACT-UDF-001
 title: "Minimal json_extract_string ScalarUDF with Literal-Key Plan Gate (E-QUERY-045)"
 level: "L4"
 version: "1.8"
-status: ready
+status: merged
 producer: story-writer
-timestamp: "2026-09-17T00:00:00Z"
+timestamp: "2026-09-18T00:00:00Z"
 phase: 3
 wave: 3
 epic_id: E-BETA3-REMEDIATION
@@ -33,7 +33,7 @@ inputs:
   - .factory/specs/behavioral-contracts/BC-2.11.025-json-extract-string-scalar-udf.md
   - .factory/specs/architecture/decisions/ADR-066-json-extract-scalar-udf.md
   - .factory/specs/verification-properties/vp-162-json-extract-string-null-safety.md
-input-hash: "pending"
+input-hash: "c967114"
 traces_to: .factory/stories/S-ADR058-OCSF-ROUTING-001-sensor-spec-ocsf-field-name-routing.md
 depends_on:
   - S-ADR058-OCSF-ROUTING-001

@@ -2,16 +2,16 @@
 document_type: behavioral-contract
 level: L3
 version: "1.11"
-status: draft
+status: active
 producer: product-owner
 timestamp: 2026-09-16T00:00:00Z
 phase: 1a
 origin: greenfield
 subsystem: "SS-11"
 capability: "CAP-015"
-lifecycle_status: draft
+lifecycle_status: active
 introduced: 2026-09-16
-modified: "2026-09-17"
+modified: "2026-09-18"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -22,7 +22,7 @@ inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
   - ".factory/specs/architecture/decisions/ADR-066-json-extract-scalar-udf.md"
-input-hash: "TBD"
+input-hash: "fe97284"
 traces_to: ["CAP-015"]
 related_bcs: ["BC-2.11.001", "BC-2.11.016", "BC-2.11.019"]
 extracted_from: ".factory/specs/prd.md"
