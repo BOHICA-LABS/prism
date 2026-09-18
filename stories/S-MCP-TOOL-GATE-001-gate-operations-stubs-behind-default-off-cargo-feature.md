@@ -2,12 +2,15 @@
 document_type: story
 story_id: S-MCP-TOOL-GATE-001
 title: "Gate 40 operations stubs behind default-off Cargo feature to eliminate -32003 catalog pollution"
+level: "L4"
 wave: 1
 epic_id: E-BETA3-REMEDIATION
-version: "1.3"
+version: "1.4"
 status: ready
 producer: story-writer
+timestamp: "2026-09-18T00:00:00Z"
 phase: 3
+cycle: wave-5-e-demo-fidelity
 priority: P0
 points: 3
 tdd_mode: strict
@@ -19,6 +22,13 @@ subsystems: ["SS-10"]
 #   lives within SS-10's module boundary. No other subsystem is crossed.
 crates_touched: [prism-mcp]
 estimated_days: 0.5
+inputs:
+  - .factory/cycles/wave-5-e-demo-fidelity/beta3-remediation-delta-analysis.md
+  - .factory/specs/behavioral-contracts/BC-2.10.017-not-yet-available-tools-fast-fail-audit-channel-non-blocking.md
+  - .factory/specs/behavioral-contracts/BC-2.10.011-list-capabilities-meta-tool.md
+  - crates/prism-mcp/src/server.rs
+input-hash: "33a4829"
+traces_to: .factory/cycles/wave-5-e-demo-fidelity/beta3-remediation-delta-analysis.md
 depends_on: []
 # depends_on anchor justification:
 #   No product-story hard dependencies — the gate is entirely within prism-mcp.
@@ -212,6 +222,21 @@ is ENABLED; the test must verify the correct code in each compilation context)
 | `operations.rs` module | `crates/prism-mcp/src/tools/operations.rs` | Effectful (stub module — gated when feature absent) |
 | `list_capabilities` handler `not_registered_tools` binding | `crates/prism-mcp/src/server.rs` | Effectful (reads NOT_YET_AVAILABLE_TOOLS const) |
 | Test file (new) | `crates/prism-mcp/tests/bc_2_10_017_operations_feature_gate.rs` | Pure (test assertions) |
+
+---
+
+## Purity Classification
+
+Derived from the Architecture Mapping table above.
+
+| Module | Classification | Justification |
+|--------|---------------|---------------|
+| `[features]` declaration in `Cargo.toml` | pure-core | Cargo build metadata; no runtime code; no I/O, no global state. |
+| `NOT_YET_AVAILABLE_TOOLS` const (feature-gated) | pure-core | Compile-time `&[&str]` constant; value resolved at compile time via `#[cfg(feature = "operations")]`; no runtime state, no side effects. |
+| `not_yet_available_msg` helper | pure-core | Error constructor returning `CallToolError` from a `&str` key; deterministic, no I/O, no global state. Gated under `#[cfg(feature = "operations")]`. |
+| 40 operations stub `#[tool]` handler methods | effectful-IO | MCP tool handlers gated under `#[cfg(feature = "operations")] #[tool_router(router = operations_tool_router)]`; return async `CallToolResult` via rmcp tool router (network I/O path). |
+| `operations.rs` module | effectful-IO | Stub module gated under `#[cfg(feature = "operations")]`; async handler stubs returning -32003 fast-fail responses traverse the rmcp network dispatch path. |
+| `list_capabilities` handler `not_registered_tools` binding | effectful-IO | MCP tool handler; reads `NOT_YET_AVAILABLE_TOOLS` const and serializes result to JSON wire response (BC-2.10.011 §Postconditions). |
 
 ---
 
@@ -539,6 +564,7 @@ Holdout scenarios are stored in the holdout directory that test-writer/implement
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.4 | 2026-09-18 | Template conformance (D-2567 resume; Canonical Principle Rule 4 fix-in-scope): added missing frontmatter keys (level/cycle/inputs/input-hash/timestamp/traces_to) + Purity Classification section, values derived from sibling E-BETA3-REMEDIATION stories. No AC/RG/task/BC/ADR content change. |
 | 1.3 | 2026-09-18 | Phase D compile-safety cfg-gate tasks added (D-2567 resume, SAC-1 completeness): T-D03 gates inline server.rs `test_operations_tools_return_not_implemented_error_code`; T-D04 gates `tests/mcp_infrastructure.rs` `test_bc_2_10_017_not_yet_available_fast_fail_under_1s` + `test_bc_2_10_017_not_yet_available_guard_precedes_audit` — all three call gated ops methods and would fail no-operations-build compilation after T-C01. `mcp_infrastructure.rs` added to Files-to-MODIFY. Explicit no-gate constraint on param structs (`ListInfusionsParams`/`InfusionStatusParams`/`PluginStatusParams`). No BC/ADR/AC change; no new Red Gate test (RG density unchanged 4/5). |
 | 1.2 | 2026-09-16 | F3 BC/ADR pin propagation (D-2543/D-2544): BC-2.10.017 v1.1→v1.3; BC-2.10.011 v1.6→v1.7. AMENDMENT PENDING annotations removed from frontmatter comment, §Authority NOTE, §Behavioral Contracts table, and §Token Budget. |
 | 1.1 | 2026-09-16 | U-1: Corrected error code from `-32601` (MethodNotFound) to `-32602` (InvalidParams, message `tool not found`) per rmcp 1.7.0 source + `error_mapping.rs:86-91` confirmation (D-1110 uncertainty scan). Applied to AC-003, RG-GATE-003, T-D01, AC-005. U-2/U-3: Replaced T-C01 per-method-`#[cfg]`-inside-one-`#[tool_router]`-block approach (fails E0599 in rmcp-macros 1.7.0) with ratified two-router-block + combiner pattern per architect design decision D-1110. T-S01 updated from open-question spike to compile-confirmation step. Architecture Compliance Rule 2 and risk comment updated to reflect ratified mechanism. |
