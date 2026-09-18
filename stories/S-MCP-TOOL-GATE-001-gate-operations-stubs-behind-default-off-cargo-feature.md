@@ -5,7 +5,7 @@ title: "Gate 40 operations stubs behind default-off Cargo feature to eliminate -
 level: "L4"
 wave: 1
 epic_id: E-BETA3-REMEDIATION
-version: "1.9"
+version: "1.10"
 status: ready
 producer: story-writer
 timestamp: "2026-09-18T00:00:00Z"
@@ -330,9 +330,17 @@ Green Gate phase.
   AC-003.
 
 - [ ] **RG-GATE-004**: `test_BC_2_10_017_live_tools_all_present_without_operations_feature`
-  Assert: `NOT_YET_AVAILABLE_TOOLS.len() == 0` (the const is the empty slice) AND all 14 names
-  in `LIVE_TOOLS` appear in `PrismServer::production_tool_catalog()`. This is a compile-time
-  safety check as a test. Currently FAILS (NOT_YET_AVAILABLE_TOOLS.len() == 40).
+  Assert: all 14 names in `EXPECTED_LIVE_TOOLS` are present in
+  `PrismServer::production_tool_catalog()` (positive set); AND `production_tool_catalog().len()
+  == 14` (negative set — proves no ops stubs leaked in). Wire-shape: serialize `ListToolsResult`
+  and assert each of the 14 expected names appears exactly once in the serialized JSON `tools`
+  array.
+  `NOT_YET_AVAILABLE_TOOLS` emptiness is observable indirectly via the catalog count — the const
+  is private to `prism-mcp` and not directly assertable from this external integration test crate;
+  a non-empty `NOT_YET_AVAILABLE_TOOLS` would register additional tools and push the catalog
+  above 14.
+  Currently FAILS (catalog.len() == 54, not 14; the 40 ops stubs are still registered alongside
+  the 14 LIVE_TOOLS — the `production_tool_catalog().len() == 14` assertion fails first).
   AC-004 regression guard.
 
 **Red Gate density check** (BC-5.38.001): **4 failing tests** (RG-GATE-001..004) before
@@ -603,6 +611,7 @@ Holdout scenarios are stored in the holdout directory that test-writer/implement
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.10 | 2026-09-18 | LOCAL pass-9 F-LOCAL-LOW-001 + comprehensive prose↔test-body reconciliation: every RG-GATE/e2e/T-D0x/AC description verified against the actual shipped test bodies in bc_2_10_017_operations_feature_gate.rs, mcp_infrastructure.rs, and server.rs. RG-GATE-004 corrected: asserts production_tool_catalog().len()==14 and all 14 EXPECTED_LIVE_TOOLS present via direct catalog inspection (NOT the private NOT_YET_AVAILABLE_TOOLS const which is inaccessible from the external test crate); pre-gate failure is catalog.len()==54, not a const assertion. NOT_YET_AVAILABLE_TOOLS emptiness is now described as indirectly observable via the catalog count. No other assertion-mechanism drifts found: RG-GATE-001/002/003, OBS-1/OBS-2 e2e tests, T-D01/T-D02/T-D03/T-D04, and AC-001..005 descriptions all match shipped test bodies. No code/behavior change; feature HEAD 0af76be5c frozen. TD-VSDD-097 3-dim sweep: (1) sibling pair — none (S-MCP-TOOL-GATE-001 has no twin story sharing this subsystem/capability split); (2) downstream copy target — none (RG-GATE-004 description is not transcribed verbatim into any BC or ADR); (3) mandate anchor — no new MUSTs added. |
 | 1.9 | 2026-09-18 | LOCAL pass-7 docs-only fix-burst (no code/behavior change; feature HEAD 0af76be5c frozen). F-MED-001 (MEDIUM): T-D03 rewritten to state the GENERAL RULE — gate ALL ~20 ops-handler-invoking inline tests, not only the one named test; Phase-D constraint note corrected to remove false "three tests" miscount and false "Everything else remains ungated" closed-set claim; correct form is "enumerate by inspection, not a fixed short list." OBS-1 (POL-7 H1-verbatim): BC-2.10.012 §Authority citation restored to verbatim H1 `` `prism_describe` Schema Discovery Tool (L2) `` (was missing backticks + "(L2)"); BC-2.10.017 §Authority citation restored to full H1 "Not-Yet-Available Tools Fast-Fail — Audit Channel Non-Blocking" (was truncated). OBS-2 (POL-39 orchestrator adjudication): footnote added under §Behavioral Contracts table stating the "Version at Authoring" column is a frozen point-in-time snapshot, POL-39-exempt per same rationale as §History/§Changelog and TD-VSDD-091 AC-source-of-truth-table exemption. TD-VSDD-097 3-dim sweep: (1) sibling pair — §Authority BC citations and §Behavioral Contracts table BC title rows both swept for H1-verbatim compliance; (2) downstream copy — none; (3) mandate anchor — no new MUSTs added. |
 | 1.8 | 2026-09-18 | LOCAL pass-6 F-MED-001/F-LOW-001 docs reconciliation: §File Structure reconciled against actual f38604da4..0af76be5c diff (added Justfile [load-bearing operations-off gate legs] + confirmed CHANGELOG.md/mcp_infrastructure.rs); tools/operations.rs corrected to tools/mod.rs (T-C02 gated module declaration in mod.rs, not operations.rs directly); 'Files NOT to touch' corrected to carve out repo-root Justfile+CHANGELOG.md as EXPECTED modifications; test inventory documents both e2e round-trip tests (OBS-1 list_capabilities AC-002 + OBS-2 tools_list_14 AC-001; 6 tests total); frozen-HEAD ref updated to 0af76be5c. No code/behavior change; feature HEAD 0af76be5c frozen. TD-VSDD-097 3-dim sweep: (1) sibling pair — §File-Structure MODIFY table + 'Files NOT to touch' list + §Token Budget rows all swept together; (2) downstream copy — none; (3) mandate anchor — no new MUST. |
 | 1.7 | 2026-09-18 | LOCAL pass-4 LOW-1/LOW-2 records-only sweep (TD-VSDD-096): exhaustive de-pin of volatile BC-version pins in §Authority/§Token Budget narrative (POL-39) + removed server.rs line-number cite from §Tasks Phase-D note (TD-VSDD-091); cite ID+§anchor form only. No code/behavior change; feature HEAD 09658db3a frozen. TD-VSDD-097 3-dim sweep: (1) sibling pair — §Authority NOTE and §Token Budget rows both carried BC pins, swept together; (2) downstream copy — none; (3) mandate anchor — no new MUST. |
