@@ -1,0 +1,128 @@
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"_meta\":{\"data_source\":[],\"has_more\":false,\"next_cursor\":null,\"page\":1,\"query_time\":\"2026-09-18T23:35:01.847569+00:00\",\"safety_flags\":[],\"tool\":\"list_capabilities\",\"total_results\":0,\"trust_level\":\"internal\"},\"content\":[{\"text\":\"0 results found\",\"type\":\"text\"}],\"results\":{\"capabilities\":{},\"client_id\":\"demo-client\",\"client_registered\":false,\"not_registered_tools\":[\"get_diagnostics\",\"create_schedule\",\"list_schedules\",\"delete_schedule\",\"get_diff_results\",\"create_rule\",\"list_rules\",\"delete_rule\",\"create_case\",\"list_cases\",\"get_case\",\"update_case\",\"case_metrics\",\"list_credentials\",\"credential_status\",\"configure_credential_source\",\"delete_credential\",\"watchdog_status\",\"list_alerts\",\"get_alert\",\"acknowledge_alert\",\"crowdstrike_contain_host\",\"crowdstrike_lift_containment\",\"list_packs\",\"explain_pack\",\"create_pack\",\"delete_pack\",\"list_infusions\",\"infusion_status\",\"reload_infusion\",\"list_plugins\",\"plugin_status\",\"reload_plugin\",\"list_actions\",\"action_status\",\"fire_action\",\"test_action\",\"create_action\",\"delete_action\",\"get_help\"]},\"structuredContent\":{\"results\":{\"capabilities\":{},\"client_id\":\"demo-client\",\"client_registered\":false,\"not_registered_tools\":[\"get_diagnostics\",\"create_schedule\",\"list_schedules\",\"delete_schedule\",\"get_diff_results\",\"create_rule\",\"list_rules\",\"delete_rule\",\"create_case\",\"list_cases\",\"get_case\",\"update_case\",\"case_metrics\",\"list_credentials\",\"credential_status\",\"configure_credential_source\",\"delete_credential\",\"watchdog_status\",\"list_alerts\",\"get_alert\",\"acknowledge_alert\",\"crowdstrike_contain_host\",\"crowdstrike_lift_containment\",\"list_packs\",\"explain_pack\",\"create_pack\",\"delete_pack\",\"list_infusions\",\"infusion_status\",\"reload_infusion\",\"list_plugins\",\"plugin_status\",\"reload_plugin\",\"list_actions\",\"action_status\",\"fire_action\",\"test_action\",\"create_action\",\"delete_action\",\"get_help\"]}}}"
+      }
+    ],
+    "structuredContent": {
+      "_meta": {
+        "data_source": [],
+        "has_more": false,
+        "next_cursor": null,
+        "page": 1,
+        "query_time": "2026-09-18T23:35:01.847569+00:00",
+        "safety_flags": [],
+        "tool": "list_capabilities",
+        "total_results": 0,
+        "trust_level": "internal"
+      },
+      "content": [
+        {
+          "text": "0 results found",
+          "type": "text"
+        }
+      ],
+      "results": {
+        "capabilities": {},
+        "client_id": "demo-client",
+        "client_registered": false,
+        "not_registered_tools": [
+          "get_diagnostics",
+          "create_schedule",
+          "list_schedules",
+          "delete_schedule",
+          "get_diff_results",
+          "create_rule",
+          "list_rules",
+          "delete_rule",
+          "create_case",
+          "list_cases",
+          "get_case",
+          "update_case",
+          "case_metrics",
+          "list_credentials",
+          "credential_status",
+          "configure_credential_source",
+          "delete_credential",
+          "watchdog_status",
+          "list_alerts",
+          "get_alert",
+          "acknowledge_alert",
+          "crowdstrike_contain_host",
+          "crowdstrike_lift_containment",
+          "list_packs",
+          "explain_pack",
+          "create_pack",
+          "delete_pack",
+          "list_infusions",
+          "infusion_status",
+          "reload_infusion",
+          "list_plugins",
+          "plugin_status",
+          "reload_plugin",
+          "list_actions",
+          "action_status",
+          "fire_action",
+          "test_action",
+          "create_action",
+          "delete_action",
+          "get_help"
+        ]
+      },
+      "structuredContent": {
+        "results": {
+          "capabilities": {},
+          "client_id": "demo-client",
+          "client_registered": false,
+          "not_registered_tools": [
+            "get_diagnostics",
+            "create_schedule",
+            "list_schedules",
+            "delete_schedule",
+            "get_diff_results",
+            "create_rule",
+            "list_rules",
+            "delete_rule",
+            "create_case",
+            "list_cases",
+            "get_case",
+            "update_case",
+            "case_metrics",
+            "list_credentials",
+            "credential_status",
+            "configure_credential_source",
+            "delete_credential",
+            "watchdog_status",
+            "list_alerts",
+            "get_alert",
+            "acknowledge_alert",
+            "crowdstrike_contain_host",
+            "crowdstrike_lift_containment",
+            "list_packs",
+            "explain_pack",
+            "create_pack",
+            "delete_pack",
+            "list_infusions",
+            "infusion_status",
+            "reload_infusion",
+            "list_plugins",
+            "plugin_status",
+            "reload_plugin",
+            "list_actions",
+            "action_status",
+            "fire_action",
+            "test_action",
+            "create_action",
+            "delete_action",
+            "get_help"
+          ]
+        }
+      }
+    },
+    "isError": false
+  }
+}
