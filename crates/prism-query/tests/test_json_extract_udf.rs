@@ -2097,3 +2097,170 @@ async fn test_jex_rg020_ast_filter_non_literal_key_rejected_e_query_045_a() {
          E-QUERY-045(a) (JsonExtractNonLiteralKey). Got: {result:?}"
     );
 }
+
+// ===========================================================================
+// RG-JEX-021 — BLOCKING-1: uppercase function name bypass (WHERE position)
+// ===========================================================================
+
+/// RG-JEX-021: `JSON_EXTRACT_STRING(col, col_ref)` in a WHERE clause (uppercase name)
+/// must still trigger E-QUERY-045(a) — not silently bypass the gate.
+///
+/// **Root cause (BLOCKING-1 cycle-4):** `fn_call_comparison` in `filter_parser.rs` matched
+/// `func_name.as_str()` case-sensitively; `"JSON_EXTRACT_STRING"` fell to
+/// `ScalarFunc::Unknown`, so `check_jex_in_expr` never matched and the gate was bypassed.
+/// DataFusion resolves function names case-insensitively at execution time, so the bypass
+/// was a live P0 security issue (CWE-400 cap missing for uppercase callers).
+///
+/// **Fix:** `filter_parser.rs` now lowercases the matched string:
+/// `let lowered = func_name.to_ascii_lowercase(); match lowered.as_str() { ... }`.
+///
+/// SAP-3: exercises `QueryEngine::execute` (public surface).
+/// BC-2.11.025 §Plan-time literal-key gate; ADR-066 §B3.
+#[tokio::test]
+async fn test_jex_rg021_uppercase_func_name_where_rejected() {
+    // SAP-3: exercises check_json_extract_key_literal end-to-end from the public surface.
+    let engine = make_gate_engine();
+
+    // Uppercase function name in WHERE predicate with a non-literal (column reference) key.
+    // DataFusion would resolve `JSON_EXTRACT_STRING` at execution time, so the gate MUST
+    // intercept this before execution regardless of case.
+    let result = engine
+        .execute(
+            "SELECT raw FROM sensors WHERE JSON_EXTRACT_STRING(raw, col_ref) = 'x'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(result, Err(PrismError::JsonExtractNonLiteralKey)),
+        "RG-JEX-021: uppercase JSON_EXTRACT_STRING in WHERE with non-literal key must trigger \
+         E-QUERY-045(a). Got: {result:?}. \
+         RED reason: fn_call_comparison matches case-sensitively — uppercase falls to Unknown."
+    );
+}
+
+// ===========================================================================
+// RG-JEX-022 — BLOCKING-1: mixed-case + key-too-long bypass (WHERE position)
+// ===========================================================================
+
+/// RG-JEX-022: `Json_Extract_String(col, <257-byte key>)` in a WHERE clause (mixed case)
+/// must trigger E-QUERY-045(b) — not silently bypass the CWE-400 key-length cap.
+///
+/// This test covers the key-length arm of the gate (E-QUERY-045(b)) in addition to the
+/// case-sensitivity bypass so that both arms are verified for non-lowercase spellings.
+///
+/// SAP-3: exercises `QueryEngine::execute` (public surface).
+/// BC-2.11.025 §Plan-time literal-key gate; ADR-066 §B3 + §D3.
+#[tokio::test]
+async fn test_jex_rg022_mixed_case_func_name_key_too_long_where_rejected() {
+    // SAP-3: exercises check_json_extract_key_literal end-to-end from the public surface.
+    let engine = make_gate_engine();
+
+    // 257-byte literal key (1 byte over the 256-byte CWE-400 cap).
+    let key_257: String = "k".repeat(257);
+    // Mixed-case function name: must be caught by the gate regardless of case.
+    let query =
+        format!("SELECT raw FROM sensors WHERE Json_Extract_String(raw, '{key_257}') = 'x'");
+
+    let result = engine.execute(&query, QueryOptions::default()).await;
+
+    assert!(
+        matches!(
+            result,
+            Err(PrismError::JsonExtractKeyTooLong {
+                key_len: 257,
+                max_len: 256
+            })
+        ),
+        "RG-JEX-022: mixed-case Json_Extract_String in WHERE with 257-byte key must trigger \
+         E-QUERY-045(b) (JsonExtractKeyTooLong {{ key_len: 257, max_len: 256 }}). Got: {result:?}. \
+         RED reason: fn_call_comparison case-sensitive match → Unknown → gate bypassed."
+    );
+}
+
+// ===========================================================================
+// RG-JEX-023 — BLOCKING-5: nested-call recursion arm (inner non-literal key)
+// ===========================================================================
+
+/// RG-JEX-023: nested `json_extract_string` call where the inner call has a non-literal
+/// key must trigger E-QUERY-045(a) — the recursive arm in `check_jex_in_expr` must fire.
+///
+/// Query: `SELECT json_extract_string(json_extract_string(raw, dynamic_col), 'outer')`
+/// - Outer call: arg[1] = `'outer'` (valid literal) → passes initial key check → recurse
+/// - Inner arg[0] = `json_extract_string(raw, dynamic_col)`:
+///   - arg[1] = `dynamic_col` (column reference, non-literal) → E-QUERY-045(a)
+///
+/// **Root cause (BLOCKING-5 cycle-4):** The `for arg in args { check_jex_in_expr(arg)?; }`
+/// loop at the valid-literal arm of `check_jex_in_expr` had zero test coverage. Deleting
+/// it caused all existing tests to still pass, proving the recursion was never exercised.
+///
+/// SAP-3: exercises `QueryEngine::execute` (public surface), not synthetic AST.
+/// BC-2.11.025 §Plan-time literal-key gate; ADR-066 §B3.
+#[tokio::test]
+async fn test_jex_rg023_nested_call_inner_non_literal_rejected() {
+    // SAP-3: exercises check_json_extract_key_literal end-to-end from the public surface.
+    let engine = make_gate_engine();
+
+    // Outer call has a valid literal key at arg[1] ('outer') — passes initial check.
+    // The inner call at arg[0] has a column reference (dynamic_col) as key — non-literal.
+    // The recursive loop `for arg in args { check_jex_in_expr(arg)?; }` must catch it.
+    let result = engine
+        .execute(
+            "SELECT json_extract_string(json_extract_string(raw, dynamic_col), 'outer') \
+             FROM test_events",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(result, Err(PrismError::JsonExtractNonLiteralKey)),
+        "RG-JEX-023: nested json_extract_string with non-literal inner key must trigger \
+         E-QUERY-045(a) (JsonExtractNonLiteralKey). Got: {result:?}. \
+         RED reason: if the recursive arm is absent, the inner call is never checked."
+    );
+}
+
+// ===========================================================================
+// RG-JEX-024 — BLOCKING-5: nested-call recursion arm (both keys literal — accepted)
+// ===========================================================================
+
+/// RG-JEX-024: nested `json_extract_string` call where BOTH calls have literal keys
+/// must NOT trigger E-QUERY-045 — the gate must not over-fire on valid nesting.
+///
+/// Query: `SELECT json_extract_string(json_extract_string(raw, 'inner'), 'outer')`
+/// - Outer call: arg[1] = `'outer'` (valid) → recurse into args
+///   - Inner call arg[0]: arg[1] = `'inner'` (valid) → recursion returns Ok(())
+/// - Neither arm returns an error.
+///
+/// This is the green counterpart to RG-JEX-023: proves the recursion does not
+/// over-block valid doubly-nested extraction.
+///
+/// SAP-3: exercises `QueryEngine::execute` (public surface), not synthetic AST.
+/// BC-2.11.025 §Plan-time literal-key gate; ADR-066 §B3.
+#[tokio::test]
+async fn test_jex_rg024_nested_call_inner_literal_accepted() {
+    // SAP-3: exercises check_json_extract_key_literal end-to-end from the public surface.
+    let engine = make_gate_engine();
+
+    // Both outer and inner calls use literal keys — gate must not fire.
+    // Result will be Ok (gate passes) or a non-045 error (e.g., table-not-found since
+    // make_gate_engine() has no tables); either way, E-QUERY-045 must NOT appear.
+    let result = engine
+        .execute(
+            "SELECT json_extract_string(json_extract_string(raw, 'inner'), 'outer') \
+             FROM test_events",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        !matches!(result, Err(PrismError::JsonExtractNonLiteralKey)),
+        "RG-JEX-024: nested json_extract_string with literal inner key must NOT trigger \
+         E-QUERY-045(a). Got: {result:?}."
+    );
+    assert!(
+        !matches!(result, Err(PrismError::JsonExtractKeyTooLong { .. })),
+        "RG-JEX-024: nested json_extract_string with literal inner key must NOT trigger \
+         E-QUERY-045(b). Got: {result:?}."
+    );
+}

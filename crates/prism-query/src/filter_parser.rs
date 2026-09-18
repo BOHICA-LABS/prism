@@ -1576,7 +1576,15 @@ pub(crate) fn build_predicate_parser<'a>(
                     // mapped here; the other named scalars have no gate/registration
                     // in filter-mode and are out of scope per architect blast-radius
                     // analysis (F-JEX-P1-HIGH-001 / T-09a).
-                    let scalar_func = match func_name.as_str() {
+                    //
+                    // BLOCKING-1 fix (S-JSON-EXTRACT-UDF-001 cycle-4): match case-insensitively
+                    // so that `JSON_EXTRACT_STRING(col, expr)` in a WHERE/HAVING clause is caught
+                    // by the E-QUERY-045 gate.  DataFusion resolves function names
+                    // case-insensitively at execution time, so an uppercase spelling that
+                    // bypasses this match would silently execute without the CWE-400 cap.
+                    // Parity: sql_parser.rs `known_scalar` already uses `name.to_lowercase()`.
+                    let lowered = func_name.to_ascii_lowercase();
+                    let scalar_func = match lowered.as_str() {
                         "json_extract_string" => ScalarFunc::JsonExtractString,
                         _ => ScalarFunc::Unknown(func_name),
                     };

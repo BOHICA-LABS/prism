@@ -2550,9 +2550,17 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         // Only Some for mode-bridge D1 errors; None for all other variants (absent from JSON).
         normalized_pql: meta.normalized_pql,
     };
+    // BLOCKING-2 fix (S-JSON-EXTRACT-UDF-001 cycle-4): strip a trailing period from
+    // `message` before inserting into the format string so that messages that already
+    // end with `.` (e.g. E-QUERY-045 variants) produce exactly one period between
+    // message and suggestion.  Without this, `"...not supported." + ". " + suggestion`
+    // yields `"...not supported.. Provide..."` (double period).
+    // Messages that do NOT end with `.` are unaffected (trim_end_matches is a no-op
+    // when the trailing character does not match).
+    let msg_trimmed = fields.message.trim_end_matches('.');
     let content_text = format!(
         "ERROR: [{}] - {}. {}",
-        fields.category, fields.message, fields.suggestion
+        fields.category, msg_trimmed, fields.suggestion
     );
     build_structured_error_response(fields, content_text)
 }
@@ -6130,7 +6138,13 @@ mod tests {
     // -----------------------------------------------------------------------
 
     /// SID-2 (N4): E-QUERY-045(a) composed content_text must NOT have the example literal
-    /// `json_extract_string(col, 'key_name')` appear twice (message + suggestion duplication).
+    /// `json_extract_string(col, 'key_name')` appear twice (message + suggestion duplication),
+    /// must NOT have a doubled period (`..`), and must match the full expected string verbatim.
+    ///
+    /// **BLOCKING-2 fix (cycle-4):** the compositor formerly used
+    /// `format!("ERROR: [{}] - {}. {}", category, message, suggestion)` — when `message`
+    /// already ends with `.`, this produced `"...not supported.. Provide..."` (double period).
+    /// The fix strips the trailing `.` from `message` before inserting it into the format.
     ///
     /// After the N4 fix, the suggestion uses `json_extract_string(raw_extensions, 'severity')`
     /// (a different example), so the phrase `json_extract_string(col, 'key_name')` from the
@@ -6140,13 +6154,31 @@ mod tests {
     /// asserted on the FULL composed string (CLAUDE.md §SID-2).
     ///
     /// Traces to: BC-2.11.025 §Error Cases E-QUERY-045(a); ADR-066 §F;
-    ///            CLAUDE.md §SID-2; S-JSON-EXTRACT-UDF-001.
+    ///            CLAUDE.md §SID-2; S-JSON-EXTRACT-UDF-001 cycle-4 BLOCKING-2.
     #[test]
     fn test_S_JSON_EXTRACT_UDF_001_e_query_045a_sid2_no_example_duplication_in_content_text() {
         let err = PrismError::JsonExtractNonLiteralKey;
 
         let result = prism_error_to_structured_call_result(err);
         let content_text = extract_content_text_from_result(&result);
+
+        // SID-2 full-composed assert (BLOCKING-2 guard): the exact content_text string
+        // the LLM agent receives.  Previously the compositor added ". " after a message that
+        // already ended with "." producing a double period; this assert catches that regression.
+        let expected_content_text = concat!(
+            "ERROR: [validation] - ",
+            "E-QUERY-045: json_extract_string requires a literal string key ",
+            "(e.g., json_extract_string(col, 'key_name')). ",
+            "Dynamic key expressions are not supported. ",
+            "Provide a string literal as the second argument, ",
+            "e.g., json_extract_string(raw_extensions, 'severity')."
+        );
+        assert_eq!(
+            content_text, expected_content_text,
+            "[SID-2/BLOCKING-2] E-QUERY-045(a) content_text mismatch. \
+             Common failure: double period between message and suggestion (`..`). \
+             Got: {content_text:?}"
+        );
 
         // SID-2: the message-level example phrase must appear EXACTLY ONCE in content_text.
         // The spec-verbatim message contains `json_extract_string(col, 'key_name')`;
@@ -6160,6 +6192,14 @@ mod tests {
              must appear exactly once (from the spec-verbatim message). \
              If count > 1, the suggestion still contains the same example as the message. \
              Fix: suggestion must use a different example (e.g., json_extract_string(raw_extensions, 'severity')). \
+             content_text was: {content_text:?}"
+        );
+
+        // BLOCKING-2 guard: no doubled period in content_text.
+        assert!(
+            !content_text.contains(".."),
+            "[SID-2/BLOCKING-2] VIOLATION: content_text contains '..' (double period) — \
+             message ending with '.' was combined with the '. ' separator in the format string. \
              content_text was: {content_text:?}"
         );
 
@@ -6177,6 +6217,55 @@ mod tests {
             suggestion,
             "Provide a string literal as the second argument, e.g., json_extract_string(raw_extensions, 'severity').",
             "[SID-2/N4]: suggestion must exactly match the VariantMeta arm text. Got: '{suggestion}'"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // BLOCKING-2 — SID-2 composed-output assertion for E-QUERY-045(b)
+    // -----------------------------------------------------------------------
+
+    /// SID-2 (BLOCKING-2): E-QUERY-045(b) composed content_text must match the full expected
+    /// string verbatim and must NOT have a doubled period (`..`).
+    ///
+    /// **Root cause:** same as E-QUERY-045(a) above — the compositor added `. ` after a
+    /// message that already ends with `.` (the CWE-400 message ends with `(CWE-400).`),
+    /// producing `"...(CWE-400).. Reduce..."`.
+    ///
+    /// SID-2 discipline: any user-visible string composed from message + suggestion MUST be
+    /// asserted on the FULL composed string (CLAUDE.md §SID-2).
+    ///
+    /// Traces to: BC-2.11.025 §Error Cases E-QUERY-045(b); ADR-066 §F;
+    ///            CLAUDE.md §SID-2; S-JSON-EXTRACT-UDF-001 cycle-4 BLOCKING-2.
+    #[test]
+    fn test_S_JSON_EXTRACT_UDF_001_e_query_045b_sid2_full_composed_content_text() {
+        let err = PrismError::JsonExtractKeyTooLong {
+            key_len: 257,
+            max_len: 256,
+        };
+
+        let result = prism_error_to_structured_call_result(err);
+        let content_text = extract_content_text_from_result(&result);
+
+        // SID-2 full-composed assert (BLOCKING-2 guard): exact content_text for key_len=257, max_len=256.
+        let expected_content_text = concat!(
+            "ERROR: [validation] - ",
+            "E-QUERY-045: json_extract_string key is 257 bytes, ",
+            "which exceeds the 256-byte maximum (CWE-400). ",
+            "Reduce the json_extract_string key to 256 UTF-8 bytes or fewer."
+        );
+        assert_eq!(
+            content_text, expected_content_text,
+            "[SID-2/BLOCKING-2] E-QUERY-045(b) content_text mismatch. \
+             Common failure: double period between message and suggestion (`..`). \
+             Got: {content_text:?}"
+        );
+
+        // BLOCKING-2 guard: no doubled period in content_text.
+        assert!(
+            !content_text.contains(".."),
+            "[SID-2/BLOCKING-2] VIOLATION: content_text contains '..' (double period) — \
+             message ending with '.' was combined with the '. ' separator in the format string. \
+             content_text was: {content_text:?}"
         );
     }
 
