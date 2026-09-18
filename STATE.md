@@ -4,7 +4,7 @@ level: ops
 version: "10.076"
 last_amended: "2026-09-18 (v10.076) — state-manager — D-2570 FEDERATION RATIFICATION HELD (BLOCKER-FED-SPOTLIGHT-001 OPENED) + S-MCP-TOOL-GATE-001 LOCAL pass-1 FIXED (3 OBS CLOSED; BC-2.10.017 v1.4; streak RESET 0/3 new frozen HEAD 09658db3a). BC-INDEX v10.29→v10.30."
 producer: state-manager
-timestamp: 2026-09-18T18:38:27Z
+timestamp: 2026-09-18T18:42:39Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
