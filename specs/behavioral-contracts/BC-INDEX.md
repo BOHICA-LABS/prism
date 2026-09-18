@@ -1,10 +1,11 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "10.27"
+version: "10.28"
 status: draft
 producer: state-manager
 timestamp: 2026-09-17T00:00:00Z
+# NOTE: D-2560 — BC-INDEX v10.27→v10.28: D-2560 F-JEX-P1-HIGH-001 predicate-parity cascade — BC-2.11.025 row pin v1.10→v1.11 (DML-exclusion reason cleanup; EC-11-025-012 WHERE/HAVING/pipe-where predicate gate coverage; 4-code-paths invariant). Contract counts UNCHANGED: draft_contracts 5 / active_contracts 260 / total_contracts 278.
 # NOTE: D-2559 — BC-INDEX v10.26→v10.27: D-2559 state-manager burst — BC-2.11.025 row pin v1.9→v1.10 (LOW-001 registration phrasing corrected per ephemeral SessionContext; MED-001 FALSE POSITIVE test-verified via 2 unit tests @6256a893e). Contract counts UNCHANGED: draft_contracts 5 / active_contracts 260 / total_contracts 278.
 # NOTE: D-2554 — BC-INDEX v10.25→v10.26: S-JSON-EXTRACT-UDF-001 LOCAL pass CLEAN(PR-merge) fix-burst (LOW-1/LOW-2/OBS-1) — BC-2.11.025 row pin v1.8→v1.9. Contract counts UNCHANGED: draft_contracts 5 / active_contracts 260 / total_contracts 278.
 # NOTE: D-2548 — BC-INDEX v10.24→v10.25: F3 W3 SPEC-AUTHORING + BC-AMENDMENT CHECKPOINT — BC-2.16.003 pin v1.32→v1.34 (RG-COT-001..009 anchors: EC-016-013-042..045 + additive invariant; severity_id EC-042, time-column EC-043/044, device_uid EC-045; S-CLAROTY-OCSF-TOML-001 anchor). BC-2.16.017 pin v1.2→v1.3 (device_uid Tier-2→Tier-1; EC-016-017-007 NEW; EC-016-017-006 superseded; S-CLAROTY-OCSF-TOML-001 AC-004 RG-COT-006). BC-2.16.013 pin v1.46→v1.47 (severity_id Optional<u32> DTU struct MUST; wire-emission MUSTs AC-005/RG-COT-003 AC-006/RG-COT-004; TD-VSDD-097 sibling BC-2.02.005 amended same burst). BC-2.02.005 pin v1.7→v1.8 (severity_id Integer Tier-1 MUST; AC-007 RG-COT-005; Gap-CL-005 STRING severity removal PRESERVED). Contract counts UNCHANGED: draft_contracts 5 / active_contracts 260 / total_contracts 278.
@@ -339,7 +340,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.11.022 | Auto-Generated `prismql://reference` Content Contract and CI Parity Gate | 10 - MCP Interface | CAP-034 | P0 | active v1.3 |
 | BC-2.11.023 | Three-Mode Correctness — Mode-Bridge Error, `normalized_pql`, and D7 Graduation Invariant | 11 - Query Execution | CAP-015 | P0 | active v1.2 |
 | BC-2.11.024 | PrismQL Case-Insensitive Equality and Membership Operators (IEQ / IIN / INE) | 11 - Query Execution | CAP-015 | P1 | active v1.1 |
-| BC-2.11.025 | `json_extract_string` DataFusion ScalarUDF — Literal-Key-Only JSON String Extraction | 11 - Query Execution | CAP-015 | P0 | draft v1.10 |
+| BC-2.11.025 | `json_extract_string` DataFusion ScalarUDF — Literal-Key-Only JSON String Extraction | 11 - Query Execution | CAP-015 | P0 | draft v1.11 |
 | BC-2.12.001 | `create_schedule` MCP Tool — Create a Scheduled Query | 12 - Scheduler | CAP-017 | P0 | draft |
 | BC-2.12.002 | `list_schedules` MCP Tool — List Active Schedules with Next Run Times | 12 - Scheduler | CAP-017 | P0 | draft |
 | BC-2.12.003 | `delete_schedule` MCP Tool — Remove a Schedule (Confirmation Required) | 12 - Scheduler | CAP-017 | P0 | draft |
@@ -565,6 +566,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v10.28 (2026-09-17, D-2560):** state-manager | SINGLE-COMMIT BURST (TD-VSDD-053) — F-JEX-P1-HIGH-001 predicate-parity cascade (SESSION-INTERRUPT RECOVERY). BC-2.11.025 row pin v1.10→v1.11 (DML-exclusion reason cleanup; EC-11-025-012 WHERE/HAVING/pipe-where predicate gate coverage; 4-code-paths invariant). ARCH-INDEX v2.400→v2.401 (ADR-066 v1.6→v1.7). VP-INDEX v2.29→v2.30 (VP-162 v1.6→v1.7 OBS-001 inputs path). STORY-INDEX v3.051→v3.052 (S-JSON-EXTRACT-UDF-001 v1.7→v1.8 T-09a + AC-012 + RG-JEX-012 + spec pin sweep). Contract counts UNCHANGED: draft_contracts 5 / active_contracts 260 / total_contracts 278. BC-INDEX v10.27→v10.28. STATE v10.065→v10.066.
 
 **v10.05 (2026-09-03, D-2430):** state-manager | SINGLE-COMMIT BURST (TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 audit_logs fallback ADOPTED after live validation on monroe (2026-09-02/03). BC-2.16.013 v1.44→v1.45: audit_logs §Sort-by postcondition — timestamp-only `[{"field":"timestamp","order":"asc"}]` now CANONICAL; compound form `[{"field":"timestamp","order":"asc"},{"field":"id","order":"asc"}]` RETIRED live-proven-broken (id returns 0 rows on xDome audit_log API; id not in documented `SortClause`/`GetAuditLogParameters` sortable fields); accepted residual non-determinism documented; filter_by coexistence retained; input-hash refreshed by author. Story DEFECT-CLAROTY-SORTBY-DETERMINISM-001 v1.5→v1.6 (AC-002/Task-7 DISCHARGED, EC-001/§Authority/§Background/Behavioral-Contracts-table/RG-002/RG-009/§Tasks/§Architecture-Compliance/§Notes aligned to timestamp-only canonical; input-hash 73b9dc1). STORY-INDEX v2.985→v2.986. draft_contracts 3 / active_contracts 261 / total_contracts 277 ALL UNCHANGED. TD-VSDD-091/POL-39 CLEAN (no volatile line/version cites). TD-VSDD-097: Dim-1 CLEAR (BC-2.16.013 and BC-2.01.013 are the Claroty audit_logs push-down sibling pair; BC-2.01.013 has no parallel audit_logs sort contract — Claroty-specific; confirmed in v1.45 changelog; CLEAR). Dim-2 CLEAR (story §Authority + Behavioral-Contracts table version cell co-updated in same burst). Dim-3 CLEAR (no new unanchored MUSTs; sort_by CANONICAL postcondition anchored to DEFECT-CLAROTY-SORTBY-DETERMINISM-001 RG-002/RG-009). records-lint L1/L7/L9/L10 PASS. LOCAL 3-CLEAN streak RESET 0/3 (BC/story spec perimeter changed; re-gate on fallback HEAD). BC-INDEX v10.04→v10.05. STATE v8.959→v8.960.
 

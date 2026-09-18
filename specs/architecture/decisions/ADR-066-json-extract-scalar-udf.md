@@ -5,7 +5,7 @@ title: "json_extract_string Scalar UDF — Synchronous serde_json Single-Key Ext
 status: ACCEPTED
 date: "2026-09-16"
 modified: "2026-09-16"
-version: "1.6"
+version: "1.7"
 producer: architect
 subsystems_affected: [SS-11]
 supersedes: []
@@ -33,7 +33,7 @@ input-hash: "pending"
 
 ## Status
 
-ACCEPTED v1.6 (2026-09-17) — Errata: §E `invoke_batch` → `invoke_with_args` (DataFusion 46.0 deprecated; workspace pin 53.1). No behavioral change. v1.5 (2026-09-16) — Re-gate pass 5: §D1 "exactly 256 bytes" corrected to "at most 256 bytes (models key.len() ≤ 256)"; §D1 cross-reference "VP-162 §Harnesses" corrected to "VP-162 §Kani Proof Harness". v1.4 (2026-09-16) — Re-gate pass 3: §D1 `kani::assume` wording corrected to structural `any_vec::<u8, 256>()` mechanism; §C invariant 3 corrected to cite `vp162_json_extract_string_null_safety` (general harness) not the None-input specialization. v1.3 (2026-09-16) — Re-gate pass 2: §C Formal Correctness Contract section added; §K5 POL-39 convention applied. v1.2 (2026-09-16) — Re-gate pass 1: §D header renamed from §C; §F error messages verbatim per POL-24. v1.1 (2026-09-16) — Adversarial gate F2/F7/F10: §G RG-JEX-006/007 canonical swap; §G expanded to 11+VP entries; §F `E-QUERY-045:` prefix + `{max_len}` placeholder. v1.0 (2026-09-16) — D-2522 beta.3 spec-gate approved. Closes the latent dead-path defect: `ScalarFunc::JsonExtractString` existed in the AST, SQL parser, and pipe SQL emitter since an earlier wave, but no `ScalarUDF` named `json_extract_string` was registered with the DataFusion `SessionContext`. Any invocation caused a DataFusion-internal runtime error unstructured under the prism error taxonomy.
+ACCEPTED v1.7 (2026-09-17) — Security-gap closure (F-JEX-P1-HIGH-001): §B3 predicate-position parity requirement added — `fn_call_comparison` in `filter_parser.rs` must map `"json_extract_string"` → `ScalarFunc::JsonExtractString` to cover WHERE/HAVING gate enforcement; §G LOW-002 corrected "engine construction" → "per ephemeral SessionContext". v1.6 (2026-09-17) — Errata: §E `invoke_batch` → `invoke_with_args` (DataFusion 46.0 deprecated; workspace pin 53.1). No behavioral change. v1.5 (2026-09-16) — Re-gate pass 5: §D1 "exactly 256 bytes" corrected to "at most 256 bytes (models key.len() ≤ 256)"; §D1 cross-reference "VP-162 §Harnesses" corrected to "VP-162 §Kani Proof Harness". v1.4 (2026-09-16) — Re-gate pass 3: §D1 `kani::assume` wording corrected to structural `any_vec::<u8, 256>()` mechanism; §C invariant 3 corrected to cite `vp162_json_extract_string_null_safety` (general harness) not the None-input specialization. v1.3 (2026-09-16) — Re-gate pass 2: §C Formal Correctness Contract section added; §K5 POL-39 convention applied. v1.2 (2026-09-16) — Re-gate pass 1: §D header renamed from §C; §F error messages verbatim per POL-24. v1.1 (2026-09-16) — Adversarial gate F2/F7/F10: §G RG-JEX-006/007 canonical swap; §G expanded to 11+VP entries; §F `E-QUERY-045:` prefix + `{max_len}` placeholder. v1.0 (2026-09-16) — D-2522 beta.3 spec-gate approved. Closes the latent dead-path defect: `ScalarFunc::JsonExtractString` existed in the AST, SQL parser, and pipe SQL emitter since an earlier wave, but no `ScalarUDF` named `json_extract_string` was registered with the DataFusion `SessionContext`. Any invocation caused a DataFusion-internal runtime error unstructured under the prism error taxonomy.
 
 **ADR-066 POL-39 decision-history convention:** Version references in §Status history and §Changelog rows (e.g., "v1.0 — D-2522 spec-gate", "v1.1 — F2/F7/F10") are intentional intra-ADR decision-history prose — they are NOT normative version pins and are POL-39-exempt; do not re-mint findings against them.
 
@@ -178,9 +178,51 @@ nodes before the SQL is handed to DataFusion for planning. This is distinct from
 DataFusion `analyze` hook; it is a pre-planning validation in `engine.rs` after PQL
 parsing but before `ctx.sql(...)` is called.
 
+**Predicate-position parity requirement (F-JEX-P1-HIGH-001):** PQL's predicate parser
+(`filter_parser.rs fn_call_comparison`) currently emits `ScalarFunc::Unknown(name)` for
+ALL function calls in predicate positions (WHERE, HAVING, pipe-where), while the SQL
+parser (`sql_parser.rs known_scalar`) correctly maps `"json_extract_string"` →
+`ScalarFunc::JsonExtractString`. Without parity, the gate — which walks for
+`ScalarFunc::JsonExtractString` nodes — silently misses WHERE and HAVING invocations,
+producing two failure modes: (a) security bypass — E-QUERY-045 not enforced for
+`json_extract_string(col, other_col)` in WHERE/HAVING; the 256-byte cap and injection
+gate are both skipped; (b) misleading E-QUERY-039 "infusion not registered" error when an
+infusion registry is active (the Unknown name is collected as a candidate infusion call and
+checked against the InfusionRegistry, which does not contain `json_extract_string`).
+
+The implementer MUST add a case to `fn_call_comparison`'s validate closure in
+`filter_parser.rs` that maps `"json_extract_string"` → `ScalarFunc::JsonExtractString`
+(exact parity with `known_scalar` in `sql_parser.rs`):
+
+```rust
+// Inside fn_call_comparison .validate() closure, before constructing Predicate::Compare:
+let scalar_func = match func_name.as_str() {
+    "json_extract_string" => ScalarFunc::JsonExtractString,
+    _ => ScalarFunc::Unknown(func_name),
+};
+```
+
+After this fix, the gate correctly catches `json_extract_string` in all positions:
+SELECT projections, WHERE predicates, HAVING predicates, and pipe-where stages. No change
+to the gate logic itself is needed — the existing `ScalarFunc::JsonExtractString` walk
+covers all positions once the parser emits the correct variant.
+
+**DML scope note (post-fix):** After the filter_parser fix, DML filter predicates
+(`Ast::Sql(SqlStatement::Dml)`) also emit `ScalarFunc::JsonExtractString`. The gate's
+`Ast::Sql(_) => Ok(())` arm correctly skips DML for two independent structural reasons:
+(reason 2) the write pipeline (`write_pipeline.rs`) does not create a DataFusion
+`SessionContext` and stores only `has_where_clause: bool`; (reason 3) the read-path
+wildcard `_ => Ok(Vec::new())` arm returns empty without UDF execution. BC-2.11.025 v1.10
+§Postconditions DML scope exclusion reason (1) — "DML emits Unknown; gate walks for
+JsonExtractString only" — is STALE after this fix and must be removed from BC-2.11.025
+(routes to product-owner); reasons (2) and (3) remain valid and sufficient.
+
 **SAP-3 reachability requirement:** The gate MUST be reachable from the public PrismQL
 surface (a real PQL query string), not only from a synthetic AST injection. RG-JEX-006
-tests this from the `prism_query` public API.
+tests this from the `prism_query` public API. After the predicate-position parity fix,
+the test author SHOULD use a WHERE-predicate query form (e.g.,
+`SELECT * FROM t WHERE json_extract_string(col, other_col) = 'x'`) so that the test
+exercises the new filter_parser code path, not only the sql_parser SELECT path.
 
 ---
 
@@ -352,7 +394,7 @@ S-JSON-EXTRACT-UDF-001:
 
 | MUST | Story AC / Red Gate |
 |------|---------------------|
-| UDF registered at engine construction | S-JSON-EXTRACT-UDF-001 RG-JEX-001 (happy path executes) |
+| UDF registered per ephemeral `SessionContext` (`execute_inner`/`execute_scheduled_inner`) | S-JSON-EXTRACT-UDF-001 RG-JEX-001 (happy path executes) |
 | JSON null value → SQL NULL (§B1 step 5) | S-JSON-EXTRACT-UDF-001 RG-JEX-002 |
 | Missing key → SQL NULL (§B1 step 4) | S-JSON-EXTRACT-UDF-001 RG-JEX-003 |
 | Null column → SQL NULL (§B1 step 1) | S-JSON-EXTRACT-UDF-001 RG-JEX-004 |
@@ -447,6 +489,7 @@ key only, string return type only, no push-down.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.7 | 2026-09-17 | architect | Security-gap closure (F-JEX-P1-HIGH-001). §B3 predicate-position parity requirement added: `fn_call_comparison` in `filter_parser.rs` emits `ScalarFunc::Unknown` for ALL predicate-position function calls, so the gate — which walks `ScalarFunc::JsonExtractString` — silently misses WHERE/HAVING invocations. Fix: implementer adds `"json_extract_string" => ScalarFunc::JsonExtractString` mapping to `fn_call_comparison` validate closure (parity with `known_scalar` in `sql_parser.rs`). Consequences: (a) E-QUERY-045 now enforces injection prevention in WHERE/HAVING/pipe-where; (b) E-QUERY-039 false positive eliminated (JsonExtractString not Unknown, not collected as infusion candidate). DML scope note updated: after the fix DML emits JsonExtractString, not Unknown; reason (1) of BC-2.11.025 DML scope exclusion is stale and routes to product-owner; reasons (2)/(3) remain valid. SAP-3 note updated: RG-JEX-006 SHOULD use a WHERE-predicate query form. LOW-002 fix: §G mandate table "engine construction" → "per ephemeral SessionContext (`execute_inner`/`execute_scheduled_inner`)". TD-VSDD-097: (1) sibling pair — no ADR twin sharing SS-11 UDF; CLEAR. (2) downstream copy target — §B3 "gate fires for WHERE/HAVING" is new; BC-2.11.025 §Postconditions plan-gate note carries no verbatim copy of old §B3 gate-implementation text; BC DML scope exclusion reason (1) stale, flagged for PO update in §B3 DML scope note. (3) mandate anchor — no new MUST; the predicate-parity fix operationalizes the existing §B3 MUST "gate runs for both SQL mode and pipe mode" (already anchored to RG-JEX-006). |
 | 1.6 | 2026-09-17 | architect | Errata (additive/errata post-freeze lane; no behavioral/contract/mandate change). §E constructor sketch: `invoke_batch(&self, args: &[ColumnarValue], batch_size: usize)` replaced with `invoke_with_args(&self, args: ScalarFunctionArgs)` — `invoke_batch` deprecated at DataFusion 46.0 and absent from workspace (pinned 53.1); confirmed against `crates/prism-query/src/infusion_udf.rs` `ScalarUDFImpl` impl and DataFusion 53.1 docs. `ScalarFunctionArgs` added to `use datafusion::logical_expr` import in §E sketch. §E Implementation-type table row updated to note eval method is `invoke_with_args`. §Consequences/Negative `invoke_batch implementation` corrected to `invoke_with_args implementation`. §Status banner updated. TD-VSDD-097: (1) sibling pair — no ADR twin sharing SS-11 UDF subsystem; CLEAR. (2) downstream copy targets — `invoke_batch` found in `vp-162-json-extract-string-null-safety.md` §Purity Boundary (effectful-shell annotation) and in story `S-JSON-EXTRACT-UDF-001` §Architecture-Mapping / §Library-Requirements — reported to state-manager/PO for sweep; not edited here (architect owns ADRs only). (3) mandate anchor — N/A, errata only, no new MUST introduced. |
 | 1.5 | 2026-09-16 | architect | Re-gate pass 5 fixes. F-B (LOW): §D1 "exactly 256 bytes" corrected to "at most 256 bytes (models key.len() ≤ 256)" — `kani::vec::any_vec::<u8, 256>()` yields a vector of length 0..=256 (models `key.len() ≤ 256`), not exactly 256. F-C (LOW): §D1 cross-reference "VP-162 §Harnesses" corrected to "VP-162 §Kani Proof Harness" — actual H2 heading in VP-162 is `## Kani Proof Harness`. TD-VSDD-097: (1) sibling pair — no ADR twin; CLEAR. (2) downstream copy target — §D1 is not independently copied; §C invariant 3 "256-byte hard bound" wording correct as-is and unchanged. (3) mandate anchor — no new MUST added. |
 | 1.4 | 2026-09-16 | architect | Re-gate pass 3 fixes. Finding-2 (LOW): §D1 stale `kani::assume(key.len() <= 256)` wording replaced with VP-162-accurate description: harness `vp162_json_extract_string_null_safety` bounds the key structurally via `kani::vec::any_vec::<u8, 256>()` + `std::str::from_utf8()` (no runtime assume); VP-162 §Harnesses cited as canonical definition. §C invariant 3 corrected — was incorrectly citing `vp162_b_none_input_is_none_output` (the None-input specialization, which proves invariant 2) as the harness for the bounded-key scenario; corrected to cite `vp162_json_extract_string_null_safety` (general harness that proves invariant 1 and 3). Finding-3 (LOW): §Status banner updated from stale v1.0 to current v1.4 with full version history (v1.0..v1.4); POL-39 decision-history-exemption convention note added to §Status banner. |

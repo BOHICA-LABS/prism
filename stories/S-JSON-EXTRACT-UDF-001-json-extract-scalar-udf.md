@@ -3,7 +3,7 @@ document_type: story
 story_id: S-JSON-EXTRACT-UDF-001
 title: "Minimal json_extract_string ScalarUDF with Literal-Key Plan Gate (E-QUERY-045)"
 level: "L4"
-version: "1.7"
+version: "1.8"
 status: ready
 producer: story-writer
 timestamp: "2026-09-17T00:00:00Z"
@@ -67,9 +67,9 @@ blocks:
 #   beta.3 live-validation gate (OQ-002 human decision 2026-08-21).
 behavioral_contracts:
   - BC-2.11.025
-# BC status: draft v1.10 (frozen per beta3 spec-gate passes; BC-INDEX pin v1.10 confirmed).
-#   BC-2.11.025 contains 11 edge cases (EC-11-025-001..011) each anchored to
-#   S-JSON-EXTRACT-UDF-001 RG-JEX-001..011 with canonical test names.
+# BC status: draft v1.11 (frozen per beta3 spec-gate passes; BC-INDEX pin v1.11 confirmed).
+#   BC-2.11.025 contains 12 edge cases (EC-11-025-001..012) each anchored to
+#   S-JSON-EXTRACT-UDF-001 RG-JEX-001..012 with canonical test names.
 #   Spec-First Gate S-7.01 satisfied: behavioral_contracts is non-empty with canonical
 #   BC-S.SS.NNN pattern. Every AC below traces to a specific BC-2.11.025 clause.
 verification_properties:
@@ -84,23 +84,23 @@ modified: "2026-09-17"
 
 ## Authority
 
-**ADR-066 v1.6** (`decisions/ADR-066-json-extract-scalar-udf.md`) is the authoritative
+**ADR-066 v1.7** (`decisions/ADR-066-json-extract-scalar-udf.md`) is the authoritative
 design document for this story. Read §A (dead-path defect), §B (decision: synchronous
 serde_json + literal-key gate), §C (formal correctness contract), §D1-§D6 (scope
 boundaries), §E (DataFusion registration contract), §F (E-QUERY-045 error messages),
-§G (mandate anchors — 11 MUST → RG-JEX mappings), and §H (latent defect closure) in full
+§G (mandate anchors — 12 MUST → RG-JEX mappings), and §H (latent defect closure) in full
 before implementing.
 
-**BC-2.11.025 v1.10** (`behavioral-contracts/BC-2.11.025-json-extract-string-scalar-udf.md`)
-governs the full behavioral contract. The 11 edge cases (EC-11-025-001..011) are the
-authoritative acceptance criteria and provide canonical test names for RG-JEX-001..011.
+**BC-2.11.025 v1.11** (`behavioral-contracts/BC-2.11.025-json-extract-string-scalar-udf.md`)
+governs the full behavioral contract. The 12 edge cases (EC-11-025-001..012) are the
+authoritative acceptance criteria and provide canonical test names for RG-JEX-001..012.
 
-**VP-162 v1.6** (`verification-properties/vp-162-json-extract-string-null-safety.md`)
+**VP-162 v1.7** (`verification-properties/vp-162-json-extract-string-null-safety.md`)
 defines the Kani proof target (`json_extract_string_impl` pure function). The Kani harness
 files live in `crates/prism-query/src/proofs/vp162_json_extract_null_safety.rs` per VP-162
 §Kani Proof Harness. The proof is dispatched in Phase 5 (formal-verify), not Phase 3.
 
-> NOTE: ADR-066 v1.6, BC-2.11.025 v1.10, and VP-162 v1.6 are FROZEN per beta3 spec-gate.
+> NOTE: ADR-066 v1.7, BC-2.11.025 v1.11, and VP-162 v1.7 are FROZEN per beta3 spec-gate.
 > These spec files MUST NOT be amended by the implementer — any spec discrepancy routes
 > to product-owner/architect via the orchestrator.
 
@@ -177,7 +177,7 @@ to named Arrow columns.
 
 | BC | Title | Version at Authoring | Scope in This Story |
 |----|-------|---------------------|---------------------|
-| BC-2.11.025 | `json_extract_string` DataFusion ScalarUDF — Literal-Key-Only JSON String Extraction | v1.10 | All postconditions, invariants, and 11 edge cases (EC-11-025-001..011); 11 MUSTs anchored to S-JSON-EXTRACT-UDF-001 RG-JEX-001..011 with canonical test names |
+| BC-2.11.025 | `json_extract_string` DataFusion ScalarUDF — Literal-Key-Only JSON String Extraction | v1.11 | All postconditions, invariants, and 12 edge cases (EC-11-025-001..012); 12 MUSTs anchored to S-JSON-EXTRACT-UDF-001 RG-JEX-001..012 with canonical test names |
 
 ---
 
@@ -302,11 +302,35 @@ key) per EC-11-079 null-not-absent invariant (BC-2.11.001).
 
 (traces to BC-2.11.025 EC-11-025-011; ADR-066 §G RG-JEX-011 + §B3 SAP-3 cite)
 
+### AC-012 — Predicate-position gate: WHERE/HAVING/pipe-where with non-literal or oversized key rejected; valid literal key executes correctly
+
+`json_extract_string(col, other_col)` or `json_extract_string(col, '<257-byte-literal>')` in
+a WHERE, HAVING, or pipe-where predicate position → E-QUERY-045(a) or E-QUERY-045(b)
+respectively, before DataFusion execution. The rejection path is identical to SELECT position:
+same error codes, same plan-time gate, same verbatim messages from ADR-066 §F.
+
+When the key IS a valid string literal (≤ 256 bytes), `json_extract_string(col, 'key')` in a
+WHERE predicate executes correctly and returns a boolean-comparable Utf8 result. Example:
+`FROM claroty_alerts | WHERE json_extract_string(raw_extensions, 'severity') = 'high'`
+executes without E-QUERY-045, filtering rows where the JSON severity field equals `"high"`.
+
+Predicate-position parity is established by the T-09a `filter_parser.rs` `fn_call_comparison`
+fix: prior to the fix, predicate-position calls resolved to `ScalarFunc::Unknown`, bypassing
+the `check_json_extract_key_literal` gate entirely. After the fix, they resolve to
+`ScalarFunc::JsonExtractString` and are subject to the same E-QUERY-045(a)/(b) gate as
+SELECT-position calls.
+
+**SAP-3 reachability:** This AC MUST be tested via a real PQL query string through the
+`prism_query` public API in a WHERE or pipe-where predicate context — not only via synthetic
+AST injection.
+
+(traces to BC-2.11.025 EC-11-025-012)
+
 ---
 
 ## Enumerated Red Gate Test List (SAC-1)
 
-The test-writer MUST author these 11 failing tests BEFORE any implementation begins.
+The test-writer MUST author these 12 failing tests BEFORE any implementation begins.
 Test names are canonical per BC-2.11.025 §Edge Cases MUST anchors:
 
 | Gate | Failing Test Name | BC Clause |
@@ -322,12 +346,13 @@ Test names are canonical per BC-2.11.025 §Edge Cases MUST anchors:
 | RG-JEX-009 | `test_jex_rg009_parse_failure_non_json_input_returns_sql_null` | EC-11-025-010 / postcondition §Parse failure |
 | RG-JEX-010 | `test_jex_rg010_dot_in_key_literal_not_nested_path` | EC-11-025-009 / postcondition §Top-level key only |
 | RG-JEX-011 | `test_jex_rg011_pipe_mode_end_to_end_executes` | EC-11-025-011 / SAP-3 pipe-mode reachability |
+| RG-JEX-012 | `test_jex_rg012_where_predicate_non_literal_key_rejected_e_query_045` | EC-11-025-012 / predicate-position gate (WHERE/HAVING/pipe-where) |
 
-**BC-5.38.001 density check:** 11 Red Gate tests / 11 ACs = density 1.0 (≥ 0.5 minimum
+**BC-5.38.001 density check:** 12 Red Gate tests / 12 ACs = density 1.0 (≥ 0.5 minimum
 required). All Red Gate tests must be authored and FAILING before implementation (T-04)
-begins. RG-JEX-006 and RG-JEX-011 MUST be reachable from the `prism_query` public API
-surface (SAP-3 standing probe), not only from a synthetic AST or direct DataFusion unit
-test — a synthetic-AST-only path for either gate is a P2 finding per SAP-3.
+begins. RG-JEX-006, RG-JEX-011, and RG-JEX-012 MUST be reachable from the `prism_query`
+public API surface (SAP-3 standing probe), not only from a synthetic AST or direct DataFusion
+unit test — a synthetic-AST-only path for any of these gates is a P2 finding per SAP-3.
 
 ---
 
@@ -359,6 +384,7 @@ test — a synthetic-AST-only path for either gate is a P2 finding per SAP-3.
 | EC-11-025-009 | Dot-in-key: `'{"a.b":"lit","a":{"b":"nested"}}'` + key `'a.b'` | Returns `"lit"` (literal top-level key, NOT nested path) | AC-010 / RG-JEX-010 |
 | EC-11-025-010 | Parse failure: `'{not_json}'` + any key | Returns SQL NULL silently (no emission); silent null-propagation per BC-2.11.025 §Postconditions Parse-failure + ADR-066 §B1 step 2 | AC-009 / RG-JEX-009 |
 | EC-11-025-011 | Pipe mode: MCP `query` tool + `json_extract_string(raw_extensions, 'severity')` | Correct wire-level extraction per SID-2 | AC-011 / RG-JEX-011 |
+| EC-11-025-012 | Predicate position (WHERE/HAVING/pipe-where): non-literal key OR >256-byte literal key in predicate | E-QUERY-045(a)/(b) before DataFusion execution; valid literal key executes correctly in predicate position (predicate-position parity via T-09a `filter_parser.rs` fix) | AC-012 / RG-JEX-012 |
 
 ---
 
@@ -376,17 +402,18 @@ test — a synthetic-AST-only path for either gate is a P2 finding per SAP-3.
 
 | Context Source | Estimated Tokens |
 |----------------|-----------------|
-| This story spec | ~6,000 |
-| BC-2.11.025 v1.10 (full contract) | ~8,000 |
-| ADR-066 v1.6 (§A–§H) | ~9,000 |
-| VP-162 v1.6 (Kani harness) | ~3,500 |
+| This story spec | ~6,500 |
+| BC-2.11.025 v1.11 (full contract) | ~8,000 |
+| ADR-066 v1.7 (§A–§H) | ~9,000 |
+| VP-162 v1.7 (Kani harness) | ~3,500 |
 | `crates/prism-query/src/engine.rs` (registration + plan-gate sections) | ~4,000 |
 | `crates/prism-core/src/error.rs` (existing error variants for context) | ~2,000 |
 | `crates/prism-query/src/ast.rs` (ScalarFunc enum — relevant section) | ~1,000 |
-| Test files (11 Red Gate tests) | ~4,500 |
-| **Total** | **~38,000** |
+| `crates/prism-query/src/filter_parser.rs` (fn_call_comparison — T-09a fix site) | ~1,000 |
+| Test files (12 Red Gate tests) | ~5,000 |
+| **Total** | **~40,000** |
 | Agent context window | ~200K (Sonnet) |
-| **Budget usage** | **~19% (within 20-30% threshold)** |
+| **Budget usage** | **~20% (within 20-30% threshold)** |
 
 ---
 
@@ -412,16 +439,18 @@ Tasks are ordered RED-THEN-GREEN per SAC-1: test authoring precedes all implemen
 
 ### Phase 2 — Red Gate test authoring (all tests must FAIL at end of this phase)
 
-- [ ] **T-04 (test-writer dispatch):** Author all 11 Red Gate tests in the canonical location
+- [ ] **T-04 (test-writer dispatch):** Author all 12 Red Gate tests in the canonical location
   (`crates/prism-query/tests/` or `crates/prism-query/src/json_extract_udf.rs` `#[cfg(test)]`
-  block). Test names must exactly match the RG-JEX-001..011 list above. Tests for RG-JEX-006
-  and RG-JEX-011 MUST invoke from the `prism_query` public API surface (SAP-3; not only
-  synthetic AST). Tests for AC-011 / RG-JEX-011 MUST include a SID-2 wire-shape assertion
-  on the serialized JSON output (not only pre-serialization Rust structs).
-  
-  **Density gate:** 11 failing tests ≥ 0.5 × 11 ACs = density 1.0. All 11 must be FAILING
+  block). Test names must exactly match the RG-JEX-001..012 list above. Tests for RG-JEX-006,
+  RG-JEX-011, and RG-JEX-012 MUST invoke from the `prism_query` public API surface (SAP-3;
+  not only synthetic AST). Tests for AC-011 / RG-JEX-011 MUST include a SID-2 wire-shape
+  assertion on the serialized JSON output (not only pre-serialization Rust structs).
+  RG-JEX-012 (`test_jex_rg012_where_predicate_non_literal_key_rejected_e_query_045`) MUST
+  issue a WHERE/pipe-where predicate query with a non-literal key and assert E-QUERY-045(a).
+
+  **Density gate:** 12 failing tests ≥ 0.5 × 12 ACs = density 1.0. All 12 must be FAILING
   (Red Gate, per BC-5.38.001) before Phase 3 begins. Run `just iter prism-query --no-fail-fast`
-  and confirm 11 failures.
+  and confirm 12 failures.
 
 ### Phase 3 — Implementation (one RG at a time)
 
@@ -449,6 +478,24 @@ Tasks are ordered RED-THEN-GREEN per SAC-1: test authoring precedes all implemen
   path interpretation per ADR-066 §D4). Run `just iter prism-query -E 'test(test_jex_rg010)'`
   — RG-JEX-010 GREEN.
 
+- [ ] **T-09a (F-JEX-P1-HIGH-001 — prerequisite for T-09 gate coverage in predicate positions):**
+  Fix `crates/prism-query/src/filter_parser.rs` `fn_call_comparison`: map `func_name`
+  `"json_extract_string"` → `ScalarFunc::JsonExtractString` (parity with `sql_parser.rs`
+  `known_scalar`), so that WHERE/HAVING/pipe-where predicate calls resolve to the real UDF
+  variant and are gated by E-QUERY-045. All other function names continue to map to
+  `ScalarFunc::Unknown(func_name)`. Prior to this fix, predicate-position calls silently
+  bypassed `check_json_extract_key_literal` because the gate walks for
+  `ScalarFunc::JsonExtractString` nodes and `ScalarFunc::Unknown` is invisible to it.
+
+  **DML safe-skip verification:** After this fix, DML statements whose filter contains
+  `ScalarFunc::JsonExtractString` (rather than `ScalarFunc::Unknown` as before) must still
+  produce `Ok(())` from `check_json_extract_key_literal` — DML is a non-execution path and
+  the gate must treat `Ast::Sql(SqlStatement::Dml)` as a safe skip. Verify (or author) the
+  DML proof test to assert `Ok(())` for a `Ast::Sql(SqlStatement::Dml)` carrying
+  `ScalarFunc::JsonExtractString` in its filter, NOT an E-QUERY-045 rejection.
+
+  Run `just iter prism-query -E 'test(test_jex_rg012)'` — RG-JEX-012 GREEN.
+
 - [ ] **T-09:** Implement `check_json_extract_key_literal` plan gate in `engine.rs` or
   new `plan_gates.rs`. Gate must:
   - Walk AST for `ScalarFunc::JsonExtractString` nodes
@@ -469,7 +516,7 @@ Tasks are ordered RED-THEN-GREEN per SAC-1: test authoring precedes all implemen
   Wire-shape assertion: assert on serialized JSON output bytes (SID-2). Run
   `just iter prism-query -E 'test(test_jex_rg011)'` — RG-JEX-011 GREEN.
 
-- [ ] **T-11:** Run `just iter prism-query` — all 11 Red Gate tests GREEN; all pre-existing
+- [ ] **T-11:** Run `just iter prism-query` — all 12 Red Gate tests GREEN; all pre-existing
   tests GREEN (no regression).
 
 ### Phase 4 — Observability and compliance
@@ -505,8 +552,8 @@ Tasks are ordered RED-THEN-GREEN per SAC-1: test authoring precedes all implemen
   ```
 
 - [ ] **T-16:** Create PR targeting `develop`. PR description must include:
-  - Link to ADR-066 v1.6 and BC-2.11.025 v1.10
-  - Summary of 11 Red Gate tests (RG-JEX-001..011) all GREEN
+  - Link to ADR-066 v1.7 and BC-2.11.025 v1.11
+  - Summary of 12 Red Gate tests (RG-JEX-001..012) all GREEN
   - Security review confirmation (T-14 PASS)
   - SAP-1 / SAP-3 compliance confirmation
 
@@ -531,12 +578,12 @@ from implementing this story.
 | Rule | Source | Enforcement |
 |------|--------|-------------|
 | `json_extract_string` UDF registered per ephemeral `SessionContext` (`execute_inner` / `execute_scheduled_inner`) under exact name `"json_extract_string"` with types `(Utf8, Utf8)` → `Utf8` nullable and `Volatility::Immutable` | ADR-066 §E + BC-2.11.025 postcondition §Registration | RG-JEX-001; adversary §E check |
-| `check_json_extract_key_literal` gate fires AFTER plan-time gates E-QUERY-037/038/039, BEFORE `ctx.sql()` / DataFusion execution — never skipped for any query mode; temporal E-QUERY-041/042 runs in-pipeline per ADR-052 §D4 (not part of pre-execution gate ordering); no specific ordering between E-QUERY-045 and in-pipeline temporal asserted beyond ADR-066 §B3 | BC-2.11.025 v1.10 postcondition §Plan-time literal-key gate; ADR-066 §B3 | RG-JEX-006 (SAP-3 public surface); adversary gate-ordering check |
+| `check_json_extract_key_literal` gate fires AFTER plan-time gates E-QUERY-037/038/039, BEFORE `ctx.sql()` / DataFusion execution — never skipped for any query mode; covers SELECT, WHERE, HAVING, and pipe-where positions. Predicate-position parity established by T-09a `filter_parser.rs` `fn_call_comparison` fix (maps `"json_extract_string"` → `ScalarFunc::JsonExtractString`; prior to fix, predicate calls emitted `ScalarFunc::Unknown`, bypassing the gate). DML safe-skip: gate returns `Ok(())` for `Ast::Sql(SqlStatement::Dml)` containing `ScalarFunc::JsonExtractString` in filter — DML is not a query execution path and must not be rejected by E-QUERY-045. Temporal E-QUERY-041/042 runs in-pipeline per ADR-052 §D4 (not part of pre-execution gate ordering); no specific ordering between E-QUERY-045 and in-pipeline temporal asserted beyond ADR-066 §B3 | BC-2.11.025 v1.11 postcondition §Plan-time literal-key gate; ADR-066 §B3 | RG-JEX-006, RG-JEX-012 (SAP-3 public surface); adversary gate-ordering check |
 | 256-byte key cap enforced at plan time (byte length of UTF-8 encoded literal key ≤ 256), NOT at runtime | ADR-066 §D3 + BC-2.11.025 §Error Cases E-QUERY-045(b) | RG-JEX-007; zero per-row overhead confirmed |
 | `json_extract_string_impl` MUST be a `pub(crate)` pure function in `json_extract_udf.rs` — no DataFusion or Arrow types in its signature | ADR-066 §B1 + VP-162 §Proof Target | VP-162 Kani harness provability; security review T-14 |
 | `prism-query` MUST NOT gain a dependency on `prism-bin` | dependency-graph.md §Dependency Rules Rule 2 (Level 6 / Level 7 ordering) | `cargo tree -p prism-query` must show no `prism-bin` edge post-merge |
 | No `unsafe` blocks in `json_extract_udf.rs` or `plan_gates.rs` additions | CLAUDE.md §Conventions (error taxonomy + no-unwrap rule) | Security review T-14 + `just check` clippy |
-| VP-162 Kani harness file created alongside implementation (Phase 3 T-06) | VP-162 v1.6 §Kani Proof Harness | Phase 5 formal-verify dispatch; harness must compile clean under `cargo kani -p prism-query` before merge |
+| VP-162 Kani harness file created alongside implementation (Phase 3 T-06) | VP-162 v1.7 §Kani Proof Harness | Phase 5 formal-verify dispatch; harness must compile clean under `cargo kani -p prism-query` before merge |
 
 ---
 
@@ -590,6 +637,7 @@ If any of these appear, the build MUST fail (checked by `cargo tree -p prism-que
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.8 | 2026-09-17 | story-writer | F-JEX-P1-HIGH-001 fix: add T-09a (`filter_parser.rs` `fn_call_comparison` maps `"json_extract_string"` → `ScalarFunc::JsonExtractString` in predicate positions, establishing WHERE/HAVING/pipe-where gate parity). Add AC-012 / EC-11-025-012 (predicate-position gate, traces to BC-2.11.025 EC-11-025-012). Add RG-JEX-012 (`test_jex_rg012_where_predicate_non_literal_key_rejected_e_query_045`); BC-5.38.001 density check updated 11→12 (12/12 = 1.0). Architecture Compliance Rules: gate now covers SELECT/WHERE/HAVING/pipe-where positions; DML safe-skip (ScalarFunc::JsonExtractString in DML filter → `Ok(())`). Spec pins bumped: BC-2.11.025 v1.10→v1.11, ADR-066 v1.6→v1.7, VP-162 v1.6→v1.7 (§Authority, FROZEN NOTE, Behavioral Contracts table, Token Budget, Architecture Compliance Rules, T-16). |
 | 1.7 | 2026-09-17 | story-writer | LOW-001 registration phrasing → per-ephemeral-context; BC-2.11.025 pin v1.9→v1.10 (MED-001 verified false-positive, no gate change). |
 | 1.6 | 2026-09-17 | state-manager | D-2556 LOCAL pass CLEAN(PR-merge) errata pin sync. VP-162 v1.5→v1.6 authority pins updated in §Authority, FROZEN NOTE, Token Budget table, and Architecture Compliance Rules (TD-VSDD-060 sibling-site sweep; F-JEX-P1-003: §Kani Proof Harness inner module renamed vp162_proofs→kani_proofs; sibling convention + code rename @9ce8642e). Historical changelog rows preserved verbatim. |
 | 1.5 | 2026-09-17 | story-writer | LOW-1 (LOCAL pass): AC-006 / T-09 / Architecture Compliance Rules gate-ordering reconciled to BC-2.11.025 v1.9 (stale E-QUERY-041/042/043 pre-execution enumeration corrected; temporal in-pipeline per ADR-052 §D4). BC-2.11.025 body-pin updated v1.8 → v1.9 in §Authority, FROZEN NOTE, Behavioral Contracts table, Token Budget, and T-16 PR description (POL-8 bc_array_changes_propagate_to_body_and_acs; frontmatter pin left for state-manager). RG-JEX-006 gate mapping unchanged — gate still asserts fire-before-execution. |

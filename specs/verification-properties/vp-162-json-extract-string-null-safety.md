@@ -3,14 +3,14 @@ document_type: verification-property
 level: L4
 vp_id: "VP-162"
 title: "json_extract_string_impl — Null Safety and Panic Freedom (Kani)"
-version: "1.6"
+version: "1.7"
 status: draft
 producer: architect
 phase: P0
 inputs:
   - crates/prism-query/src/json_extract_udf.rs
   - .factory/specs/architecture/decisions/ADR-066-json-extract-scalar-udf.md
-  - .factory/stories/S-JSON-EXTRACT-UDF-001.md
+  - .factory/stories/S-JSON-EXTRACT-UDF-001-json-extract-scalar-udf.md
 input-hash: "pending"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.11.025
@@ -232,6 +232,7 @@ extraction logic is safe for all possible input string values.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.7 | 2026-09-17 | architect | OBS-001 fix: `inputs:` path corrected from `S-JSON-EXTRACT-UDF-001.md` to `S-JSON-EXTRACT-UDF-001-json-extract-scalar-udf.md` — the actual story filename (as found on disk under `.factory/stories/`). No property or harness change. TD-VSDD-097: (1) sibling pair — no VP twin; CLEAR. (2) downstream copy target — `inputs:` path is not copied downstream; CLEAR. (3) mandate anchor — no MUST involved in path fix; CLEAR. |
 | 1.6 | 2026-09-17 | architect | Errata (additive/errata post-freeze lane; no property/mandate change). §Kani Proof Harness: renamed inner module `mod vp162_proofs` → `mod kani_proofs` to align with sibling proof module convention (`proofs::<module>::kani_proofs::<harness>` invocation template used by VP-014 and VP-015). Code already renamed at @9ce8642e; spec now matches implementation. F-JEX-P1-003 closure. |
 | 1.5 | 2026-09-17 | architect | Errata (additive/errata post-freeze lane; no property/mandate change). §Kani Proof Harness: corrected stale `super::super::json_extract_udf::json_extract_string_impl` → `crate::json_extract_udf::json_extract_string_impl`. `super::super` from `crates/prism-query/src/proofs/` resolves to `crate::proofs`, not the crate root; `json_extract_udf` is declared at crate-root scope in `lib.rs`. Corrected to match VP-014/VP-015 `crate::` convention and the compiling implementation. |
 | 1.4 | 2026-09-17 | architect | Errata (additive/errata post-freeze lane; no behavioral/contract/mandate change). §Coverage Scope effectful-wrapper method name corrected: `invoke_batch` → `invoke_with_args` — DataFusion 46.0 deprecated `ScalarUDFImpl::invoke_batch`; workspace is pinned to datafusion 53.1 which exposes `invoke_with_args`. Same errata class corrected in ADR-066 §E this burst. |

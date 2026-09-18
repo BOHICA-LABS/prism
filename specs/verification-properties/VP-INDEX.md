@@ -1,10 +1,11 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "2.29"
+version: "2.30"
 status: draft
 producer: state-manager
 timestamp: 2026-09-17T00:00:00Z
+# NOTE: v2.29→v2.30: D-2560 F-JEX-P1-HIGH-001 predicate-parity cascade — VP-162 v1.6→v1.7 row pin synced (OBS-001 inputs path corrected to real story filename S-JSON-EXTRACT-UDF-001-json-extract-scalar-udf.md). Count changes NONE.
 # NOTE: v2.28→v2.29: D-2556 LOCAL pass CLEAN(PR-merge) fix-burst — VP-162 v1.5→v1.6 row pin synced (§Kani Proof Harness inner module renamed vp162_proofs→kani_proofs; sibling convention + code rename @9ce8642e; F-JEX-P1-003 closure; additive/errata post-freeze; no property/mandate change).
 # NOTE: v2.27→v2.28: D-2553 LOCAL re-gate fix-burst — VP-162 v1.4→v1.5 row pin synced (§Kani Proof Harness import path corrected `super::super::json_extract_udf` → `crate::json_extract_udf`; OBS-3 fix @d6448223; additive/errata post-freeze; no property/mandate change).
 # NOTE: v2.26→v2.27: D-2551 pre-TDD errata burst — VP-162 v1.3→v1.4 row pin synced (invoke_batch→invoke_with_args DataFusion 53.1 API errata; §Coverage Scope effectful-wrapper method name corrected; additive/errata post-freeze; no behavioral/mandate change).
@@ -194,7 +195,7 @@ retired_vps: 13  # VP-095..VP-107 retired 2026-06-10 per ADR-037 (BC-3.3.001..00
 | VP-159 | [BC-2.16.014] DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry: zero network at construction; cold get_token → one HTTP POST + cache; warm get_token within TTL → zero HTTP POSTs; stale get_token → one HTTP POST re-acquisition; acquire_token → one HTTP POST cache bypass; TTL arithmetic for both ExpiryMode variants (absolute_utc_string, relative_seconds); CachedAuthToken never stores credential values (AD-017); AC-9 + AC-9b SAP-3 executor reachability: AC-9 drives PipelineExecutor::execute→execute_impl path; AC-9b drives PipelineExecutor::execute_step direct-call path (BC-2.16.014 P9 two-path coverage model) | prism-spec-engine | integration_test | P1 | draft — v1.27 | [PLANNED — Wave-A CrowdStrike retirement / Armis token-exchange engine story] |
 | VP-160 | [BC-2.16.009 Rule 9] cookie-name charset totality and injection rejection: `is_valid_cookie_name_tchar` returns true iff every byte is in the 77-character RFC 9110 §5.6.2 tchar set; semicolons, bare equals, spaces, TAB, CTL bytes (0x00–0x1F, 0x7F), non-ASCII bytes (0x80–0xFF), and RFC 9110 delimiters are rejected (SEC-001 / ADR-053 §D2) | prism-spec-engine | kani | P0 | draft — v1.3 | S-WAVE-A-ENGINE-001 |
 | VP-161 | [BC-2.16.009 Rule 9] error message echo cap and CTL escaping: `truncate_at_char_boundary` always returns ≤64 codepoints (CWE-400 / EC-009-047); CTL-escape function never emits raw CTL bytes (0x00–0x1F, 0x7F) in E-SPEC-027(a) message (CWE-117 / EC-009-048) | prism-spec-engine | kani | P0 | draft — v1.3 | S-WAVE-A-ENGINE-001 |
-| VP-162 | [BC-2.11.025] `json_extract_string_impl` null safety and panic freedom: for any `(column_value: Option<&str>, key: &str)` with `key.len() ≤ 256` (post-literal-key-plan-gate precondition per ADR-066 §B3/§D3), the function returns `Some(String)` or `None`, never panics, never propagates an unstructured internal error (ADR-066 §D1) | prism-query | kani | P0 | draft — v1.6 | S-JSON-EXTRACT-UDF-001 |
+| VP-162 | [BC-2.11.025] `json_extract_string_impl` null safety and panic freedom: for any `(column_value: Option<&str>, key: &str)` with `key.len() ≤ 256` (post-literal-key-plan-gate precondition per ADR-066 §B3/§D3), the function returns `Some(String)` or `None`, never panics, never propagates an unstructured internal error (ADR-066 §D1) | prism-query | kani | P0 | draft — v1.7 | S-JSON-EXTRACT-UDF-001 |
 
 ## VP-PLUGIN-001..007 Named Series (PREREQ-F Registration, ADR-023 §Architectural Constraints)
 
@@ -276,6 +277,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.30 | D-2560-predicate-parity-cascade | 2026-09-17 | state-manager | VP-162 v1.6→v1.7 row pin synced: D-2560 F-JEX-P1-HIGH-001 predicate-parity cascade (SESSION-INTERRUPT RECOVERY) — OBS-001 `inputs:` path corrected to real story filename `S-JSON-EXTRACT-UDF-001-json-extract-scalar-udf.md`. No property/mandate change. No count changes. |
 | 2.29 | D-2556-local-pass-fix | 2026-09-17 | state-manager | VP-162 v1.5→v1.6 row pin synced: D-2556 LOCAL pass CLEAN(PR-merge) — F-JEX-P1-003 §Kani Proof Harness inner module renamed `mod vp162_proofs` → `mod kani_proofs` (sibling convention; matches VP-014/VP-015 `kani_proofs` module name; code rename at @9ce8642e). Additive/errata post-freeze (spec-gate NOT reopened). No count changes. |
 | 2.28 | D-2553-local-regate-fix | 2026-09-17 | state-manager | VP-162 v1.4→v1.5 row pin synced: D-2553 LOCAL re-gate CLEAN(PR-merge) — OBS-1 §Kani Proof Harness import path corrected (`super::super::json_extract_udf` → `crate::json_extract_udf`; `super::super` from `crates/prism-query/src/proofs/` resolves to `crate::proofs` not crate root; corrected to `crate::` per VP-014/VP-015 convention and the compiling implementation; OBS-3 fix @d6448223). Additive/errata post-freeze (spec-gate NOT reopened). No count changes. |
 | 2.27 | D-2551-pre-tdd-errata | 2026-09-17 | state-manager | VP-162 v1.3→v1.4 row pin synced: D-2551 pre-TDD errata burst — §Coverage Scope effectful-wrapper method name corrected (`invoke_batch`→`invoke_with_args`; DataFusion 46.0 deprecated `invoke_batch`; workspace pin 53.1 exposes `invoke_with_args`). Additive/errata post-freeze (spec-gate NOT reopened). No count changes. |
