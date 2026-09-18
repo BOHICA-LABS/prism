@@ -1,0 +1,143 @@
+{
+  "_demo_meta": {
+    "story_id": "S-JSON-EXTRACT-UDF-001",
+    "ac": "AC-007",
+    "rg": "RG-JEX-007",
+    "bc_clause": "EC-11-025-007 / E-QUERY-045(b) / CWE-400",
+    "scenario": "257-byte key rejected; 256-byte key accepted (inclusive boundary)",
+    "binary": "target/debug/prism",
+    "commit": "1487d2d9b",
+    "re_recorded": "cycle-6: re-captured at 1487d2d9b (B-C6-1 fix — trim_end_matches eliminates double period)"
+  },
+  "demo_257_byte_rejection": {
+    "mcp_request": {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "method": "tools/call",
+      "params": {
+        "name": "query",
+        "arguments": {
+          "query": "SELECT json_extract_string(raw_extensions, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa') FROM claroty_alerts",
+          "clients": [
+            "acme"
+          ]
+        }
+      }
+    },
+    "mcp_response": {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "ERROR: [validation] - E-QUERY-045: json_extract_string key is 257 bytes, which exceeds the 256-byte maximum (CWE-400). Reduce the json_extract_string key to 256 UTF-8 bytes or fewer."
+          }
+        ],
+        "structuredContent": {
+          "_meta": {
+            "trust_level": "internal"
+          },
+          "error": {
+            "category": "validation",
+            "code": "E-QUERY-045",
+            "message": "E-QUERY-045: json_extract_string key is 257 bytes, which exceeds the 256-byte maximum (CWE-400).",
+            "original_params_valid": false,
+            "retry_after_seconds": null,
+            "retryable": false,
+            "source": "prism_mcp",
+            "suggestion": "Reduce the json_extract_string key to 256 UTF-8 bytes or fewer.",
+            "upstream_message": null
+          }
+        },
+        "isError": true
+      }
+    },
+    "assertions": {
+      "isError": true,
+      "error_code": "E-QUERY-045",
+      "error_category": "validation",
+      "message_contains_257_bytes": true,
+      "message_contains_256_byte_maximum": true,
+      "message_contains_CWE_400": true,
+      "fires_before_sensor_fanout": true
+    }
+  },
+  "demo_256_byte_acceptance": {
+    "mcp_request": {
+      "jsonrpc": "2.0",
+      "id": 3,
+      "method": "tools/call",
+      "params": {
+        "name": "query",
+        "arguments": {
+          "query": "SELECT json_extract_string(raw_extensions, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa') FROM claroty_alerts",
+          "clients": [
+            "acme"
+          ]
+        }
+      }
+    },
+    "mcp_response": {
+      "jsonrpc": "2.0",
+      "id": 3,
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"_meta\":{\"data_source\":[\"claroty\"],\"has_more\":false,\"next_cursor\":null,\"page\":1,\"query_time\":\"2026-09-18T02:57:28.151370+00:00\",\"safety_flags\":[],\"tool\":\"query\",\"total_results\":0,\"trust_level\":\"untrusted_external\"},\"content\":[{\"text\":\"0 results found\",\"type\":\"text\"}],\"results\":{\"is_truncated\":false,\"normalized_pql\":\"SELECT json_extract_string(raw_extensions, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa') FROM claroty_alerts\",\"returned_results\":0,\"rows\":[],\"sensor_errors\":[\"claroty_alerts: sensor error (E-SENSOR-010)\"],\"total_available\":0},\"structuredContent\":{\"results\":{\"is_truncated\":false,\"normalized_pql\":\"SELECT json_extract_string(raw_extensions, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa') FROM claroty_alerts\",\"returned_results\":0,\"rows\":[],\"sensor_errors\":[\"claroty_alerts: sensor error (E-SENSOR-010)\"],\"total_available\":0}}}"
+          }
+        ],
+        "structuredContent": {
+          "_meta": {
+            "data_source": [
+              "claroty"
+            ],
+            "has_more": false,
+            "next_cursor": null,
+            "page": 1,
+            "query_time": "2026-09-18T02:57:28.151370+00:00",
+            "safety_flags": [],
+            "tool": "query",
+            "total_results": 0,
+            "trust_level": "untrusted_external"
+          },
+          "content": [
+            {
+              "text": "0 results found",
+              "type": "text"
+            }
+          ],
+          "results": {
+            "is_truncated": false,
+            "normalized_pql": "SELECT json_extract_string(raw_extensions, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa') FROM claroty_alerts",
+            "returned_results": 0,
+            "rows": [],
+            "sensor_errors": [
+              "claroty_alerts: sensor error (E-SENSOR-010)"
+            ],
+            "total_available": 0
+          },
+          "structuredContent": {
+            "results": {
+              "is_truncated": false,
+              "normalized_pql": "SELECT json_extract_string(raw_extensions, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa') FROM claroty_alerts",
+              "returned_results": 0,
+              "rows": [],
+              "sensor_errors": [
+                "claroty_alerts: sensor error (E-SENSOR-010)"
+              ],
+              "total_available": 0
+            }
+          }
+        },
+        "isError": false
+      }
+    },
+    "assertions": {
+      "isError": false,
+      "no_E_QUERY_045": true,
+      "boundary_inclusive": true
+    }
+  }
+}

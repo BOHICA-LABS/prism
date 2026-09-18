@@ -453,6 +453,31 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             (codes::INVALID_PARAMS, format!("{err}"))
         }
 
+        // E-QUERY-045(a): json_extract_string non-literal key → -32602 INVALID_PARAMS.
+        //
+        // Fired by the plan-time `check_json_extract_key_literal` gate when the second
+        // argument to `json_extract_string(col, expr)` is not a string literal. The gate
+        // fires before DataFusion execution (ADR-066 §B3).
+        //
+        // MUST be explicit: without this arm the variant falls through to catch-all
+        // `-32000 INTERNAL_ERROR`, hiding the caller-actionable injection prevention gate.
+        //
+        // Reference: ADR-066 §B3 + §F; BC-2.11.025 §Error Cases E-QUERY-045(a);
+        //            S-JSON-EXTRACT-UDF-001 AC-006.
+        PrismError::JsonExtractNonLiteralKey => (codes::INVALID_PARAMS, format!("{err}")),
+
+        // E-QUERY-045(b): json_extract_string key exceeds 256-byte cap → -32602 INVALID_PARAMS.
+        //
+        // Fired by the plan-time `check_json_extract_key_literal` gate when the second
+        // argument is a literal string key longer than 256 UTF-8 bytes (CWE-400 cap).
+        //
+        // MUST be explicit: without this arm the variant falls through to catch-all
+        // `-32000 INTERNAL_ERROR`, hiding the caller-actionable key-length error.
+        //
+        // Reference: ADR-066 §D3 + §F; BC-2.11.025 §Error Cases E-QUERY-045(b);
+        //            S-JSON-EXTRACT-UDF-001 AC-007.
+        PrismError::JsonExtractKeyTooLong { .. } => (codes::INVALID_PARAMS, format!("{err}")),
+
         // E-INT-001: Internal invariant violated → -32000 Internal
         // Detail is suppressed — audit log has it.
         PrismError::Internal { .. } => (codes::INTERNAL_ERROR, "Internal error".to_owned()),
@@ -2390,6 +2415,64 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             normalized_pql: None,
         },
 
+        // E-QUERY-045(a): json_extract_string non-literal key — category "validation".
+        //
+        // original_params_valid: false — the second argument must be a literal string;
+        // a column reference or expression is structurally invalid per ADR-066 §B3.
+        // suggestion: hints analyst to use literal key form (ADR-066 §F message context).
+        // ec_code_override: None — Display starts with "E-QUERY-045:" so inference path
+        // correctly derives "E-QUERY-045".
+        //
+        // Reference: ADR-066 §B3 + §F; BC-2.11.025 §Error Cases E-QUERY-045(a);
+        //            S-JSON-EXTRACT-UDF-001 AC-006.
+        PrismError::JsonExtractNonLiteralKey => VariantMeta {
+            category: "validation",
+            suggestion: "Provide a string literal as the second argument, e.g., json_extract_string(raw_extensions, 'severity').",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: false,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+            near_text: None,
+            reference_pointer: None,
+            valid_operators_for_type: None,
+            how_to_fix: None,
+            available_columns: None,
+            did_you_mean: None,
+            normalized_pql: None,
+        },
+
+        // E-QUERY-045(b): json_extract_string key exceeds 256-byte cap — category "validation".
+        //
+        // original_params_valid: false — key length > 256 bytes violates the CWE-400 cap;
+        // caller must shorten the key to ≤ 256 UTF-8 bytes.
+        // suggestion: directs analyst to reduce key length.
+        // ec_code_override: None — Display starts with "E-QUERY-045:" so inference path
+        // correctly derives "E-QUERY-045".
+        //
+        // Reference: ADR-066 §D3 + §F; BC-2.11.025 §Error Cases E-QUERY-045(b);
+        //            S-JSON-EXTRACT-UDF-001 AC-007.
+        PrismError::JsonExtractKeyTooLong { .. } => VariantMeta {
+            category: "validation",
+            suggestion: "Reduce the json_extract_string key to 256 UTF-8 bytes or fewer.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: false,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+            near_text: None,
+            reference_pointer: None,
+            valid_operators_for_type: None,
+            how_to_fix: None,
+            available_columns: None,
+            did_you_mean: None,
+            normalized_pql: None,
+        },
+
         // ── Catch-all: unknown variants → "upstream_error" (legal BC category) ──
         // "upstream_error" is the safest legal fallback for variants that don't fit
         // the specific categories above (non_exhaustive catch-all).
@@ -2467,9 +2550,17 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         // Only Some for mode-bridge D1 errors; None for all other variants (absent from JSON).
         normalized_pql: meta.normalized_pql,
     };
+    // BLOCKING-2 fix (S-JSON-EXTRACT-UDF-001 cycle-4): strip a trailing period from
+    // `message` before inserting into the format string so that messages that already
+    // end with `.` (e.g. E-QUERY-045 variants) produce exactly one period between
+    // message and suggestion.  Without this, `"...not supported." + ". " + suggestion`
+    // yields `"...not supported.. Provide..."` (double period).
+    // Messages that do NOT end with `.` are unaffected (trim_end_matches is a no-op
+    // when the trailing character does not match).
+    let msg_trimmed = fields.message.trim_end_matches('.');
     let content_text = format!(
         "ERROR: [{}] - {}. {}",
-        fields.category, fields.message, fields.suggestion
+        fields.category, msg_trimmed, fields.suggestion
     );
     build_structured_error_response(fields, content_text)
 }
@@ -5850,6 +5941,421 @@ mod tests {
             message, "Internal error",
             "[PRL14-MED-001/Rule-1] CursorCapExceeded message must be terse 'Internal error' \
              per BC-2.10.007 Rule 1 redaction; got '{message}'"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // B1 — S-JSON-EXTRACT-UDF-001 MCP mapping tests (E-QUERY-045)
+    // -----------------------------------------------------------------------
+
+    /// B1-045(a): `map_prism_error(PrismError::JsonExtractNonLiteralKey)` MUST return
+    /// `-32602 INVALID_PARAMS`, NOT the catch-all `-32000 INTERNAL_ERROR`.
+    ///
+    /// `JsonExtractNonLiteralKey` is a caller-resolvable plan-time validation error — using
+    /// INTERNAL_ERROR would mislead the MCP caller into thinking an internal bug occurred
+    /// rather than a correctable query parameter issue.
+    ///
+    /// Traces to: BC-2.11.025 §Error Cases E-QUERY-045(a); ADR-066 §B3 + §F;
+    ///            S-JSON-EXTRACT-UDF-001 AC-006 (RG-JEX-006).
+    #[test]
+    fn test_S_JSON_EXTRACT_UDF_001_e_query_045a_map_prism_error_non_literal_key() {
+        let err = PrismError::JsonExtractNonLiteralKey;
+
+        let (code, message) = map_prism_error(err);
+
+        // Primary: must map to INVALID_PARAMS (-32602).
+        assert_eq!(
+            code,
+            codes::INVALID_PARAMS,
+            "B1-045(a): PrismError::JsonExtractNonLiteralKey must map to \
+             codes::INVALID_PARAMS (-32602), not the catch-all INTERNAL_ERROR (-32000). \
+             Got code: {code}. Fix: verify explicit arm in map_prism_error."
+        );
+
+        // Negative: must NOT be INTERNAL_ERROR (-32000).
+        assert_ne!(
+            code,
+            codes::INTERNAL_ERROR,
+            "B1-045(a): JsonExtractNonLiteralKey must NOT fall through to catch-all \
+             INTERNAL_ERROR arm. E-QUERY-045(a) is caller-resolvable; returning -32000 \
+             misleads the MCP caller."
+        );
+
+        // Message must exactly match the JsonExtractNonLiteralKey Display output.
+        assert_eq!(
+            message,
+            "E-QUERY-045: json_extract_string requires a literal string key (e.g., \
+             json_extract_string(col, 'key_name')). Dynamic key expressions are not supported.",
+            "B1-045(a): map_prism_error message must exactly match the JsonExtractNonLiteralKey \
+             Display output. Got: {message:?}"
+        );
+    }
+
+    /// B1-045(a) structured path: `prism_error_to_structured_call_result(JsonExtractNonLiteralKey)`
+    /// must produce `category == "validation"`, NOT `"upstream_error"` (catch-all).
+    ///
+    /// Without the dedicated VariantMeta arm, this variant would fall to the catch-all
+    /// with `category: "upstream_error"` and `original_params_valid: true` — semantically
+    /// wrong for a caller-resolvable plan-time validation error.
+    ///
+    /// Traces to: BC-2.11.025 §Error Cases E-QUERY-045(a); ADR-066 §B3 + §F;
+    ///            S-JSON-EXTRACT-UDF-001 AC-006 (RG-JEX-006).
+    #[test]
+    fn test_S_JSON_EXTRACT_UDF_001_e_query_045a_structured_path_validation_category() {
+        let err = PrismError::JsonExtractNonLiteralKey;
+
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        // category must be "validation" (not "upstream_error" catch-all).
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("category must be a string");
+        assert_eq!(
+            category, "validation",
+            "B1-045(a): JsonExtractNonLiteralKey structured path must have category \
+             'validation', not 'upstream_error' catch-all. E-QUERY-045(a) is a \
+             caller-resolvable plan-time validation error. Got: '{category}'"
+        );
+
+        // original_params_valid must be false — the non-literal key IS the bad param.
+        let opv = error_obj
+            .get("original_params_valid")
+            .and_then(|v| v.as_bool())
+            .expect("original_params_valid must be a bool");
+        assert!(
+            !opv,
+            "B1-045(a): JsonExtractNonLiteralKey must have original_params_valid: false. \
+             The non-literal key expression is the invalid parameter — the caller must fix it. \
+             Got: true (catch-all default)"
+        );
+    }
+
+    /// B1-045(b): `map_prism_error(PrismError::JsonExtractKeyTooLong { key_len: 257, max_len: 256 })`
+    /// MUST return `-32602 INVALID_PARAMS`, NOT the catch-all `-32000 INTERNAL_ERROR`.
+    ///
+    /// `JsonExtractKeyTooLong` is a caller-resolvable plan-time validation error — using
+    /// INTERNAL_ERROR would mislead the MCP caller into thinking an internal bug occurred
+    /// rather than a correctable key-length issue.
+    ///
+    /// Traces to: BC-2.11.025 §Error Cases E-QUERY-045(b); ADR-066 §D3 + §F;
+    ///            S-JSON-EXTRACT-UDF-001 AC-007 (RG-JEX-007).
+    #[test]
+    fn test_S_JSON_EXTRACT_UDF_001_e_query_045b_map_prism_error_key_too_long() {
+        let err = PrismError::JsonExtractKeyTooLong {
+            key_len: 257,
+            max_len: 256,
+        };
+
+        let (code, message) = map_prism_error(err);
+
+        // Primary: must map to INVALID_PARAMS (-32602).
+        assert_eq!(
+            code,
+            codes::INVALID_PARAMS,
+            "B1-045(b): PrismError::JsonExtractKeyTooLong must map to \
+             codes::INVALID_PARAMS (-32602), not the catch-all INTERNAL_ERROR (-32000). \
+             Got code: {code}. Fix: verify explicit arm in map_prism_error."
+        );
+
+        // Negative: must NOT be INTERNAL_ERROR (-32000).
+        assert_ne!(
+            code,
+            codes::INTERNAL_ERROR,
+            "B1-045(b): JsonExtractKeyTooLong must NOT fall through to catch-all \
+             INTERNAL_ERROR arm. E-QUERY-045(b) is caller-resolvable; returning -32000 \
+             misleads the MCP caller."
+        );
+
+        // Message must exactly match the JsonExtractKeyTooLong Display output for key_len=257, max_len=256.
+        assert_eq!(
+            message,
+            "E-QUERY-045: json_extract_string key is 257 bytes, which exceeds the 256-byte maximum (CWE-400).",
+            "B1-045(b): map_prism_error message must exactly match the JsonExtractKeyTooLong \
+             Display output for key_len=257, max_len=256. Got: {message:?}"
+        );
+    }
+
+    /// B1-045(b) structured path: `prism_error_to_structured_call_result(JsonExtractKeyTooLong)`
+    /// must produce `category == "validation"`, NOT `"upstream_error"` (catch-all).
+    ///
+    /// Without the dedicated VariantMeta arm, this variant would fall to the catch-all
+    /// with `category: "upstream_error"` and `original_params_valid: true` — semantically
+    /// wrong for a caller-resolvable plan-time validation error.
+    ///
+    /// Traces to: BC-2.11.025 §Error Cases E-QUERY-045(b); ADR-066 §D3 + §F;
+    ///            S-JSON-EXTRACT-UDF-001 AC-007 (RG-JEX-007).
+    #[test]
+    fn test_S_JSON_EXTRACT_UDF_001_e_query_045b_structured_path_validation_category() {
+        let err = PrismError::JsonExtractKeyTooLong {
+            key_len: 257,
+            max_len: 256,
+        };
+
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        // category must be "validation" (not "upstream_error" catch-all).
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("category must be a string");
+        assert_eq!(
+            category, "validation",
+            "B1-045(b): JsonExtractKeyTooLong structured path must have category \
+             'validation', not 'upstream_error' catch-all. E-QUERY-045(b) is a \
+             caller-resolvable plan-time validation error. Got: '{category}'"
+        );
+
+        // original_params_valid must be false — the oversized key IS the bad param.
+        let opv = error_obj
+            .get("original_params_valid")
+            .and_then(|v| v.as_bool())
+            .expect("original_params_valid must be a bool");
+        assert!(
+            !opv,
+            "B1-045(b): JsonExtractKeyTooLong must have original_params_valid: false. \
+             The oversized key is the invalid parameter — the caller must fix it. \
+             Got: true (catch-all default)"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // N4 — SID-2 composed-output assertion for E-QUERY-045(a)
+    // -----------------------------------------------------------------------
+
+    /// SID-2 (N4): E-QUERY-045(a) composed content_text must NOT have the example literal
+    /// `json_extract_string(col, 'key_name')` appear twice (message + suggestion duplication),
+    /// must NOT have a doubled period (`..`), and must match the full expected string verbatim.
+    ///
+    /// **BLOCKING-2 fix (cycle-4):** the compositor formerly used
+    /// `format!("ERROR: [{}] - {}. {}", category, message, suggestion)` — when `message`
+    /// already ends with `.`, this produced `"...not supported.. Provide..."` (double period).
+    /// The fix strips the trailing `.` from `message` before inserting it into the format.
+    ///
+    /// After the N4 fix, the suggestion uses `json_extract_string(raw_extensions, 'severity')`
+    /// (a different example), so the phrase `json_extract_string(col, 'key_name')` from the
+    /// spec-verbatim message appears EXACTLY ONCE in the composed output.
+    ///
+    /// SID-2 discipline: any user-visible string composed from message + suggestion MUST be
+    /// asserted on the FULL composed string (CLAUDE.md §SID-2).
+    ///
+    /// Traces to: BC-2.11.025 §Error Cases E-QUERY-045(a); ADR-066 §F;
+    ///            CLAUDE.md §SID-2; S-JSON-EXTRACT-UDF-001 cycle-4 BLOCKING-2.
+    #[test]
+    fn test_S_JSON_EXTRACT_UDF_001_e_query_045a_sid2_no_example_duplication_in_content_text() {
+        let err = PrismError::JsonExtractNonLiteralKey;
+
+        let result = prism_error_to_structured_call_result(err);
+        let content_text = extract_content_text_from_result(&result);
+
+        // SID-2 full-composed assert (BLOCKING-2 guard): the exact content_text string
+        // the LLM agent receives.  Previously the compositor added ". " after a message that
+        // already ended with "." producing a double period; this assert catches that regression.
+        let expected_content_text = concat!(
+            "ERROR: [validation] - ",
+            "E-QUERY-045: json_extract_string requires a literal string key ",
+            "(e.g., json_extract_string(col, 'key_name')). ",
+            "Dynamic key expressions are not supported. ",
+            "Provide a string literal as the second argument, ",
+            "e.g., json_extract_string(raw_extensions, 'severity')."
+        );
+        assert_eq!(
+            content_text, expected_content_text,
+            "[SID-2/BLOCKING-2] E-QUERY-045(a) content_text mismatch. \
+             Common failure: double period between message and suggestion (`..`). \
+             Got: {content_text:?}"
+        );
+
+        // SID-2: the message-level example phrase must appear EXACTLY ONCE in content_text.
+        // The spec-verbatim message contains `json_extract_string(col, 'key_name')`;
+        // the fixed suggestion uses a DIFFERENT example (`json_extract_string(raw_extensions, 'severity')`),
+        // so the phrase must not be duplicated across message + suggestion composition.
+        let phrase = "json_extract_string(col, 'key_name')";
+        let count = content_text.matches(phrase).count();
+        assert_eq!(
+            count, 1,
+            "[SID-2/N4] VIOLATION: '{phrase}' appears {count} times in content_text — \
+             must appear exactly once (from the spec-verbatim message). \
+             If count > 1, the suggestion still contains the same example as the message. \
+             Fix: suggestion must use a different example (e.g., json_extract_string(raw_extensions, 'severity')). \
+             content_text was: {content_text:?}"
+        );
+
+        // BLOCKING-2 guard: no doubled period in content_text.
+        assert!(
+            !content_text.contains(".."),
+            "[SID-2/BLOCKING-2] VIOLATION: content_text contains '..' (double period) — \
+             message ending with '.' was combined with the '. ' separator in the format string. \
+             content_text was: {content_text:?}"
+        );
+
+        // The suggestion must contain the alternative example to confirm the fix landed.
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present");
+        let error_obj = sc.get("error").expect("error must be present");
+        let suggestion = error_obj
+            .get("suggestion")
+            .and_then(|v| v.as_str())
+            .expect("suggestion must be a string");
+        assert_eq!(
+            suggestion,
+            "Provide a string literal as the second argument, e.g., json_extract_string(raw_extensions, 'severity').",
+            "[SID-2/N4]: suggestion must exactly match the VariantMeta arm text. Got: '{suggestion}'"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // BLOCKING-2 — SID-2 composed-output assertion for E-QUERY-045(b)
+    // -----------------------------------------------------------------------
+
+    /// SID-2 (BLOCKING-2): E-QUERY-045(b) composed content_text must match the full expected
+    /// string verbatim and must NOT have a doubled period (`..`).
+    ///
+    /// **Root cause:** same as E-QUERY-045(a) above — the compositor added `. ` after a
+    /// message that already ends with `.` (the CWE-400 message ends with `(CWE-400).`),
+    /// producing `"...(CWE-400).. Reduce..."`.
+    ///
+    /// SID-2 discipline: any user-visible string composed from message + suggestion MUST be
+    /// asserted on the FULL composed string (CLAUDE.md §SID-2).
+    ///
+    /// Traces to: BC-2.11.025 §Error Cases E-QUERY-045(b); ADR-066 §F;
+    ///            CLAUDE.md §SID-2; S-JSON-EXTRACT-UDF-001 cycle-4 BLOCKING-2.
+    #[test]
+    fn test_S_JSON_EXTRACT_UDF_001_e_query_045b_sid2_full_composed_content_text() {
+        let err = PrismError::JsonExtractKeyTooLong {
+            key_len: 257,
+            max_len: 256,
+        };
+
+        let result = prism_error_to_structured_call_result(err);
+        let content_text = extract_content_text_from_result(&result);
+
+        // SID-2 full-composed assert (BLOCKING-2 guard): exact content_text for key_len=257, max_len=256.
+        let expected_content_text = concat!(
+            "ERROR: [validation] - ",
+            "E-QUERY-045: json_extract_string key is 257 bytes, ",
+            "which exceeds the 256-byte maximum (CWE-400). ",
+            "Reduce the json_extract_string key to 256 UTF-8 bytes or fewer."
+        );
+        assert_eq!(
+            content_text, expected_content_text,
+            "[SID-2/BLOCKING-2] E-QUERY-045(b) content_text mismatch. \
+             Common failure: double period between message and suggestion (`..`). \
+             Got: {content_text:?}"
+        );
+
+        // BLOCKING-2 guard: no doubled period in content_text.
+        assert!(
+            !content_text.contains(".."),
+            "[SID-2/BLOCKING-2] VIOLATION: content_text contains '..' (double period) — \
+             message ending with '.' was combined with the '. ' separator in the format string. \
+             content_text was: {content_text:?}"
+        );
+    }
+
+    /// N-d fix: wire-level E-QUERY-045 assertion — serialize CallToolResult to JSON and assert
+    /// on `isError`, `code` (-32602), and `structuredContent.error.category` at the wire level.
+    ///
+    /// CLAUDE.md wire-shape assertion discipline (2026-07-13): any test covering an MCP-visible
+    /// surface must include at least one assertion on the SERIALIZED JSON output — the exact
+    /// envelope the LLM agent consumes. Pre-serialization struct-level assertions alone are
+    /// insufficient (they cannot catch serialization-time field omissions, key renames, or
+    /// enum representation changes).
+    ///
+    /// This test exercises `JsonExtractNonLiteralKey` (E-QUERY-045(a)):
+    ///   - `is_error` field: `true` (bool, not string, not absent)
+    ///   - `structuredContent.error.code`: `"E-QUERY-045"` (wire string)
+    ///   - `structuredContent.error.category`: `"validation"` (wire string)
+    ///
+    /// The `code` field at -32602 is asserted pre-serialization (via `map_prism_error`); the
+    /// serialized JSON check is on the structured error envelope's `code` field ("E-QUERY-045").
+    ///
+    /// Traces to: BC-2.11.025 §Error Cases E-QUERY-045(a); CLAUDE.md §Wire-shape assertion discipline;
+    ///            S-JSON-EXTRACT-UDF-001 AC-006 (RG-JEX-006).
+    #[test]
+    fn test_S_JSON_EXTRACT_UDF_001_e_query_045a_wire_level_serialized_json() {
+        let err = PrismError::JsonExtractNonLiteralKey;
+
+        let result = prism_error_to_structured_call_result(err);
+
+        // Wire-shape discipline: assert is_error == true at the struct level (no serialization needed).
+        assert_eq!(
+            result.is_error,
+            Some(true),
+            "N-d wire: JsonExtractNonLiteralKey CallToolResult must have is_error=true"
+        );
+
+        // Obtain structured_content and serialize to JSON — this is the exact wire bytes the LLM sees.
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("N-d wire: structuredContent must be present (BC-2.10.007)");
+
+        let wire_json =
+            serde_json::to_string(sc).expect("N-d wire: structured_content must serialize to JSON");
+
+        // Assert the wire JSON is non-empty (sanity check).
+        assert!(
+            !wire_json.is_empty(),
+            "N-d wire: serialized JSON must not be empty"
+        );
+
+        // Assert on specific wire fields by parsing the serialized JSON.
+        let wire_val: serde_json::Value =
+            serde_json::from_str(&wire_json).expect("N-d wire: serialized JSON must be valid JSON");
+
+        // structuredContent.error.category must be "validation" at the wire level.
+        let category = wire_val
+            .get("error")
+            .and_then(|e| e.get("category"))
+            .and_then(|v| v.as_str())
+            .expect(
+                "N-d wire: structuredContent.error.category must be a string in serialized JSON",
+            );
+        assert_eq!(
+            category, "validation",
+            "N-d wire: structuredContent.error.category must be 'validation' in serialized JSON. \
+             Got: {category:?}"
+        );
+
+        // structuredContent.error.code must be "E-QUERY-045" at the wire level.
+        let code_str = wire_val
+            .get("error")
+            .and_then(|e| e.get("code"))
+            .and_then(|v| v.as_str())
+            .expect("N-d wire: structuredContent.error.code must be a string in serialized JSON");
+        assert_eq!(
+            code_str, "E-QUERY-045",
+            "N-d wire: structuredContent.error.code must be 'E-QUERY-045' in serialized JSON. \
+             Got: {code_str:?}"
+        );
+
+        // original_params_valid must be false at the wire level.
+        let opv = wire_val
+            .get("error")
+            .and_then(|e| e.get("original_params_valid"))
+            .and_then(|v| v.as_bool())
+            .expect("N-d wire: original_params_valid must be a bool in serialized JSON");
+        assert!(
+            !opv,
+            "N-d wire: original_params_valid must be false in serialized JSON for \
+             JsonExtractNonLiteralKey (the non-literal key IS the bad param)"
         );
     }
 }

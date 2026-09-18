@@ -1618,3 +1618,18 @@ pub fn v98_fetch_output() {
     };
     let _ = _out;
 }
+
+/// Violation 99: prism_query::json_extract_udf::JsonExtractStringUdf struct literal (E0639).
+///
+/// `JsonExtractStringUdf` is the DataFusion ScalarUDF implementation for
+/// `json_extract_string(column, 'key')` (BC-2.11.025; ADR-066 §E).
+/// `#[non_exhaustive]` ensures external callers use `json_extract_string_udf()` factory
+/// rather than struct literal construction. Registered by S-JSON-EXTRACT-UDF-001.
+#[allow(dead_code)]
+pub fn v99_json_extract_string_udf() {
+    use prism_query::json_extract_udf::JsonExtractStringUdf;
+    // Triggers E0639 (#[non_exhaustive]). JsonExtractStringUdf has a private `signature`
+    // field; E0639 fires before field visibility error.
+    let _udf = JsonExtractStringUdf {};
+    let _ = _udf;
+}

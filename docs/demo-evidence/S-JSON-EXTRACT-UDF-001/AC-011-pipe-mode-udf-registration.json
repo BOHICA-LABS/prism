@@ -1,0 +1,58 @@
+{
+  "_demo_meta": {
+    "story_id": "S-JSON-EXTRACT-UDF-001",
+    "ac": "AC-011",
+    "rg": "RG-JEX-011",
+    "bc_clause": "EC-11-025-011 / SAP-3 pipe-mode reachability",
+    "scenario": "json_extract_string executes via MCP query tool (UDF registered, no 'unknown function' error)",
+    "binary": "target/debug/prism",
+    "commit": "1487d2d9b"
+  },
+  "mcp_wire_demo": {
+    "description": "SQL-pipe mode query: json_extract_string in SELECT head with pipe | limit stage. Demonstrates UDF is registered in DataFusion SessionContext — query passes plan gate and proceeds to sensor fan-out. E-SENSOR-010 is returned because no live Claroty instance (dummy credentials), confirming the failure point is the sensor, NOT the UDF registration.",
+    "mcp_request": {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "method": "tools/call",
+      "params": {
+        "name": "query",
+        "arguments": {
+          "query": "SELECT json_extract_string(raw_extensions, 'severity') AS jex_severity FROM claroty_alerts | limit 5",
+          "clients": ["acme"]
+        }
+      }
+    },
+    "mcp_response": {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "result": {
+        "isError": false,
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"_meta\":{\"data_source\":[\"claroty\"],\"has_more\":false,\"next_cursor\":null,\"page\":1,\"query_time\":\"2026-09-18T01:09:44.293706+00:00\",\"safety_flags\":[],\"tool\":\"query\",\"total_results\":0,\"trust_level\":\"untrusted_external\"},\"content\":[{\"text\":\"0 results found\",\"type\":\"text\"}],\"results\":{\"is_truncated\":false,\"returned_results\":0,\"rows\":[],\"sensor_errors\":[\"claroty_alerts: sensor error (E-SENSOR-010)\"],\"total_available\":0}}"
+          }
+        ]
+      }
+    },
+    "assertions": {
+      "isError": false,
+      "no_unknown_function_error": true,
+      "no_E_QUERY_045": true,
+      "failure_is_E_SENSOR_010": true,
+      "note": "E-SENSOR-010 is a credential/connection error — the UDF was registered and DataFusion accepted the query. Without a live sensor, 0 rows are returned. This confirms json_extract_string is registered in the DataFusion SessionContext per ADR-066 §E."
+    }
+  },
+  "unit_test_evidence": {
+    "description": "RG-JEX-011 unit test uses JexMockAdapter with synthetic data to assert actual extraction values at the DataFusion / Arrow level. Wire-shape assertion per SID-2 (CLAUDE.md): the test asserts on Arrow StringArray values after full engine execution.",
+    "test_name": "test_jex_rg011_pipe_mode_end_to_end_executes",
+    "test_result": "PASS",
+    "key_assertions": [
+      "total_rows == 3 (mock adapter returns 3 rows)",
+      "extracted_col.value(0) == 'critical' (row 0: {\"severity\":\"critical\",...})",
+      "extracted_col.is_null(1) == true (row 1: {\"severity\":null,...} → SQL NULL (JSON null at key))",
+      "extracted_col.is_null(2) == true (row 2: {\"host\":\"server03\"} → SQL NULL (key absent))"
+    ],
+    "sap3_compliance": "Test exercises full prism_query public API: QueryEngine::execute() → pipe_sql_emitter → DataFusion → json_extract_string UDF → result batches"
+  }
+}
