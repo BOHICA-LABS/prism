@@ -10,9 +10,9 @@ epic_id: "E-BETA3-REMEDIATION"
 story_source: "S-JSON-EXTRACT-UDF-001"
 version: "1.1"
 status: active
-used: false
-last_evaluated: null
-last_eval_satisfaction: null
+used: true
+last_evaluated: 2026-09-17
+last_eval_satisfaction: 1.00
 single_use: true
 producer: product-owner
 timestamp: "2026-09-17T00:00:00Z"
@@ -267,7 +267,7 @@ the failure was in the gate itself vs the message formatting.
 |-------|-------------|
 | corpus_source | prism binary from S-JSON-EXTRACT-UDF-001 branch. No DTU. Synthetic query with exactly 257-byte literal key. SQL projection form. |
 | corpus_size | Single MCP query call; plan-time rejection; zero sensor contact. Boundary test at the 256/257 byte threshold. |
-| known_edge_cases | Key byte count off-by-one: must be exactly 257 bytes (not 256, not 258). 256-byte key should be accepted (boundary inclusive). UTF-8 encoding: use ASCII-only to ensure 1 byte per character. Transport: isError:true tool-result, NOT top-level error.code:-32602. SQL form only: SELECT ... FROM ... not FROM ... | SELECT ... |
+| known_edge_cases | Key byte count off-by-one: must be exactly 257 bytes (not 256, not 258). 256-byte key should be accepted (boundary inclusive). UTF-8 encoding: use ASCII-only to ensure 1 byte per character. Transport: isError:true tool-result, NOT top-level error.code:-32602. SQL form only: SELECT ... FROM ... not FROM ... \| SELECT ... |
 | false_positive_threshold | Near-zero: the specific E-QUERY-045 message with both "257" and "256" is only emitted by the implemented plan gate |
 | false_negative_threshold | Near-zero: pre-patch (no UDF) gives "unknown function" not E-QUERY-045(b); no plan gate gives success result not an error |
 
@@ -281,5 +281,5 @@ the failure was in the gate itself vs the message formatting.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.1 | beta3-w3-holdout-correction | 2026-09-17 | product-owner | **Scenario-authoring correction (two defects found by holdout-evaluator run on 83fa7ff51).** (1) Transport-envelope defect: rubric Part B asserted `error.code == -32602` at the top-level JSON-RPC level. Prism's ratified product-wide convention for ALL query-validation domain errors (E-QUERY-NNN) is `result.isError=true` tool-result (server.rs `prism_error_to_structured_call_result` path), NOT a top-level JSON-RPC `error.code`. Fix: Part B now asserts `result` key present + `result.isError == true`; E-QUERY-045 and length values assert in `result.content[0].text`. (2) Query syntax defect: scenario used `FROM claroty_alerts | SELECT json_extract_string(raw_extensions, '<257-char-literal>')` (pipe+SELECT — malformed PrismQL). Fix: corrected to SQL projection form `SELECT json_extract_string(raw_extensions, '<257-char-literal>') FROM claroty_alerts`. Transport Convention section added. Rubric rewritten to reflect isError:true assertion. used: false (re-authored for re-evaluation). |
+| 1.1 | beta3-w3-holdout-correction | 2026-09-17 | product-owner | **Scenario-authoring correction (two defects found by holdout-evaluator run on 83fa7ff51).** (1) Transport-envelope defect: rubric Part B asserted `error.code == -32602` at the top-level JSON-RPC level. Prism's ratified product-wide convention for ALL query-validation domain errors (E-QUERY-NNN) is `result.isError=true` tool-result (server.rs `prism_error_to_structured_call_result` path), NOT a top-level JSON-RPC `error.code`. Fix: Part B now asserts `result` key present + `result.isError == true`; E-QUERY-045 and length values assert in `result.content[0].text`. (2) Query syntax defect: scenario used `FROM claroty_alerts \| SELECT json_extract_string(raw_extensions, '<257-char-literal>')` (pipe+SELECT — malformed PrismQL). Fix: corrected to SQL projection form `SELECT json_extract_string(raw_extensions, '<257-char-literal>') FROM claroty_alerts`. Transport Convention section added. Rubric rewritten to reflect isError:true assertion. used: false (re-authored for re-evaluation). |
 | 1.0 | beta3-w3-holdout-authoring | 2026-09-17 | product-owner | Initial authoring. HS-040 group for S-JSON-EXTRACT-UDF-001. CWE-400 key-length cap boundary test: 257-byte literal key rejected with E-QUERY-045(b) carrying key_len=257 and max_len=256 in message. Wire-level -32602 + E-QUERY-045 + "257" + "256" assertions. No DTU required. BC-2.11.025 EC-11-025-007 + ADR-066 §D3 + §F. SINGLE-USE HIDDEN. |

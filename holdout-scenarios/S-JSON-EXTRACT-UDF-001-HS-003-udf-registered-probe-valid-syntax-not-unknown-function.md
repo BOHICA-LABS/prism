@@ -10,9 +10,9 @@ epic_id: "E-BETA3-REMEDIATION"
 story_source: "S-JSON-EXTRACT-UDF-001"
 version: "1.0"
 status: active
-used: false
-last_evaluated: null
-last_eval_satisfaction: null
+used: true
+last_evaluated: 2026-09-17
+last_eval_satisfaction: 1.00
 single_use: true
 producer: product-owner
 timestamp: "2026-09-17T00:00:00Z"
@@ -22,7 +22,7 @@ inputs:
   - ".factory/stories/S-JSON-EXTRACT-UDF-001-json-extract-scalar-udf.md"
   - ".factory/specs/behavioral-contracts/BC-2.11.025-json-extract-string-scalar-udf.md"
   - ".factory/specs/architecture/decisions/ADR-066-json-extract-scalar-udf.md"
-input-hash: "TBD"
+input-hash: "ada57c4"
 traces_to: "BC-2.11.025"
 behavioral_contracts:
   - BC-2.11.025

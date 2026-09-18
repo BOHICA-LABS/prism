@@ -10,9 +10,9 @@ epic_id: "E-BETA3-REMEDIATION"
 story_source: "S-JSON-EXTRACT-UDF-001"
 version: "1.1"
 status: active
-used: false
-last_evaluated: null
-last_eval_satisfaction: null
+used: true
+last_evaluated: 2026-09-17
+last_eval_satisfaction: 1.00
 single_use: true
 producer: product-owner
 timestamp: "2026-09-17T00:00:00Z"
@@ -243,7 +243,7 @@ the failure was in UDF registration vs plan gate.
 |-------|-------------|
 | corpus_source | prism binary from S-JSON-EXTRACT-UDF-001 branch. No DTU. Synthetic query with non-literal column reference as second argument. SQL projection form. |
 | corpus_size | Single MCP query call; plan-time rejection path; zero sensor contact |
-| known_edge_cases | PrismQL SQL form only: `SELECT ... FROM ...` not `FROM ... | SELECT ...`. severity_id column reference: must be unquoted in the query string. Transport convention: isError:true tool-result, NOT top-level error.code:-32602 |
+| known_edge_cases | PrismQL SQL form only: `SELECT ... FROM ...` not `FROM ... \| SELECT ...`. severity_id column reference: must be unquoted in the query string. Transport convention: isError:true tool-result, NOT top-level error.code:-32602 |
 | false_positive_threshold | Near-zero: E-QUERY-045 in the content text is the post-fix discriminating signal; pre-patch gives DataFusion unknown-function or no UDF registration error |
 | false_negative_threshold | Near-zero: plan gate either fires (E-QUERY-045 in isError:true content) or doesn't; there is no ambiguous middle state |
 
@@ -257,5 +257,5 @@ the failure was in UDF registration vs plan gate.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.1 | beta3-w3-holdout-correction | 2026-09-17 | product-owner | **Scenario-authoring correction (two defects found by holdout-evaluator run on 83fa7ff51).** (1) Transport-envelope defect: rubric Part A asserted `error.code == -32602` at the top-level JSON-RPC level. Prism's ratified product-wide convention for ALL query-validation domain errors (E-QUERY-NNN) is `result.isError=true` tool-result (server.rs `prism_error_to_structured_call_result` path), NOT a top-level JSON-RPC `error.code`. The `-32602` classification is an internal `map_prism_error` code, not a wire-level protocol code. Fix: Part A now asserts `result` key present + `result.isError == true`; `result.content[0].text` contains E-QUERY-045. (2) Query syntax defect: scenario used `FROM claroty_alerts | SELECT json_extract_string(raw_extensions, severity_id)` (pipe+SELECT — malformed PrismQL). Fix: corrected to SQL projection form `SELECT json_extract_string(raw_extensions, severity_id) FROM claroty_alerts`. Transport Convention section added to scenario body. Rubric rewritten to reflect isError:true assertion instead of error.code:-32602 assertion. used: false (re-authored for re-evaluation). |
+| 1.1 | beta3-w3-holdout-correction | 2026-09-17 | product-owner | **Scenario-authoring correction (two defects found by holdout-evaluator run on 83fa7ff51).** (1) Transport-envelope defect: rubric Part A asserted `error.code == -32602` at the top-level JSON-RPC level. Prism's ratified product-wide convention for ALL query-validation domain errors (E-QUERY-NNN) is `result.isError=true` tool-result (server.rs `prism_error_to_structured_call_result` path), NOT a top-level JSON-RPC `error.code`. The `-32602` classification is an internal `map_prism_error` code, not a wire-level protocol code. Fix: Part A now asserts `result` key present + `result.isError == true`; `result.content[0].text` contains E-QUERY-045. (2) Query syntax defect: scenario used `FROM claroty_alerts \| SELECT json_extract_string(raw_extensions, severity_id)` (pipe+SELECT — malformed PrismQL). Fix: corrected to SQL projection form `SELECT json_extract_string(raw_extensions, severity_id) FROM claroty_alerts`. Transport Convention section added to scenario body. Rubric rewritten to reflect isError:true assertion instead of error.code:-32602 assertion. used: false (re-authored for re-evaluation). |
 | 1.0 | beta3-w3-holdout-authoring | 2026-09-17 | product-owner | Initial authoring. HS-040 group for S-JSON-EXTRACT-UDF-001. Combined UDF-registration probe + literal-key plan gate security gate. Non-literal key → E-QUERY-045(a). Wire-level -32602 + E-QUERY-045 message assertions. No DTU required. BC-2.11.025 EC-11-025-006 + ADR-066 §B3. SINGLE-USE HIDDEN. |
