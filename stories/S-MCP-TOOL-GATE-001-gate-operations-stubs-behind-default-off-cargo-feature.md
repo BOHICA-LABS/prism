@@ -5,7 +5,7 @@ title: "Gate 40 operations stubs behind default-off Cargo feature to eliminate -
 level: "L4"
 wave: 1
 epic_id: E-BETA3-REMEDIATION
-version: "1.8"
+version: "1.9"
 status: ready
 producer: story-writer
 timestamp: "2026-09-18T00:00:00Z"
@@ -72,7 +72,7 @@ authoritative design decision for this story. Read that document's Part 1 §Issu
 §Issue 2, and Part 3 §S-MCP-TOOL-GATE-001 in full before implementing.
 Path: `.factory/cycles/wave-5-e-demo-fidelity/beta3-remediation-delta-analysis.md`
 
-**BC-2.10.017** (Not-Yet-Available Tools Fast-Fail) governs the NOT_YET_AVAILABLE_TOOLS
+**BC-2.10.017** (Not-Yet-Available Tools Fast-Fail — Audit Channel Non-Blocking) governs the NOT_YET_AVAILABLE_TOOLS
 const and the fast-fail handler behavior. This story implements an amendment to that BC.
 Path: `.factory/specs/behavioral-contracts/BC-2.10.017-not-yet-available-tools-fast-fail-audit-channel-non-blocking.md`
 
@@ -80,7 +80,7 @@ Path: `.factory/specs/behavioral-contracts/BC-2.10.017-not-yet-available-tools-f
 the `list_capabilities` response. This story implements an amendment to that BC.
 Path: `.factory/specs/behavioral-contracts/BC-2.10.011-list-capabilities-meta-tool.md`
 
-**BC-2.10.012** (prism_describe Schema Discovery Tool) §Preconditions §1 is a protection
+**BC-2.10.012** (`prism_describe` Schema Discovery Tool (L2)) §Preconditions §1 is a protection
 boundary: "`prism_describe` is always registered — it is NOT gated by any feature flag or
 capability check." The implementer MUST read this BC to confirm all 14 LIVE_TOOLS remain
 ungated after this story lands.
@@ -124,6 +124,11 @@ confused by 40 permanently-failing stubs that return `-32003`.
 |----|-------|---------------------|---------------------|
 | BC-2.10.017 | Not-Yet-Available Tools Fast-Fail — Audit Channel Non-Blocking | v1.3 | §Postconditions + §Invariants: operations-feature gate behavior; NOT_YET_AVAILABLE_TOOLS = &[] when feature absent; no stub tools in catalog when feature absent |
 | BC-2.10.011 | list_capabilities Meta-Tool | v1.7 | §Postconditions `not_registered_tools` field: empty slice when operations feature absent; previously-populated slice preserved when feature enabled |
+
+> **Version at Authoring note (POL-39 exemption):** The "Version at Authoring" column records
+> the frozen BC versions this story was authored against (point-in-time snapshot); it is NOT
+> a current-state pin and is POL-39-exempt under the same rationale as §History/§Changelog and
+> the TD-VSDD-091 AC-source-of-truth-table exemption. Current BC versions are tracked in BC-INDEX.
 
 BC-2.10.012 is a PROTECTION BOUNDARY (not an implemented contract): the story must not gate
 any tool in LIVE_TOOLS, and specifically must not gate `prism_describe`, `list_capabilities`,
@@ -427,16 +432,24 @@ entries; tests fail on count assertions.
   methods and `NOT_YET_AVAILABLE_TOOLS = &[]`, so union(LIVE_TOOLS, &[]) == catalog.
   If it fails, investigate and fix.
 
-- [ ] **T-D03**: Gate the inline test `test_operations_tools_return_not_implemented_error_code`
-  (in the `#[cfg(test)] mod tests` block in `crates/prism-mcp/src/server.rs`) with
-  `#[cfg(feature = "operations")]`. Rationale: this test invokes gated ops `#[tool]` handler
-  methods directly (the same methods moved into the `#[cfg(feature = "operations")]` impl
-  block by T-C01). Without the `#[cfg(feature = "operations")]` gate on the test itself, it
-  will fail to compile in the default (no-`operations`) build once T-C01 lands — the handler
-  methods it calls no longer exist in that compilation context. Its assertion (ops tools return
-  the -32003 not-yet-available error code) is only meaningful when the `operations` feature is
-  enabled; there is no corresponding behavior to test when the feature is absent (the handlers
-  do not exist).
+- [ ] **T-D03**: Gate with `#[cfg(feature = "operations")]` EVERY inline `#[cfg(test)]` test
+  in `crates/prism-mcp/src/server.rs` that invokes an ops `#[tool]` handler method moved
+  into the `#[cfg(feature = "operations")]` impl block by T-C01. The complete set is defined
+  by the general rule: **all inline tests whose bodies call a gated ops handler** — this is
+  approximately 20 such tests in the feature HEAD (the exact verified count in the shipped
+  worktree is 21 ops-handler-invoking inline test functions). This includes
+  `test_operations_tools_return_not_implemented_error_code`,
+  `test_not_yet_available_msg_uses_not_implemented_code`, all
+  delete_rule/get_case/update_case/create_pack/create_action/fire_action length-bound tests
+  (`test_F_PR163_PASS2_IMP_2_*` and `test_F_PR163_PASS3_MED_1_*` for ops handlers), and any
+  other inline test whose body invokes a method on an ops handler that no longer exists in the
+  operations-absent build. **Do NOT treat this as a fixed short list** — enumerate by
+  inspection: for each inline test function, if its body calls a method that lives in the
+  `#[cfg(feature = "operations")]` impl block, that test must be gated. Rationale: without the
+  gate on each such test, the default (no-`operations`) build fails with E0599 — the handler
+  methods it calls do not exist in that compilation context. The assertions each test makes
+  (ops tools return -32003 or enforce length bounds) are only meaningful when the `operations`
+  feature is enabled; there is no corresponding behavior to test when the feature is absent.
 
 - [ ] **T-D04**: Gate the three integration tests in `crates/prism-mcp/tests/mcp_infrastructure.rs`
   — `test_bc_2_10_017_not_yet_available_fast_fail_under_1s`,
@@ -453,13 +466,17 @@ entries; tests fail on count assertions.
 
 > **Phase D compile-safety constraint:** Do NOT add `#[cfg(feature = "operations")]` to the
 > parameter structs `ListInfusionsParams`, `InfusionStatusParams`, or `PluginStatusParams`
-> (defined in `server.rs`). These are `pub struct`
-> definitions outside any impl block; gating them would break other references (e.g., uses in
-> non-ops handler code, derive macros, or downstream crates). Only the following are gated:
-> the ops `impl` block containing `#[tool]` handler methods (T-C01), the
-> `NOT_YET_AVAILABLE_TOOLS` const (T-B01), the `not_yet_available_msg` helper (T-C01(d)),
-> the `operations.rs` module declaration (T-C02), and the three tests identified in T-D03 and
-> T-D04. Everything else — including all `pub struct` definitions — remains ungated.
+> (defined in `server.rs`). These are `pub struct` definitions outside any impl block; gating
+> them would break other references (e.g., uses in non-ops handler code, derive macros, or
+> downstream crates). The general gating rule: gate `#[cfg(feature = "operations")]` onto each
+> of the following — (a) the ops `impl` block containing `#[tool]` handler methods (T-C01);
+> (b) the `NOT_YET_AVAILABLE_TOOLS` const (T-B01); (c) the `not_yet_available_msg` helper
+> (T-C01(d)); (d) the `operations.rs` module declaration (T-C02); (e) every inline
+> `#[cfg(test)]` test in server.rs that invokes a gated ops handler method (~20 inline tests;
+> enumerate by inspection, not by a fixed short list — T-D03); (f) the 3 tests in
+> `mcp_infrastructure.rs` that drive the -32003 fast-fail path through gated ops handlers
+> (T-D04). All `pub struct` definitions, LIVE_TOOLS handler methods, and all non-ops-handler
+> code remain ungated.
 
 #### Phase E — Final verification
 
@@ -586,6 +603,7 @@ Holdout scenarios are stored in the holdout directory that test-writer/implement
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.9 | 2026-09-18 | LOCAL pass-7 docs-only fix-burst (no code/behavior change; feature HEAD 0af76be5c frozen). F-MED-001 (MEDIUM): T-D03 rewritten to state the GENERAL RULE — gate ALL ~20 ops-handler-invoking inline tests, not only the one named test; Phase-D constraint note corrected to remove false "three tests" miscount and false "Everything else remains ungated" closed-set claim; correct form is "enumerate by inspection, not a fixed short list." OBS-1 (POL-7 H1-verbatim): BC-2.10.012 §Authority citation restored to verbatim H1 `` `prism_describe` Schema Discovery Tool (L2) `` (was missing backticks + "(L2)"); BC-2.10.017 §Authority citation restored to full H1 "Not-Yet-Available Tools Fast-Fail — Audit Channel Non-Blocking" (was truncated). OBS-2 (POL-39 orchestrator adjudication): footnote added under §Behavioral Contracts table stating the "Version at Authoring" column is a frozen point-in-time snapshot, POL-39-exempt per same rationale as §History/§Changelog and TD-VSDD-091 AC-source-of-truth-table exemption. TD-VSDD-097 3-dim sweep: (1) sibling pair — §Authority BC citations and §Behavioral Contracts table BC title rows both swept for H1-verbatim compliance; (2) downstream copy — none; (3) mandate anchor — no new MUSTs added. |
 | 1.8 | 2026-09-18 | LOCAL pass-6 F-MED-001/F-LOW-001 docs reconciliation: §File Structure reconciled against actual f38604da4..0af76be5c diff (added Justfile [load-bearing operations-off gate legs] + confirmed CHANGELOG.md/mcp_infrastructure.rs); tools/operations.rs corrected to tools/mod.rs (T-C02 gated module declaration in mod.rs, not operations.rs directly); 'Files NOT to touch' corrected to carve out repo-root Justfile+CHANGELOG.md as EXPECTED modifications; test inventory documents both e2e round-trip tests (OBS-1 list_capabilities AC-002 + OBS-2 tools_list_14 AC-001; 6 tests total); frozen-HEAD ref updated to 0af76be5c. No code/behavior change; feature HEAD 0af76be5c frozen. TD-VSDD-097 3-dim sweep: (1) sibling pair — §File-Structure MODIFY table + 'Files NOT to touch' list + §Token Budget rows all swept together; (2) downstream copy — none; (3) mandate anchor — no new MUST. |
 | 1.7 | 2026-09-18 | LOCAL pass-4 LOW-1/LOW-2 records-only sweep (TD-VSDD-096): exhaustive de-pin of volatile BC-version pins in §Authority/§Token Budget narrative (POL-39) + removed server.rs line-number cite from §Tasks Phase-D note (TD-VSDD-091); cite ID+§anchor form only. No code/behavior change; feature HEAD 09658db3a frozen. TD-VSDD-097 3-dim sweep: (1) sibling pair — §Authority NOTE and §Token Budget rows both carried BC pins, swept together; (2) downstream copy — none; (3) mandate anchor — no new MUST. |
 | 1.6 | 2026-09-18 | OBS-1 (LOCAL pass-3): complete test-name reconciliation sweep (docs-only; no code or behavior change; feature HEAD 09658db3a frozen). All 4 RG-GATE test names corrected to include `test_BC_2_10_017_` infix (RG-GATE-001..004). T-S01 step-3 spike test name `test_spike_tool_catalog_count_without_operations_feature` updated to shipped name `test_BC_2_10_017_tools_list_returns_14_tools_without_operations_feature` (spike placeholder superseded by RG-GATE-001 in shipped code). T-D04 and §File Structure MODIFY updated to include third gated test `test_bc_2_10_017_sibling_handlers_guard_precedes_audit` (present in worktree; was omitted from T-D04 which previously cited only two tests). Token Budget file-row note updated from RG-GATE-001..003 to RG-GATE-001..004 + OBS-2 e2e. TD-VSDD-097 3-dim sweep: (1) sibling pair — §Red Gate list and §Tasks T-D01/T-D04 references to the same tests swept together; (2) downstream copy — none (test names not copied into BC/ADR/VP artifacts); (3) mandate anchor — no new MUST added. |
