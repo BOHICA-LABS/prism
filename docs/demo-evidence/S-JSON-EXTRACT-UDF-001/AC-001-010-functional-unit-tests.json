@@ -92,10 +92,10 @@
   "AC-010_dot_in_key": {
     "test": "test_jex_rg010_dot_in_key_literal_not_nested_path",
     "result": "PASS",
-    "input_json": "{\"a.b\":\"literal_val\",\"a\":{\"b\":\"nested\"}}",
+    "input_json": "{\"a.b\":\"dotted\",\"a\":{\"b\":\"nested\"}}",
     "key": "a.b",
-    "expected_output": "\"literal_val\" (exact top-level key match, NOT nested path a->b)",
-    "arrow_assertion": "extracted_col.value(0) == \"literal_val\"",
+    "expected_output": "\"dotted\" (exact top-level key match, NOT nested path a->b)",
+    "arrow_assertion": "extracted_col.value(0) == \"dotted\"",
     "bc_clause": "EC-11-025-009 / postcondition §Top-level key only",
     "note": "ADR-066 §D4: nested JSONPath access out of scope for beta.3. serde_json::Map::get(key) does exact top-level lookup."
   }

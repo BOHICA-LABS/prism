@@ -2,7 +2,7 @@
 
 **Story:** S-JSON-EXTRACT-UDF-001 — Minimal `json_extract_string` ScalarUDF with Literal-Key Plan Gate  
 **Branch:** feature/S-JSON-EXTRACT-UDF-001  
-**Commit at recording:** 7deb3674f (cycle-2 re-record; original cycle-1 was at 83fa7ff51)  
+**Commit at recording:** 3c7650fca (cycle-4 evidence fix; cycle-2 re-record was at 7deb3674f; original cycle-1 was at 83fa7ff51)  
 **Binary:** `target/debug/prism` (built from worktree via `cargo build -p prism-bin`)  
 **Date:** 2026-09-17  
 **AC coverage:** AC-001 through AC-012 (all 12 acceptance criteria)
@@ -166,8 +166,8 @@ Query: `SELECT json_extract_string(raw_extensions, '<256 a-chars>') FROM claroty
 
 **Evidence file:** `AC-001-010-functional-unit-tests.json` §AC-010_dot_in_key  
 **Test:** `test_jex_rg010_dot_in_key_literal_not_nested_path` — PASS  
-**Observed behavior:** `json_extract_string('{"a.b":"literal_val","a":{"b":"nested"}}', 'a.b')` → `"literal_val"` (exact top-level key `"a.b"`, NOT nested path `a → b`).  
-**Key assertion:** `extracted_col.value(0) == "literal_val"`  
+**Observed behavior:** `json_extract_string('{"a.b":"dotted","a":{"b":"nested"}}', 'a.b')` → `"dotted"` (exact top-level key `"a.b"`, NOT nested path `a → b`).  
+**Key assertion:** `extracted_col.value(0) == "dotted"`  
 **Traces to:** BC-2.11.025 EC-11-025-009
 
 ---
@@ -184,8 +184,8 @@ Query: `SELECT json_extract_string(raw_extensions, 'severity') AS jex_severity F
 **Unit test (RG-JEX-011) Arrow-level assertions (SID-2):**  
 - `test_jex_rg011_pipe_mode_end_to_end_executes` — PASS
 - Exercises `QueryEngine::execute()` with `JexMockAdapter` (SAP-3 public surface)
-- Arrow-level assertions (pre-serialization Rust structs): `extracted_col.value(0) == "critical"`, `extracted_col.is_null(1) == true` (missing key), `extracted_col.is_null(2) == true` (null column)
-- Note: these are Arrow RecordBatch / StringArray assertions — pre-serialization. Wire-level JSON assertions (asserting on `content[0].text` bytes) are covered by the plan-gate tests (RG-JEX-006, RG-JEX-007, RG-JEX-012, RG-JEX-013) that assert on the MCP `structuredContent.error` envelope.
+- Arrow-level assertions (pre-serialization Rust structs): `extracted_col.value(0) == "critical"`, `extracted_col.is_null(1) == true` (JSON null → SQL NULL), `extracted_col.is_null(2) == true` (absent key → SQL NULL)
+- Note: these are Arrow RecordBatch / StringArray assertions — pre-serialization. Serialized wire-level null-not-absent coverage (BC-2.11.001 EC-11-079, asserting on the serialized JSON envelope with `explicit_nulls`) is in `prism-mcp` test `test_BC_2_11_025_json_extract_string_null_row_wire_null_not_absent` (`crates/prism-mcp/tests/bc_2_11_025_jex_wire_null_test.rs`). The `prism-query` crate intentionally has no `arrow-json` or `prism-mcp` dependency (ADR-066 §B2 §Forbidden Dependencies); MCP envelope fields (`structuredContent.error`, `content[].text` bytes) are asserted only in `prism-mcp` error-mapping tests (6 tests; see prism-mcp Full Test Suite section below). The plan-gate unit tests (RG-JEX-006, RG-JEX-007, RG-JEX-012, RG-JEX-013) assert on `PrismError` variants and their `Display` format strings — not on MCP JSON envelopes.
 
 **Traces to:** BC-2.11.025 EC-11-025-011
 
@@ -226,17 +226,24 @@ Query: `SELECT id FROM claroty_alerts WHERE json_extract_string(raw_extensions, 
 
 ## Full Test Suite Results
 
+### prism-query (captured at HEAD 3c7650fca)
+
 ```
 cargo nextest run -p prism-query -E 'test(test_jex)' --no-fail-fast
-33 tests run: 33 passed, 0 failed
+    Starting 40 tests across 22 binaries (1758 tests skipped)
+     Summary 40 tests run: 40 passed, 1758 skipped
 ```
 
-(Cycle-2 note: test count grew from 28 to 33 as cycle-2 fix commits added RG-013, RG-007-b/c/d, `test_jex_f4_*` engine-execute arm tests, and gate-walk completeness tests.)
+(Cycle-4 note: test count grew from 33 to 40 as cycle-3/cycle-4 fix commits added
+`test_jex_ast_parser_maps_jex_to_scalar_func_json_extract_string` and
+gate-walk tests for ORDER BY (RG-015), JOIN ON (RG-016), IN subquery predicate
+(RG-017), IN subquery expr (RG-018), AST pipe-where (RG-019), and AST filter (RG-020).)
 
-33 total test_jex tests all PASS:
+40 total test_jex tests all PASS:
 
 | Test | Result |
 |------|--------|
+| test_jex_ast_parser_maps_jex_to_scalar_func_json_extract_string | PASS |
 | test_jex_rg001_udf_registered_happy_path_executes | PASS |
 | test_jex_rg002_json_null_value_at_key_returns_sql_null | PASS |
 | test_jex_rg003_missing_key_returns_sql_null | PASS |
@@ -260,6 +267,13 @@ cargo nextest run -p prism-query -E 'test(test_jex)' --no-fail-fast
 | test_jex_rg012_d_where_valid_literal_key_executes_correctly | PASS |
 | test_jex_rg013_pipe_where_non_literal_key_rejected_e_query_045_a | PASS |
 | test_jex_rg013_b_pipe_where_key_too_long_rejected_e_query_045_b | PASS |
+| test_jex_rg014_group_by_non_literal_key_rejected_e_query_045_a | PASS |
+| test_jex_rg015_order_by_non_literal_key_rejected_e_query_045_a | PASS |
+| test_jex_rg016_join_on_non_literal_key_rejected_e_query_045_a | PASS |
+| test_jex_rg017_in_subquery_predicate_non_literal_key_rejected_e_query_045_a | PASS |
+| test_jex_rg018_in_subquery_expr_non_literal_key_rejected_e_query_045_a | PASS |
+| test_jex_rg019_ast_pipe_where_non_literal_key_rejected_e_query_045_a | PASS |
+| test_jex_rg020_ast_filter_non_literal_key_rejected_e_query_045_a | PASS |
 | test_jex_f4_coerce_arm_engine_execute | PASS |
 | test_jex_f4_dot_in_key_arm_engine_execute | PASS |
 | test_jex_f4_non_object_arm_engine_execute | PASS |
@@ -270,6 +284,27 @@ cargo nextest run -p prism-query -E 'test(test_jex)' --no-fail-fast
 | jex_gate_walk_completeness_tests::test_jex_timestamp_arithmetic_base_key_too_long_defense_in_depth | PASS |
 | jex_gate_walk_completeness_tests::test_jex_timestamp_arithmetic_base_rejected_defense_in_depth | PASS |
 | jex_gate_walk_completeness_tests::test_jex_window_variant_is_fieldless_compile_guard | PASS |
+
+### prism-mcp (captured at HEAD 3c7650fca)
+
+MCP error-mapping tests verify the wire-level JSON serialization of E-QUERY-045 errors
+(`error.code`, `error.category`, `content[0].text` bytes). These live in `prism-mcp`
+because `prism-query` has no `arrow-json` or `prism-mcp` dependency (ADR-066 §B2).
+
+```
+cargo nextest run -p prism-mcp -E 'test(JSON_EXTRACT)' --no-fail-fast
+    Starting 6 tests across 28 binaries (502 tests skipped)
+     Summary 6 tests run: 6 passed, 502 skipped
+```
+
+| Test | Asserts | Result |
+|------|---------|--------|
+| error_mapping::tests::test_S_JSON_EXTRACT_UDF_001_e_query_045a_map_prism_error_non_literal_key | `PrismError::JsonExtractNonLiteralKey` → MCP error code E-QUERY-045 | PASS |
+| error_mapping::tests::test_S_JSON_EXTRACT_UDF_001_e_query_045b_map_prism_error_key_too_long | `PrismError::JsonExtractKeyTooLong` → MCP error code E-QUERY-045 | PASS |
+| error_mapping::tests::test_S_JSON_EXTRACT_UDF_001_e_query_045b_structured_path_validation_category | `error.category == "validation"` for E-QUERY-045(b) | PASS |
+| error_mapping::tests::test_S_JSON_EXTRACT_UDF_001_e_query_045a_structured_path_validation_category | `error.category == "validation"` for E-QUERY-045(a) | PASS |
+| error_mapping::tests::test_S_JSON_EXTRACT_UDF_001_e_query_045a_wire_level_serialized_json | Serialized JSON bytes: `error.code`, `error.message` exact match | PASS |
+| error_mapping::tests::test_S_JSON_EXTRACT_UDF_001_e_query_045a_sid2_no_example_duplication_in_content_text | No duplicate phrase in composed `content[0].text` (SID-2) | PASS |
 
 ---
 
