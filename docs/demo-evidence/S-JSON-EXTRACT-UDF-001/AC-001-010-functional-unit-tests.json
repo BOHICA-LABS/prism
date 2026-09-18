@@ -26,8 +26,8 @@
   "AC-002_json_null_at_key": {
     "test": "test_jex_rg002_json_null_value_at_key_returns_sql_null",
     "result": "PASS",
-    "input_json": "{\"status\":null}",
-    "key": "status",
+    "input_json": "{\"severity\":null}",
+    "key": "severity",
     "expected_output": "SQL NULL (not 'null' string, not empty string)",
     "arrow_assertion": "extracted_col.is_null(0) == true",
     "bc_clause": "EC-11-025-005 / postcondition §JSON null at key",
@@ -36,8 +36,8 @@
   "AC-003_missing_key": {
     "test": "test_jex_rg003_missing_key_returns_sql_null",
     "result": "PASS",
-    "input_json": "{\"severity\":\"high\"}",
-    "key": "missing_key",
+    "input_json": "{\"other_field\":\"value\"}",
+    "key": "severity",
     "expected_output": "SQL NULL (key absent from object)",
     "arrow_assertion": "extracted_col.is_null(0) == true",
     "bc_clause": "EC-11-025-003 / postcondition §Missing key"
@@ -56,7 +56,7 @@
     "test": "test_jex_rg005_non_object_json_returns_sql_null",
     "result": "PASS",
     "input_json": "[\"a\",\"b\",\"c\"]",
-    "key": "key",
+    "key": "severity",
     "expected_output": "SQL NULL (non-object JSON, array input)",
     "arrow_assertion": "extracted_col.is_null(0) == true",
     "bc_clause": "EC-11-025-004 / postcondition §Non-object JSON",
@@ -82,8 +82,8 @@
   "AC-009_parse_failure": {
     "test": "test_jex_rg009_parse_failure_non_json_input_returns_sql_null",
     "result": "PASS",
-    "input": "{not_json} (malformed JSON string in column)",
-    "key": "key",
+    "input": "\"not valid json at all !!\" (non-JSON string in column)",
+    "key": "severity",
     "expected_output": "SQL NULL (silent null-propagation, no E-QUERY-045)",
     "arrow_assertion": "extracted_col.is_null(0) == true",
     "bc_clause": "EC-11-025-010 / postcondition §Parse failure",

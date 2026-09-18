@@ -2,7 +2,7 @@
 
 **Story:** S-JSON-EXTRACT-UDF-001 — Minimal `json_extract_string` ScalarUDF with Literal-Key Plan Gate  
 **Branch:** feature/S-JSON-EXTRACT-UDF-001  
-**Commit at recording:** 3c7650fca (cycle-4 evidence fix; cycle-2 re-record was at 7deb3674f; original cycle-1 was at 83fa7ff51)  
+**Commit at recording:** 1487d2d9b (cycle-5 evidence fix; cycle-4 was at 3c7650fca; cycle-2 re-record was at 7deb3674f; original cycle-1 was at 83fa7ff51)  
 **Binary:** `target/debug/prism` (built from worktree via `cargo build -p prism-bin`)  
 **Date:** 2026-09-17  
 **AC coverage:** AC-001 through AC-012 (all 12 acceptance criteria)
@@ -43,7 +43,7 @@ Three files were re-captured at HEAD `7deb3674f` to close pr-reviewer findings:
 
 **Evidence file:** `AC-001-010-functional-unit-tests.json` §AC-002_json_null_at_key  
 **Test:** `test_jex_rg002_json_null_value_at_key_returns_sql_null` — PASS  
-**Observed behavior:** `json_extract_string('{"status":null}', 'status')` → Arrow null cell (SQL NULL). Not coerced to string `"null"` or empty string.  
+**Observed behavior:** `json_extract_string('{"severity":null}', 'severity')` → Arrow null cell (SQL NULL). Not coerced to string `"null"` or empty string.  
 **Key assertion:** `extracted_col.is_null(0) == true`  
 **Traces to:** BC-2.11.025 EC-11-025-005
 
@@ -53,7 +53,7 @@ Three files were re-captured at HEAD `7deb3674f` to close pr-reviewer findings:
 
 **Evidence file:** `AC-001-010-functional-unit-tests.json` §AC-003_missing_key  
 **Test:** `test_jex_rg003_missing_key_returns_sql_null` — PASS  
-**Observed behavior:** `json_extract_string('{"severity":"high"}', 'missing_key')` → SQL NULL. No warning emitted.  
+**Observed behavior:** `json_extract_string('{"other_field":"value"}', 'severity')` → SQL NULL. No warning emitted.  
 **Key assertion:** `extracted_col.is_null(0) == true`  
 **Traces to:** BC-2.11.025 EC-11-025-003
 
@@ -156,7 +156,7 @@ Query: `SELECT json_extract_string(raw_extensions, '<256 a-chars>') FROM claroty
 
 **Evidence file:** `AC-001-010-functional-unit-tests.json` §AC-009_parse_failure  
 **Test:** `test_jex_rg009_parse_failure_non_json_input_returns_sql_null` — PASS  
-**Observed behavior:** `json_extract_string('{not_json}', 'key')` → SQL NULL silently. No E-QUERY-045 (that gate is plan-time only). Pure function: no per-row tracing emission per ADR-066 §D1.  
+**Observed behavior:** `json_extract_string('"not valid json at all !!"', 'severity')` → SQL NULL silently. No E-QUERY-045 (that gate is plan-time only). Pure function: no per-row tracing emission per ADR-066 §D1.  
 **Key assertion:** `extracted_col.is_null(0) == true`  
 **Traces to:** BC-2.11.025 EC-11-025-010
 
@@ -226,20 +226,21 @@ Query: `SELECT id FROM claroty_alerts WHERE json_extract_string(raw_extensions, 
 
 ## Full Test Suite Results
 
-### prism-query (captured at HEAD 3c7650fca)
+### prism-query (captured at HEAD 1487d2d9b)
 
 ```
 cargo nextest run -p prism-query -E 'test(test_jex)' --no-fail-fast
-    Starting 40 tests across 22 binaries (1758 tests skipped)
-     Summary 40 tests run: 40 passed, 1758 skipped
+    Starting 44 tests across 22 binaries (1758 tests skipped)
+     Summary [   0.213s] 44 tests run: 44 passed, 1758 skipped
 ```
 
-(Cycle-4 note: test count grew from 33 to 40 as cycle-3/cycle-4 fix commits added
-`test_jex_ast_parser_maps_jex_to_scalar_func_json_extract_string` and
-gate-walk tests for ORDER BY (RG-015), JOIN ON (RG-016), IN subquery predicate
-(RG-017), IN subquery expr (RG-018), AST pipe-where (RG-019), and AST filter (RG-020).)
+(Cycle-5 note: test count grew from 40 to 44 as cycle-5 commits added
+`test_jex_rg021_uppercase_func_name_where_rejected`,
+`test_jex_rg022_mixed_case_func_name_key_too_long_where_rejected`,
+`test_jex_rg023_nested_call_inner_non_literal_rejected`, and
+`test_jex_rg024_nested_call_inner_literal_accepted`.)
 
-40 total test_jex tests all PASS:
+44 total test_jex tests all PASS:
 
 | Test | Result |
 |------|--------|
@@ -278,23 +279,26 @@ gate-walk tests for ORDER BY (RG-015), JOIN ON (RG-016), IN subquery predicate
 | test_jex_f4_dot_in_key_arm_engine_execute | PASS |
 | test_jex_f4_non_object_arm_engine_execute | PASS |
 | test_jex_f4_parse_fail_arm_engine_execute | PASS |
-| test_jex_dml_ast_safe_skip_with_jex_variant_integration | PASS |
+| test_jex_rg021_uppercase_func_name_where_rejected | PASS |
+| test_jex_rg022_mixed_case_func_name_key_too_long_where_rejected | PASS |
+| test_jex_rg023_nested_call_inner_non_literal_rejected | PASS |
+| test_jex_rg024_nested_call_inner_literal_accepted | PASS |
 | jex_gate_walk_completeness_tests::test_jex_dml_ast_returns_ok_no_scope | PASS |
 | jex_gate_walk_completeness_tests::test_jex_dml_ast_safe_skip_with_jex_variant | PASS |
 | jex_gate_walk_completeness_tests::test_jex_timestamp_arithmetic_base_key_too_long_defense_in_depth | PASS |
 | jex_gate_walk_completeness_tests::test_jex_timestamp_arithmetic_base_rejected_defense_in_depth | PASS |
 | jex_gate_walk_completeness_tests::test_jex_window_variant_is_fieldless_compile_guard | PASS |
 
-### prism-mcp (captured at HEAD 3c7650fca)
+### prism-mcp (captured at HEAD 1487d2d9b)
 
 MCP error-mapping tests verify the wire-level JSON serialization of E-QUERY-045 errors
 (`error.code`, `error.category`, `content[0].text` bytes). These live in `prism-mcp`
 because `prism-query` has no `arrow-json` or `prism-mcp` dependency (ADR-066 §B2).
 
 ```
-cargo nextest run -p prism-mcp -E 'test(JSON_EXTRACT)' --no-fail-fast
-    Starting 6 tests across 28 binaries (502 tests skipped)
-     Summary 6 tests run: 6 passed, 502 skipped
+cargo nextest run -p prism-mcp -E 'test(JSON_EXTRACT_UDF)' --no-fail-fast
+    Starting 7 tests across 28 binaries (502 tests skipped)
+     Summary [   0.026s] 7 tests run: 7 passed, 502 skipped
 ```
 
 | Test | Asserts | Result |
@@ -305,6 +309,7 @@ cargo nextest run -p prism-mcp -E 'test(JSON_EXTRACT)' --no-fail-fast
 | error_mapping::tests::test_S_JSON_EXTRACT_UDF_001_e_query_045a_structured_path_validation_category | `error.category == "validation"` for E-QUERY-045(a) | PASS |
 | error_mapping::tests::test_S_JSON_EXTRACT_UDF_001_e_query_045a_wire_level_serialized_json | Serialized JSON bytes: `error.code`, `error.message` exact match | PASS |
 | error_mapping::tests::test_S_JSON_EXTRACT_UDF_001_e_query_045a_sid2_no_example_duplication_in_content_text | No duplicate phrase in composed `content[0].text` (SID-2) | PASS |
+| error_mapping::tests::test_S_JSON_EXTRACT_UDF_001_e_query_045b_sid2_full_composed_content_text | Full composed `content[0].text` exact match for E-QUERY-045(b); no double-period (SID-2 BLOCKING-2) | PASS |
 
 ---
 
