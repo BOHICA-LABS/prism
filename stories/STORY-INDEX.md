@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "3.055"
+version: "3.056"
 status: draft
 producer: state-manager
-timestamp: 2026-09-18T19:00:00Z
+timestamp: 2026-09-18T19:30:00Z
 phase: 3
 total_stories: 354
+# D-2572 — STORY-INDEX v3.055→v3.056: S-MCP-TOOL-GATE-001 v1.5→v1.6 pin sync (OBS-1 closure: §Red Gate planning list RG-GATE-001/002/004 test-name infix reconciliation — all 10 story-referenced test names now grep-verified present in worktree; T-D04 updated (3rd gated test test_bc_2_10_017_sibling_handlers_guard_precedes_audit); Token Budget note (RG-001..004 + OBS-2 e2e); T-S01 superseded-spike-name note; story-text-only fix; feature HEAD 09658db3a FROZEN; LOCAL streak 0/3 UNCHANGED). total_stories 354 UNCHANGED.
 # D-2571 — STORY-INDEX v3.054→v3.055: S-MCP-TOOL-GATE-001 v1.4→v1.5 pin sync (OBS-A closure: AC-005/T-D01 prose corrected — operations-absent assertion unsatisfiable when gated out, E0599; code CORRECT, inline arm asserts catalog-absence, −32602 wire behavior discharged by RG-GATE-003; story-text-only fix; feature HEAD 09658db3a FROZEN/UNCHANGED; LOCAL streak 0/3 UNCHANGED). total_stories 354 UNCHANGED.
 # D-2568 — STORY-INDEX v3.053→v3.054: S-MCP-TOOL-GATE-001 v1.2→v1.4 pin sync (v1.3 Phase D cfg-gate tasks T-D03/T-D04 added per SAC-1; v1.4 prism story-template conformance: level/cycle/inputs/input-hash/timestamp/traces_to frontmatter + Purity Classification section per Canonical Principle Rule 4 fix-in-scope; status ready UNCHANGED). BATCH TEMPLATE-DRIFT OBLIGATION noted: 6 remaining non-facade E-BETA3-REMEDIATION stories must conform at pre-TDD touch. total_stories 354 UNCHANGED.
 # D-2565 — STORY-INDEX v3.052→v3.053: S-JSON-EXTRACT-UDF-001 ready→merged (PR #296 @f38604da4; POL-14: BC-2.11.025 promoted draft→active v1.11; develop_head 561d8baccc→f38604da4; total_stories 354 UNCHANGED).
@@ -1089,7 +1090,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-MAINT-CONTENT-VERSION-GATE-001 | records-lint Content-Change-Without-Version-Bump Check [draft v1.0] | scripts/records-lint.sh | 0 (pending PO) | -- | 8 | S-MAINT-CHANGELOG-BACKFILL-001 |
 | S-MAINT-BURST-COMMIT-COUNT-GATE-001 | Factory Gate — Replace Trigger-Word Heuristic with Count-Based Single-Commit-Per-Burst Enforcement [draft v1.0] | .factory/hooks, drbothen/vsdd-factory | 0 (pending PO) | -- | 5 | -- |
 | S-MAINT-INDEX-FORMAT-RATCHET-001 | Corpus-Wide Records-Lint Cleanup — BC-INDEX Parenthetical Version Format + ARCH-INDEX ADR Inline-Changelog Collapse + records-lint L11 Gate [draft v0.1] | .factory/specs/behavioral-contracts/BC-INDEX.md, .factory/specs/architecture/ARCH-INDEX.md, scripts/records-lint.sh, .factory/policies.yaml | 0 (pending PO) | -- | 5 | -- |
-| S-MCP-TOOL-GATE-001 | Gate operations stubs behind default-off Cargo feature — eliminate -32003 catalog pollution; absent `operations` feature → NOT_YET_AVAILABLE_TOOLS empty slice, -32601 not -32003; LIVE_TOOLS unconditionally registered [ready v1.5] | prism-mcp | 2 (BC-2.10.017 v1.4, BC-2.10.011 v1.7) | -- | 3 | -- |
+| S-MCP-TOOL-GATE-001 | Gate operations stubs behind default-off Cargo feature — eliminate -32003 catalog pollution; absent `operations` feature → NOT_YET_AVAILABLE_TOOLS empty slice, -32601 not -32003; LIVE_TOOLS unconditionally registered [ready v1.6] | prism-mcp | 2 (BC-2.10.017 v1.4, BC-2.10.011 v1.7) | -- | 3 | -- |
 | S-MCP-ENVELOPE-DESCRIBE-001 | Fix prism_describe total_results counting and add missing virtual field column descriptors [ready v1.2] | prism-mcp | 2 (BC-2.10.012 v1.11, BC-2.11.012 v1.11) | -- | 3 | -- |
 | S-MCP-NULL-ENCODING-001 | Fix null/list null encoding in build_column_array and map_record [ready v1.3; D-2549 BC-2.16.003 v1.32→v1.34 re-pin] | prism-bin, prism-spec-engine | 2 (BC-2.11.001 v1.37, BC-2.16.003 v1.34) | -- | 3 | S-MCP-TOOL-GATE-001 |
 | S-DESCRIBE-EXAMPLE-DEDUP-001 | Fix build_example_with_note: exclude synthesized metadata columns from aggregate query target selection [ready v1.1] | prism-mcp | 1 (BC-2.10.012 v1.11) | -- | 2 | -- |
