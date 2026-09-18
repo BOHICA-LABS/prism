@@ -4,7 +4,7 @@ story_id: S-MCP-TOOL-GATE-001
 title: "Gate 40 operations stubs behind default-off Cargo feature to eliminate -32003 catalog pollution"
 wave: 1
 epic_id: E-BETA3-REMEDIATION
-version: "1.2"
+version: "1.3"
 status: ready
 producer: story-writer
 phase: 3
@@ -383,6 +383,38 @@ entries; tests fail on count assertions.
   methods and `NOT_YET_AVAILABLE_TOOLS = &[]`, so union(LIVE_TOOLS, &[]) == catalog.
   If it fails, investigate and fix.
 
+- [ ] **T-D03**: Gate the inline test `test_operations_tools_return_not_implemented_error_code`
+  (in the `#[cfg(test)] mod tests` block in `crates/prism-mcp/src/server.rs`) with
+  `#[cfg(feature = "operations")]`. Rationale: this test invokes gated ops `#[tool]` handler
+  methods directly (the same methods moved into the `#[cfg(feature = "operations")]` impl
+  block by T-C01). Without the `#[cfg(feature = "operations")]` gate on the test itself, it
+  will fail to compile in the default (no-`operations`) build once T-C01 lands — the handler
+  methods it calls no longer exist in that compilation context. Its assertion (ops tools return
+  the -32003 not-yet-available error code) is only meaningful when the `operations` feature is
+  enabled; there is no corresponding behavior to test when the feature is absent (the handlers
+  do not exist).
+
+- [ ] **T-D04**: Gate the two integration tests in `crates/prism-mcp/tests/mcp_infrastructure.rs`
+  — `test_bc_2_10_017_not_yet_available_fast_fail_under_1s` and
+  `test_bc_2_10_017_not_yet_available_guard_precedes_audit` — by adding
+  `#[cfg(feature = "operations")]` as a function-level attribute on each `#[tokio::test]`
+  function. Rationale: both tests drive the -32003 fast-fail path through gated ops handlers
+  (they call ops handler methods that are moved into the `#[cfg(feature = "operations")]` impl
+  block by T-C01). Both will fail to compile in the default (no-`operations`) build after T-C01
+  gates those handlers. The behaviors they assert — fast-fail under 1s; guard precedes audit —
+  exist only when the `operations` feature is enabled; the tests have no valid target when the
+  feature is absent.
+
+> **Phase D compile-safety constraint:** Do NOT add `#[cfg(feature = "operations")]` to the
+> parameter structs `ListInfusionsParams`, `InfusionStatusParams`, or `PluginStatusParams`
+> (defined in `server.rs` around lines 1337, 1346, and 1370 respectively). These are `pub struct`
+> definitions outside any impl block; gating them would break other references (e.g., uses in
+> non-ops handler code, derive macros, or downstream crates). Only the following are gated:
+> the ops `impl` block containing `#[tool]` handler methods (T-C01), the
+> `NOT_YET_AVAILABLE_TOOLS` const (T-B01), the `not_yet_available_msg` helper (T-C01(d)),
+> the `operations.rs` module declaration (T-C02), and the three tests identified in T-D03 and
+> T-D04. Everything else — including all `pub struct` definitions — remains ungated.
+
 #### Phase E — Final verification
 
 - [ ] **T-E01**: Run `cargo test -p prism-mcp --no-fail-fast` (without `operations` feature,
@@ -476,8 +508,9 @@ No new dependencies are introduced by this story.
 | File | Change |
 |------|--------|
 | `crates/prism-mcp/Cargo.toml` | Add `[features]` section with `operations = []` |
-| `crates/prism-mcp/src/server.rs` | Gate `NOT_YET_AVAILABLE_TOOLS` const (two `#[cfg]` variants); rename existing `#[tool_router]` → `#[tool_router(router = live_tool_router)]`; create new `#[cfg(feature = "operations")] #[tool_router(router = operations_tool_router)]` impl block with all 40 ops `#[tool]` methods; add plain combiner `fn tool_router()`; relocate/gate `not_yet_available_msg`; update `test_MCP_01_partition_positive_coverage` (T-D01) |
+| `crates/prism-mcp/src/server.rs` | Gate `NOT_YET_AVAILABLE_TOOLS` const (two `#[cfg]` variants); rename existing `#[tool_router]` → `#[tool_router(router = live_tool_router)]`; create new `#[cfg(feature = "operations")] #[tool_router(router = operations_tool_router)]` impl block with all 40 ops `#[tool]` methods; add plain combiner `fn tool_router()`; relocate/gate `not_yet_available_msg`; update `test_MCP_01_partition_positive_coverage` (T-D01); gate `test_operations_tools_return_not_implemented_error_code` (T-D03) |
 | `crates/prism-mcp/src/tools/operations.rs` | Add `#[cfg(feature = "operations")]` to module |
+| `crates/prism-mcp/tests/mcp_infrastructure.rs` | Gate `test_bc_2_10_017_not_yet_available_fast_fail_under_1s` and `test_bc_2_10_017_not_yet_available_guard_precedes_audit` with `#[cfg(feature = "operations")]` (T-D04) |
 | `CHANGELOG.md` | Add [Unreleased] > Fixed entry (T-F01) |
 
 ### Files NOT to touch
@@ -506,6 +539,7 @@ Holdout scenarios are stored in the holdout directory that test-writer/implement
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.3 | 2026-09-18 | Phase D compile-safety cfg-gate tasks added (D-2567 resume, SAC-1 completeness): T-D03 gates inline server.rs `test_operations_tools_return_not_implemented_error_code`; T-D04 gates `tests/mcp_infrastructure.rs` `test_bc_2_10_017_not_yet_available_fast_fail_under_1s` + `test_bc_2_10_017_not_yet_available_guard_precedes_audit` — all three call gated ops methods and would fail no-operations-build compilation after T-C01. `mcp_infrastructure.rs` added to Files-to-MODIFY. Explicit no-gate constraint on param structs (`ListInfusionsParams`/`InfusionStatusParams`/`PluginStatusParams`). No BC/ADR/AC change; no new Red Gate test (RG density unchanged 4/5). |
 | 1.2 | 2026-09-16 | F3 BC/ADR pin propagation (D-2543/D-2544): BC-2.10.017 v1.1→v1.3; BC-2.10.011 v1.6→v1.7. AMENDMENT PENDING annotations removed from frontmatter comment, §Authority NOTE, §Behavioral Contracts table, and §Token Budget. |
 | 1.1 | 2026-09-16 | U-1: Corrected error code from `-32601` (MethodNotFound) to `-32602` (InvalidParams, message `tool not found`) per rmcp 1.7.0 source + `error_mapping.rs:86-91` confirmation (D-1110 uncertainty scan). Applied to AC-003, RG-GATE-003, T-D01, AC-005. U-2/U-3: Replaced T-C01 per-method-`#[cfg]`-inside-one-`#[tool_router]`-block approach (fails E0599 in rmcp-macros 1.7.0) with ratified two-router-block + combiner pattern per architect design decision D-1110. T-S01 updated from open-question spike to compile-confirmation step. Architecture Compliance Rule 2 and risk comment updated to reflect ratified mechanism. |
 | 1.0 | 2026-09-15 | Initial story decomposition |
