@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "3.053"
+version: "3.054"
 status: draft
 producer: state-manager
-timestamp: 2026-09-18T00:00:00Z
+timestamp: 2026-09-18T16:30:00Z
 phase: 3
 total_stories: 354
+# D-2568 — STORY-INDEX v3.053→v3.054: S-MCP-TOOL-GATE-001 v1.2→v1.4 pin sync (v1.3 Phase D cfg-gate tasks T-D03/T-D04 added per SAC-1; v1.4 prism story-template conformance: level/cycle/inputs/input-hash/timestamp/traces_to frontmatter + Purity Classification section per Canonical Principle Rule 4 fix-in-scope; status ready UNCHANGED). BATCH TEMPLATE-DRIFT OBLIGATION noted: 6 remaining non-facade E-BETA3-REMEDIATION stories must conform at pre-TDD touch. total_stories 354 UNCHANGED.
 # D-2565 — STORY-INDEX v3.052→v3.053: S-JSON-EXTRACT-UDF-001 ready→merged (PR #296 @f38604da4; POL-14: BC-2.11.025 promoted draft→active v1.11; develop_head 561d8baccc→f38604da4; total_stories 354 UNCHANGED).
 # D-2560 — STORY-INDEX v3.051→v3.052: S-JSON-EXTRACT-UDF-001 v1.7→v1.8 pin sync (D-2560 F-JEX-P1-HIGH-001 predicate-parity cascade; T-09a filter_parser fix task; AC-012 + RG-JEX-012; ADR-066 v1.7 + BC-2.11.025 v1.11 + VP-162 v1.7 pins swept; Architecture Compliance Rules gate-scope + DML safe-skip; total_stories 354 UNCHANGED).
 # D-2559 — STORY-INDEX v3.050→v3.051: S-JSON-EXTRACT-UDF-001 v1.6→v1.7 pin sync (D-2559 state-manager burst; BC-2.11.025 v1.9→v1.10; LOW-001 registration phrasing corrected per ephemeral SessionContext; MED-001 FALSE POSITIVE test-verified; total_stories 354 UNCHANGED).
@@ -1087,7 +1088,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-MAINT-CONTENT-VERSION-GATE-001 | records-lint Content-Change-Without-Version-Bump Check [draft v1.0] | scripts/records-lint.sh | 0 (pending PO) | -- | 8 | S-MAINT-CHANGELOG-BACKFILL-001 |
 | S-MAINT-BURST-COMMIT-COUNT-GATE-001 | Factory Gate — Replace Trigger-Word Heuristic with Count-Based Single-Commit-Per-Burst Enforcement [draft v1.0] | .factory/hooks, drbothen/vsdd-factory | 0 (pending PO) | -- | 5 | -- |
 | S-MAINT-INDEX-FORMAT-RATCHET-001 | Corpus-Wide Records-Lint Cleanup — BC-INDEX Parenthetical Version Format + ARCH-INDEX ADR Inline-Changelog Collapse + records-lint L11 Gate [draft v0.1] | .factory/specs/behavioral-contracts/BC-INDEX.md, .factory/specs/architecture/ARCH-INDEX.md, scripts/records-lint.sh, .factory/policies.yaml | 0 (pending PO) | -- | 5 | -- |
-| S-MCP-TOOL-GATE-001 | Gate operations stubs behind default-off Cargo feature — eliminate -32003 catalog pollution; absent `operations` feature → NOT_YET_AVAILABLE_TOOLS empty slice, -32601 not -32003; LIVE_TOOLS unconditionally registered [ready v1.2] | prism-mcp | 2 (BC-2.10.017 v1.3, BC-2.10.011 v1.7) | -- | 3 | -- |
+| S-MCP-TOOL-GATE-001 | Gate operations stubs behind default-off Cargo feature — eliminate -32003 catalog pollution; absent `operations` feature → NOT_YET_AVAILABLE_TOOLS empty slice, -32601 not -32003; LIVE_TOOLS unconditionally registered [ready v1.4] | prism-mcp | 2 (BC-2.10.017 v1.3, BC-2.10.011 v1.7) | -- | 3 | -- |
 | S-MCP-ENVELOPE-DESCRIBE-001 | Fix prism_describe total_results counting and add missing virtual field column descriptors [ready v1.2] | prism-mcp | 2 (BC-2.10.012 v1.11, BC-2.11.012 v1.11) | -- | 3 | -- |
 | S-MCP-NULL-ENCODING-001 | Fix null/list null encoding in build_column_array and map_record [ready v1.3; D-2549 BC-2.16.003 v1.32→v1.34 re-pin] | prism-bin, prism-spec-engine | 2 (BC-2.11.001 v1.37, BC-2.16.003 v1.34) | -- | 3 | S-MCP-TOOL-GATE-001 |
 | S-DESCRIBE-EXAMPLE-DEDUP-001 | Fix build_example_with_note: exclude synthesized metadata columns from aggregate query target selection [ready v1.1] | prism-mcp | 1 (BC-2.10.012 v1.11) | -- | 2 | -- |

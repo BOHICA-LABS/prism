@@ -1,16 +1,16 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "10.073"
-last_amended: "2026-09-18 (v10.073) — state-manager — D-2567 SESSION RESUME: factory unpaused from D-2566; worktree-health PASS; heartbeat ce231b80 verified; sidecar-learning.md reconciled; resuming BETA.3 Batch-1 story 2/10 S-MCP-TOOL-GATE-001."
+version: "10.074"
+last_amended: "2026-09-18 (v10.074) — state-manager — D-2568 STORY-2 PREPARED: S-MCP-TOOL-GATE-001 v1.2→v1.4 (Phase D cfg-gate tasks T-D03/T-D04 + template conformance); STORY-INDEX v3.053→v3.054; entering worktree+Red-Gate."
 producer: state-manager
-timestamp: 2026-09-18T15:58:11Z
+timestamp: 2026-09-18T16:19:20Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
 project: prism
 mode: brownfield
-phase: "Phase 3 wave-5-e-demo-fidelity BETA.3 Batch-1 TDD delivery — story 1/10 S-JSON-EXTRACT-UDF-001 DELIVERED (PR #296 @f38604da4); next story 2/10 S-MCP-TOOL-GATE-001."
+phase: "Phase 3 wave-5-e-demo-fidelity BETA.3 Batch-1 TDD delivery — story 2/10 S-MCP-TOOL-GATE-001 PREPARED (v1.4; Phase D cfg-gate tasks T-D03/T-D04 + template conformance; D-2568); entering worktree+Red-Gate from develop@f38604da4."
 status: IN-PROGRESS
 pipeline: IN-PROGRESS
 started: 2026-04-13
@@ -38,7 +38,8 @@ vp_index_version: "2.30"
 # NOTE: D-2553 — VP-INDEX v2.27→v2.28: VP-162 v1.4→v1.5 row pin synced (LOCAL re-gate OBS-1: §Kani Proof Harness import path corrected super::super→crate::; OBS-3 fix @d6448223; additive/errata post-freeze). Count changes NONE.
 # NOTE: D-2551 — VP-INDEX v2.26→v2.27: VP-162 v1.3→v1.4 row pin synced (pre-TDD errata: §Coverage Scope invoke_batch→invoke_with_args; DataFusion 53.1 API; additive/errata post-freeze). Count changes NONE.
 # NOTE: D-2534 — VP-INDEX v2.25→v2.26: VP-162 v1.2→v1.3 (F-2 LOW consistency: source_invariant: null added per VP-INDEX convention; VP-162 has no DI-NNN, key-length cap anchors to ADR-066 §D3/CWE-400). Summary table count changes NONE.
-story_index_version: "3.053"
+story_index_version: "3.054"
+# NOTE: D-2568 — STORY-INDEX v3.053→v3.054: S-MCP-TOOL-GATE-001 v1.2→v1.4 pin sync (Phase D cfg-gate tasks T-D03/T-D04 + template conformance; status ready UNCHANGED). total_stories 354 UNCHANGED.
 # NOTE: D-2565 — STORY-INDEX v3.052→v3.053: S-JSON-EXTRACT-UDF-001 ready→merged v1.8 (PR #296 @f38604da4; POL-14 BC-2.11.025 active). total_stories 354 UNCHANGED.
 # NOTE: D-2560 — STORY-INDEX v3.051→v3.052: S-JSON-EXTRACT-UDF-001 v1.7→v1.8 pin sync (T-09a + AC-012 + RG-JEX-012; ADR-066 v1.7 + BC-2.11.025 v1.11 + VP-162 v1.7 pins swept). total_stories 354 UNCHANGED.
 # NOTE: D-2559 — STORY-INDEX v3.050→v3.051: S-JSON-EXTRACT-UDF-001 v1.6→v1.7 pin sync (BC-2.11.025 v1.9→v1.10). total_stories 354 UNCHANGED.
@@ -69,7 +70,7 @@ vsdd_factory_version: "1.0.0-rc.25"
 # NOTE: D-2518 — vsdd-factory 1.0.0-rc.23→rc.25 installed + re-activated (darwin-arm64; default agent orchestrator; rc.25 hooks.json + dispatcher binary verified). settings.local.json machine-local refreshed. No pipeline change.
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2567 SESSION-RESUME 2026-09-18 — factory unpaused from D-2566 (D-2566 SESSION-WRAP-PAUSE). Worktree-health PASS (factory-artifacts @d2e2922b8 in-sync, lock FREE, develop @f38604da4). Heartbeat ce231b80 verified. sidecar-learning.md reconciled (2 session-end entries staged). Resuming BETA.3 Batch-1 story 2/10 S-MCP-TOOL-GATE-001; next action = story-writer adds Phase D cfg-gate tasks (SAC-1) per D-2566 checkpoint (c). trajectory-tail →2→0→0→0."
+current_step: "D-2568 STORY-2 PREPARED 2026-09-18 — S-MCP-TOOL-GATE-001 v1.2→v1.4 (Phase D cfg-gate tasks T-D03/T-D04 per SAC-1 + template conformance per Canonical Principle Rule 4). STORY-INDEX v3.053→v3.054. STATE v10.073→v10.074. Batch-DRIFT OBLIGATION: 6 remaining non-facade stories must conform to prism story template at pre-TDD touch. NEXT: worktree creation for S-MCP-TOOL-GATE-001 from develop@f38604da4. trajectory-tail →2→0→0→0."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -108,7 +109,7 @@ pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/: decisions-archive-D17
 pre_compact_snapshot_at: "2026-09-08"
 ---
 
-<!-- STATE.md SIZE BUDGET: 251 lines (wc-l) | target 200 lines (soft) | margin from soft-target: -51 | hard-cap 500 | margin from hard-cap: 249 | margin from actual: 249 | safe_to_compact: true | D-2567 SESSION-RESUME factory IN-PROGRESS 2026-09-18 -->
+<!-- STATE.md SIZE BUDGET: 252 lines (wc-l) | target 200 lines (soft) | margin from soft-target: -52 | hard-cap 500 | margin from hard-cap: 248 | margin from actual: 248 | safe_to_compact: true | D-2568 STORY-2-PREPARED factory IN-PROGRESS 2026-09-18 -->
 
 # VSDD Pipeline State — Prism
 
@@ -121,7 +122,7 @@ pre_compact_snapshot_at: "2026-09-08"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-09-18 D-2567: SESSION RESUME — factory unpaused from D-2566; pipeline PAUSED→IN-PROGRESS; sidecar-learning.md reconciled; STATE v10.072→v10.073. trajectory-tail →2→0→0→0. |
+| **Last Updated** | 2026-09-18 D-2568: STORY-2 PREPARED — S-MCP-TOOL-GATE-001 v1.2→v1.4 (Phase D cfg-gate tasks T-D03/T-D04 + template conformance); STORY-INDEX v3.053→v3.054; STATE v10.073→v10.074. trajectory-tail →2→0→0→0. |
 
 ## Phase Progress
 
@@ -162,27 +163,27 @@ _Current cycle: wave-5-e-demo-fidelity. No parallel cycles running._
 
 ## Current Phase Steps
 
-_Steps D-735..D-2489 (exhaustive) archived: see cycles/wave-5-e-demo-fidelity/burst-log.md + decisions-archive-D1789-D2199.md + decisions-archive-D2200-D2299.md + decisions-archive-D2300-D2489.md. D-2491..D-2529 archived to burst-log (D-2509+D-2510+D-2511+D-2512+D-2513+D-2514+D-2515+D-2516+D-2517+D-2518+D-2519+D-2520+D-2521+D-2522+D-2523+D-2524+D-2525+D-2526+D-2527+D-2528+D-2529+D-2530+D-2531+D-2532+D-2533+D-2534+D-2535+D-2536+D-2537+D-2538+D-2539+D-2540+D-2541+D-2542+D-2543+D-2544+D-2545+D-2546+D-2547+D-2548+D-2549+D-2550+D-2551+D-2552+D-2553+D-2554+D-2555+D-2556+D-2557+D-2558+D-2559+D-2560+D-2561+D-2562+D-2563+D-2564+D-2565+D-2566 rotations). Showing last 5 steps._
+_Steps D-735..D-2489 (exhaustive) archived: see cycles/wave-5-e-demo-fidelity/burst-log.md + decisions-archive-D1789-D2199.md + decisions-archive-D2200-D2299.md + decisions-archive-D2300-D2489.md. D-2491..D-2529 archived to burst-log (D-2509+D-2510+D-2511+D-2512+D-2513+D-2514+D-2515+D-2516+D-2517+D-2518+D-2519+D-2520+D-2521+D-2522+D-2523+D-2524+D-2525+D-2526+D-2527+D-2528+D-2529+D-2530+D-2531+D-2532+D-2533+D-2534+D-2535+D-2536+D-2537+D-2538+D-2539+D-2540+D-2541+D-2542+D-2543+D-2544+D-2545+D-2546+D-2547+D-2548+D-2549+D-2550+D-2551+D-2552+D-2553+D-2554+D-2555+D-2556+D-2557+D-2558+D-2559+D-2560+D-2561+D-2562+D-2563+D-2564+D-2565+D-2566+D-2567 rotations). Showing last 5 steps._
 
 | Step | Date | Summary |
 |------|------|---------|
+| D-2568 | 2026-09-18 | STORY-2 PREPARED — S-MCP-TOOL-GATE-001 v1.2→v1.4: Phase D cfg-gate tasks T-D03/T-D04 added per SAC-1 (3 ungated ops-exercising tests → #[cfg(feature="operations")]); template conformance: level/cycle/inputs/input-hash/timestamp/traces_to frontmatter + Purity Classification section per Canonical Principle Rule 4. STORY-INDEX v3.053→v3.054. BATCH-DRIFT OBLIGATION: 6 remaining non-facade stories must conform at pre-TDD touch. NEXT: worktree from develop@f38604da4. STATE v10.073→v10.074. records-lint PASS. (state-manager) |
 | D-2567 | 2026-09-18 | SESSION-RESUME 2026-09-18 — factory unpaused from D-2566. Worktree-health PASS (factory-artifacts @d2e2922b8 in-sync, lock FREE, develop @f38604da4). Heartbeat ce231b80 verified armed. sidecar-learning.md reconciled (2 session-end entries). pipeline PAUSED→IN-PROGRESS. STATE v10.072→v10.073. COMPLETE. (state-manager) |
 | D-2566 | 2026-09-18 | SESSION-WRAP-PAUSE-2026-09-18 — factory PAUSED for cold resume; story 1/10 delivered+merged; 8 stories remain (2 facade); autonomous admin-merge wired. STATE v10.071→v10.072. COMPLETE. (state-manager) |
 | D-2565 | 2026-09-18 | S-JSON-EXTRACT-UDF-001 DELIVERED — PR #296 squash-merged to develop @f38604da4 (D-2445 human admin-merge; ancestry PC3 exit 0; CI 50/50 PASS; PR-LEVEL 8-cycle cascade CONVERGED; security CLEAN). BC-2.11.025 promoted draft→active (POL-14). STORY-INDEX v3.053. BC-INDEX v10.29. develop_head 561d8baccc→f38604da4. 1/10 beta.3 MERGED. 3 PROCESS-GAPs recorded (D-2565a validate-pr-review-posted self-authored; D-2565b self-authored COMMENTED state; D-2565c demo-recorder fabricated evidence). records-lint PASS. STATE v10.070→v10.071. trajectory-tail →2→0→0→0. |
 | D-2564 | 2026-09-17 | S-JSON-EXTRACT-UDF-001 story-level holdout gate PASS — corrected HS-040 v1.1 re-run vs frozen HEAD 83fa7ff51: 3/3 satisfied, mean 1.00, min 1.00 (HS-001 non-literal-key E-QUERY-045(a) 1.00; HS-002 257-byte E-QUERY-045(b) CWE-400 1.00; HS-003 dotted-literal/UDF-registration 1.00). All 3 marked used:true/consumed. Code unchanged (83fa7ff51); LOCAL 3/3 + holdout BOTH satisfied. develop_head 561d8baccc UNCHANGED. records-lint PASS. STATE v10.069→v10.070. |
-| D-2563 | 2026-09-17 | HS-040 holdout FAIL (strict) ADJUDICATED as SCENARIO-AUTHORING ARTIFACT (product-owner): HS-001/002 rubric corrected to result.isError:true + content[0].text assertions; HS-001/002 re-authored v1.1; CODE on feature HEAD 83fa7ff51 CORRECT; LOCAL 3/3 CLEAN(strict) STANDS. records-lint PASS. STATE v10.068→v10.069. |
 
 ## Decisions Log
 
-_D-2300..D-2489 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/decisions-archive-D2300-D2489.md (D-2494 compaction). Earlier: decisions-archive-D2200-D2299.md + decisions-archive-D1789-D2199.md. D-2491..D-2529 archived to burst-log (D-2509+D-2510+D-2511+D-2512+D-2513+D-2514+D-2515+D-2516+D-2517+D-2518+D-2519+D-2520+D-2521+D-2522+D-2523+D-2524+D-2525+D-2526+D-2527+D-2528+D-2529+D-2530+D-2531+D-2532+D-2533+D-2534+D-2535+D-2536+D-2537+D-2538+D-2539+D-2540+D-2541+D-2542+D-2543+D-2544+D-2545+D-2546+D-2547+D-2548+D-2549+D-2550+D-2551+D-2552+D-2553+D-2554+D-2555+D-2556+D-2557+D-2558+D-2559+D-2560+D-2561+D-2562+D-2563+D-2564+D-2565+D-2566 rotations). Showing last 5 decisions._
+_D-2300..D-2489 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/decisions-archive-D2300-D2489.md (D-2494 compaction). Earlier: decisions-archive-D2200-D2299.md + decisions-archive-D1789-D2199.md. D-2491..D-2529 archived to burst-log (D-2509+D-2510+D-2511+D-2512+D-2513+D-2514+D-2515+D-2516+D-2517+D-2518+D-2519+D-2520+D-2521+D-2522+D-2523+D-2524+D-2525+D-2526+D-2527+D-2528+D-2529+D-2530+D-2531+D-2532+D-2533+D-2534+D-2535+D-2536+D-2537+D-2538+D-2539+D-2540+D-2541+D-2542+D-2543+D-2544+D-2545+D-2546+D-2547+D-2548+D-2549+D-2550+D-2551+D-2552+D-2553+D-2554+D-2555+D-2556+D-2557+D-2558+D-2559+D-2560+D-2561+D-2562+D-2563+D-2564+D-2565+D-2566+D-2567 rotations). Showing last 5 decisions._
 
 | ID | Agent | Date | Summary | Cycle | Committed |
 |----|-------|------|---------|-------|-----------|
-| D-2562 | state-manager | 2026-09-17 | S-JSON-EXTRACT-UDF-001 LOCAL adversarial cascade CONVERGED — BC-5.39.001 strict 3/3 CLEAN(strict) on frozen HEAD 83fa7ff51 (pass 1 abf31097, pass 2 a6e1e33e, pass 3 a2fccd45; all zero-findings). F-JEX-P1-HIGH-001 WHERE/HAVING E-QUERY-045 gate-bypass fix validated. Full just check 6106/0. DEFERRED OBS-DEFER-1 (out-of-perimeter, pre-existing, not in story diff): crates/prism-query/src/ast.rs ScalarFunc::JsonExtractString doc-comment reads 'JSONPath extraction UDF' — semantically stale (beta.3 literal-key-only per ADR-066 §D4 / BC-2.11.025 EC-11-025-009); anchored to fast-follow S-JSON-EXTRACT-NESTED-001 per Canonical Principle Rule 3 concrete-story-anchor. NEXT: story-level holdout gate HS-040 (blocking) → demo → PR → merge. develop_head 561d8baccc UNCHANGED. records-lint PASS. STATE v10.067→v10.068. | wave-5-e-demo-fidelity | factory-artifacts |
 | D-2563 | state-manager | 2026-09-17 | HS-040 holdout FAIL (strict) ADJUDICATED as SCENARIO-AUTHORING ARTIFACT (product-owner, spec+code evidence): prism's ratified MCP convention surfaces E-QUERY-045 errors as Ok(CallToolResult{isError:true}) via server.rs handle_query_tool → prism_error_to_structured_call_result (BC-2.10.007 CRIT-1 envelope), NOT top-level JSON-RPC error.code:-32602 (map_prism_error internal only); corroborated by BC-2.11.001 E-QUERY-037 test vector. Two scenario-authoring defects fixed: (1) HS-001/002 rubric corrected to result.isError:true + content[0].text assertions; (2) malformed pipe+SELECT query corrected to SQL-projection form. HS-001/002 re-authored v1.1 used:false; HS-003 unchanged (scored 1.00). CODE on feature HEAD 83fa7ff51 CORRECT — NO code change; LOCAL 3/3 CLEAN(strict) convergence STANDS. PROCESS-GAP [process-gap]: first occurrence — holdout-authoring transport-envelope rubric contradicted ratified MCP error convention; note for holdout-authoring guidance. NEXT: holdout-evaluator re-run on corrected HS-040 vs 83fa7ff51 (in flight). develop_head 561d8baccc UNCHANGED. records-lint PASS. STATE v10.068→v10.069. | wave-5-e-demo-fidelity | factory-artifacts |
 | D-2564 | state-manager | 2026-09-17 | S-JSON-EXTRACT-UDF-001 story-level holdout gate PASS — corrected HS-040 v1.1 re-run vs frozen HEAD 83fa7ff51: 3/3 satisfied, mean 1.00, min 1.00 (HS-001 non-literal-key E-QUERY-045(a) 1.00; HS-002 257-byte E-QUERY-045(b) CWE-400 1.00; HS-003 dotted-literal/UDF-registration 1.00). All 3 marked used:true/consumed. Code unchanged (83fa7ff51); LOCAL 3/3 + holdout BOTH satisfied. Minor non-blocking authoring note: HS-003 still carries pipe+SELECT query form (passes on absence-based rubric; SQL-projection alignment recommended in future holdout-authoring pass). NEXT: demo-recorder per-AC (in flight) → push → pr-manager 9-step PR → merge. develop_head 561d8baccc UNCHANGED. records-lint PASS. STATE v10.069→v10.070. | wave-5-e-demo-fidelity | factory-artifacts |
 | D-2565 | state-manager | 2026-09-18 | POST-MERGE BURST: S-JSON-EXTRACT-UDF-001 (PR #296 @f38604da4) squash-merged to develop (D-2445 human admin-merge; ancestry PC3 exit 0; CI 50/50 PASS; security CLEAN; PR-LEVEL 8-cycle cascade CONVERGED). POL-14: BC-2.11.025 promoted draft→active (anchor story merged; status-only; v1.11 unchanged). STORY-INDEX v3.052→v3.053 (S-JSON-EXTRACT-UDF-001 ready→merged). BC-INDEX v10.28→v10.29 (draft_contracts 5→4; active_contracts 260→261; total 278 UNCHANGED). develop_head 561d8baccc→f38604da4 (out-of-session df5f12f00 reconciled). 3 PROCESS-GAPs added to Blocking Issues (validate-pr-review-posted self-authored; self-authored COMMENTED state; demo-recorder fabricated evidence). TD-VSDD-097: Dim-1 CLEAR (BC-2.11.025 has no sibling twin). Dim-2 CLEAR (status-only; no copy-source section modified). Dim-3 CLEAR (no new MUSTs). records-lint L1/L7/L9/L10 PASS. STATE v10.070→v10.071. | wave-5-e-demo-fidelity | factory-artifacts |
 | D-2567 | state-manager | 2026-09-18 | SESSION RESUME — factory unpaused from D-2566 (SESSION-WRAP-PAUSE). Worktree-health PASS (factory-artifacts @d2e2922b8 in-sync, lock FREE, develop @f38604da4). Heartbeat cron ce231b80 (8,23,38,53 * * * *) verified armed. sidecar-learning.md reconciled: 2 legitimate session-end entries (2026-09-18T15:32:38Z + 2026-09-18T15:46:59Z) staged and committed. pipeline PAUSED→IN-PROGRESS. STATE v10.072→v10.073. Resuming BETA.3 Batch-1 story 2/10 S-MCP-TOOL-GATE-001; next action = story-writer adds Phase D cfg-gate tasks (SAC-1) per D-2566 checkpoint (c). records-lint PASS. trajectory-tail →2→0→0→0. | wave-5-e-demo-fidelity | factory-artifacts |
+| D-2568 | state-manager | 2026-09-18 | STORY-2 PREPARED: S-MCP-TOOL-GATE-001 v1.2→v1.4 — v1.3 Phase D cfg-gate tasks T-D03/T-D04 added per SAC-1 (3 ungated ops-exercising tests gated with #[cfg(feature="operations")]: server.rs inline test + mcp_infrastructure.rs test_bc_2_10_017_not_yet_available_fast_fail_under_1s + test_bc_2_10_017_not_yet_available_guard_precedes_audit; Files-to-MODIFY expanded to include crates/prism-mcp/tests/mcp_infrastructure.rs; DO NOT gate param structs ListInfusionsParams/InfusionStatusParams/PluginStatusParams); v1.4 prism story-template conformance per Canonical Principle Rule 4 fix-in-scope (level/cycle/inputs/input-hash/timestamp/traces_to frontmatter + Purity Classification section added). Status ready UNCHANGED. STORY-INDEX v3.053→v3.054 (S-MCP-TOOL-GATE-001 v1.2→v1.4 pin). BATCH-DRIFT OBLIGATION: 6 remaining non-facade E-BETA3-REMEDIATION stories (S-MCP-ENVELOPE-DESCRIBE-001, S-MCP-NULL-ENCODING-001, S-DESCRIBE-EXAMPLE-DEDUP-001, S-QUERY-TRUE-TOTAL-001, S-CLAROTY-OCSF-STATUS-001, S-CLAROTY-OCSF-TOML-001) must conform at pre-TDD touch; 2 facade stories partially miss. Values: cycle=wave-5-e-demo-fidelity, level=L4, traces_to=beta3-remediation-delta-analysis.md. TD-VSDD-097: Dim-1 N/A (no sibling twin). Dim-2 N/A (no copy-source section). Dim-3 N/A (no new MUSTs). records-lint L1/L7/L9/L10 PASS. STATE v10.073→v10.074. | wave-5-e-demo-fidelity | factory-artifacts |
 
 ## Skip Log
 
