@@ -5,7 +5,7 @@ title: "Gate 40 operations stubs behind default-off Cargo feature to eliminate -
 level: "L4"
 wave: 1
 epic_id: E-BETA3-REMEDIATION
-version: "1.10"
+version: "1.11"
 status: ready
 producer: story-writer
 timestamp: "2026-09-18T00:00:00Z"
@@ -17,9 +17,13 @@ tdd_mode: strict
 target_module: prism-mcp
 subsystems: ["SS-10"]
 # Subsystem anchor justification:
-#   SS-10 (MCP Server) owns all of crates/prism-mcp/src/server.rs, the tool router, and
-#   the LIVE_TOOLS / NOT_YET_AVAILABLE_TOOLS consts. Every file touched by this story
-#   lives within SS-10's module boundary. No other subsystem is crossed.
+#   SS-10 (MCP Server) owns the primary scope: crates/prism-mcp/src/server.rs, the tool
+#   router, and the LIVE_TOOLS / NOT_YET_AVAILABLE_TOOLS consts. This story also modifies
+#   scripts/t13-preflight-audit.py (repo-level CI/test tooling) to make the T13 preflight
+#   audit feature-aware for the operations gate (dual-mode A2/A19/A20/A21/A23 assertions:
+#   ops-off asserts 14 tools + -32602; ops-on retains 54 + -32003). The preflight audit
+#   script is a cross-cutting audit artifact that mirrors SS-10's tool-catalog contract;
+#   it is not a second product subsystem.
 crates_touched: [prism-mcp]
 estimated_days: 0.5
 inputs:
@@ -44,10 +48,13 @@ blocks:
 #   S-BETA3-RELEASE-001: W1 must merge before the beta.3 release bundle can assemble.
 risk: LOW
 # Risk justification:
-#   LOW — blast radius is prism-mcp only; no cross-crate API changes; no struct changes;
+#   LOW — primary blast radius is prism-mcp; no cross-crate API changes; no struct changes;
 #   no new public types; NOT_YET_AVAILABLE_TOOLS is compile-time const only. The gating
 #   mechanism (two independent `#[tool_router]` blocks + combiner fn per T-C01) is
 #   ratified per architect decision D-1110; T-S01 confirms the approach compiles cleanly.
+#   This story also modifies scripts/t13-preflight-audit.py (CI/test tooling only); that
+#   change is scoped to the T13 preflight audit script encoding tool-catalog and error-code
+#   assumptions — blast radius for that file is CI verification, not production code paths.
 behavioral_contracts:
   - BC-2.10.017
   - BC-2.10.011
@@ -573,6 +580,7 @@ No new dependencies are introduced by this story.
 | File | Purpose |
 |------|---------|
 | `crates/prism-mcp/tests/bc_2_10_017_operations_feature_gate.rs` | Red Gate tests RG-GATE-001..004 (new) |
+| `docs/demo-evidence/S-MCP-TOOL-GATE-001/` | Demo evidence captures (10 files): capture-default-{create_schedule,get_diagnostics,list_capabilities,tools_list}.json, capture-operations-{create_schedule,get_diagnostics,list_capabilities,tools_list}.json, capture-summary.json, evidence-report.md |
 
 ### Files to MODIFY
 
@@ -584,12 +592,13 @@ No new dependencies are introduced by this story.
 | `crates/prism-mcp/tests/mcp_infrastructure.rs` | Gate `test_bc_2_10_017_not_yet_available_fast_fail_under_1s`, `test_bc_2_10_017_not_yet_available_guard_precedes_audit`, and `test_bc_2_10_017_sibling_handlers_guard_precedes_audit` with `#[cfg(feature = "operations")]` (T-D04) |
 | `CHANGELOG.md` | Add [Unreleased] > Fixed entry (T-F01) |
 | `Justfile` | Add operations-OFF `cargo nextest run -p prism-mcp` leg to `check` and `check-ci` so the default-feature (operations-absent) RG-GATE tests execute in the canonical local gate (the existing `--all-features` legs compile OUT the `#![cfg(not(feature="operations"))]` RG-GATE test file, so these default-feature legs are the ONLY way those tests run) |
+| `scripts/t13-preflight-audit.py` | Made T13 preflight audit feature-aware for the operations gate; dual-mode assertions A2/A19/A20/A21/A23: ops-off mode asserts 14-tool catalog + -32602 unknown-tool error; ops-on mode retains 54-tool catalog + -32003 fast-fail |
 
 ### Files NOT to touch
 
 - `crates/prism-mcp/src/tools/prism_describe.rs` — out of scope (Wave 2 story)
 - `crates/prism-mcp/src/safety_envelope.rs` — out of scope (Wave 2 story)
-- Any file outside `crates/prism-mcp/` **except** the following repo-root files which are EXPECTED modifications: `Justfile` (operations-OFF default-feature gate legs in `check` + `check-ci`) and `CHANGELOG.md` (release notes entry T-F01). All other crates' `src/` directories, `prism-query`, `prism-core`, `prism-sensors`, etc. are out of scope (no cross-crate src changes).
+- Any file outside `crates/prism-mcp/` **except** the following which are EXPECTED modifications: `Justfile` (operations-OFF default-feature gate legs in `check` + `check-ci`), `CHANGELOG.md` (release notes entry T-F01), `scripts/t13-preflight-audit.py` (T13 preflight audit made feature-aware for the operations gate — encodes tool-catalog and error-code assumptions that must track the feature gate), and `docs/demo-evidence/S-MCP-TOOL-GATE-001/` (10 demo evidence capture files from the demo-recorder). All other crates' `src/` directories, `prism-query`, `prism-core`, `prism-sensors`, etc. are out of scope (no cross-crate src changes).
 
 ---
 
@@ -611,6 +620,7 @@ Holdout scenarios are stored in the holdout directory that test-writer/implement
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.11 | 2026-09-18 | PR-LEVEL pass-1 F-001 reconciliation (docs-only; no code/behavior change; PR HEAD ce4a945e1 frozen). §File Structure reconciled 1:1 against delivered diff f38604da4..ce4a945e1: added `scripts/t13-preflight-audit.py` to Files-to-MODIFY (T13 preflight audit made feature-aware for operations gate; dual-mode A2/A19/A20/A21/A23 assertions); added `docs/demo-evidence/S-MCP-TOOL-GATE-001/` (10 files) to Files-to-CREATE. Files-NOT-to-touch corrected to carve out scripts/t13-preflight-audit.py and docs/demo-evidence/S-MCP-TOOL-GATE-001/ as EXPECTED modifications. Frontmatter subsystem-anchor justification corrected: SS-10 is the primary subsystem; scripts/t13-preflight-audit.py is cross-cutting CI/test tooling that mirrors SS-10's tool-catalog contract, not a second product subsystem. Risk justification corrected: blast radius is prism-mcp + T13 preflight audit script (CI/test tooling only). frozen-HEAD updated to ce4a945e1. TD-VSDD-097 3-dim sweep: (1) sibling pair — §File Structure MODIFY table, Files-NOT-to-touch, and frontmatter subsystem/risk justifications all swept together; (2) downstream copy — no BC/ADR transcribes §File Structure verbatim; (3) mandate anchor — no new MUSTs added. |
 | 1.10 | 2026-09-18 | LOCAL pass-9 F-LOCAL-LOW-001 + comprehensive prose↔test-body reconciliation: every RG-GATE/e2e/T-D0x/AC description verified against the actual shipped test bodies in bc_2_10_017_operations_feature_gate.rs, mcp_infrastructure.rs, and server.rs. RG-GATE-004 corrected: asserts production_tool_catalog().len()==14 and all 14 EXPECTED_LIVE_TOOLS present via direct catalog inspection (NOT the private NOT_YET_AVAILABLE_TOOLS const which is inaccessible from the external test crate); pre-gate failure is catalog.len()==54, not a const assertion. NOT_YET_AVAILABLE_TOOLS emptiness is now described as indirectly observable via the catalog count. No other assertion-mechanism drifts found: RG-GATE-001/002/003, OBS-1/OBS-2 e2e tests, T-D01/T-D02/T-D03/T-D04, and AC-001..005 descriptions all match shipped test bodies. No code/behavior change; feature HEAD 0af76be5c frozen. TD-VSDD-097 3-dim sweep: (1) sibling pair — none (S-MCP-TOOL-GATE-001 has no twin story sharing this subsystem/capability split); (2) downstream copy target — none (RG-GATE-004 description is not transcribed verbatim into any BC or ADR); (3) mandate anchor — no new MUSTs added. |
 | 1.9 | 2026-09-18 | LOCAL pass-7 docs-only fix-burst (no code/behavior change; feature HEAD 0af76be5c frozen). F-MED-001 (MEDIUM): T-D03 rewritten to state the GENERAL RULE — gate ALL ~20 ops-handler-invoking inline tests, not only the one named test; Phase-D constraint note corrected to remove false "three tests" miscount and false "Everything else remains ungated" closed-set claim; correct form is "enumerate by inspection, not a fixed short list." OBS-1 (POL-7 H1-verbatim): BC-2.10.012 §Authority citation restored to verbatim H1 `` `prism_describe` Schema Discovery Tool (L2) `` (was missing backticks + "(L2)"); BC-2.10.017 §Authority citation restored to full H1 "Not-Yet-Available Tools Fast-Fail — Audit Channel Non-Blocking" (was truncated). OBS-2 (POL-39 orchestrator adjudication): footnote added under §Behavioral Contracts table stating the "Version at Authoring" column is a frozen point-in-time snapshot, POL-39-exempt per same rationale as §History/§Changelog and TD-VSDD-091 AC-source-of-truth-table exemption. TD-VSDD-097 3-dim sweep: (1) sibling pair — §Authority BC citations and §Behavioral Contracts table BC title rows both swept for H1-verbatim compliance; (2) downstream copy — none; (3) mandate anchor — no new MUSTs added. |
 | 1.8 | 2026-09-18 | LOCAL pass-6 F-MED-001/F-LOW-001 docs reconciliation: §File Structure reconciled against actual f38604da4..0af76be5c diff (added Justfile [load-bearing operations-off gate legs] + confirmed CHANGELOG.md/mcp_infrastructure.rs); tools/operations.rs corrected to tools/mod.rs (T-C02 gated module declaration in mod.rs, not operations.rs directly); 'Files NOT to touch' corrected to carve out repo-root Justfile+CHANGELOG.md as EXPECTED modifications; test inventory documents both e2e round-trip tests (OBS-1 list_capabilities AC-002 + OBS-2 tools_list_14 AC-001; 6 tests total); frozen-HEAD ref updated to 0af76be5c. No code/behavior change; feature HEAD 0af76be5c frozen. TD-VSDD-097 3-dim sweep: (1) sibling pair — §File-Structure MODIFY table + 'Files NOT to touch' list + §Token Budget rows all swept together; (2) downstream copy — none; (3) mandate anchor — no new MUST. |
