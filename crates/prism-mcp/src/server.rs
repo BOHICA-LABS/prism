@@ -1485,9 +1485,9 @@ const LIVE_TOOLS: &[&str] = &[
 /// is empty — stub tools are not registered and not visible in tools/list.
 /// BC-2.10.017 §Postconditions (amended: beta.3 remediation, S-MCP-TOOL-GATE-001).
 ///
-/// Every tool name here must appear in exactly one of LIVE_TOOLS / NOT_YET_AVAILABLE_TOOLS.
-/// When `operations` feature is absent, the union is just LIVE_TOOLS and the catalog
-/// contains exactly 14 entries.
+/// When the `operations` feature is enabled, contains the 40 stub tool names registered
+/// in `operations_tool_router`. When the feature is absent, the catalog contains exactly
+/// 14 entries (LIVE_TOOLS only) and stub tools are neither registered nor visible.
 #[cfg(feature = "operations")]
 const NOT_YET_AVAILABLE_TOOLS: &[&str] = &[
     "get_diagnostics",
@@ -5667,7 +5667,7 @@ E-INFRA-NYA/-32003; no scan/audit/business-logic processing occurs.\n\
 
 // ─── Tool router combiner ─────────────────────────────────────────────────────
 //
-// `#[tool_handler]` on `ServerHandler for PrismServer` calls `self.tool_router()`.
+// `#[tool_handler]` on `ServerHandler for PrismServer` calls `Self::tool_router()`.
 // `production_tool_catalog()` calls `Self::tool_router().list_all()`.
 // Both paths go through this manual combiner.
 //

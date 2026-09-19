@@ -26,11 +26,16 @@ Requirements:
       (precedence: explicit BASE_URL > explicit PORT > built-in default port 54646/54647).
 
 Coverage matrix (see len(COVERAGE_MATRIX) for current authoritative count):
-  1. Full 54-tool catalog asserted present via tools/list (14 live LIVE_TOOLS + 40 NYA stubs;
-     OBS-001 union); 5 read-only live tools exercised end-to-end; 9 non-exercised live tools:
-     4 structurally read-only but out of preflight scope (list_aliases, list_sensor_specs,
-     explain_alias, validate_config) + 5 mutating (reload_config, create_alias, delete_alias,
-     confirm_action, add_sensor_spec) —
+  1. Tool catalog assertion is feature-aware (S-MCP-TOOL-GATE-001): when `operations` feature
+     is off (default production build), asserts exactly 14 live LIVE_TOOLS via tools/list with
+     no NYA stubs in the catalog; when `operations` feature is on, asserts full 54-tool union
+     (14 live + 40 NYA stubs; OBS-001 union). A19/A20/A21 assert -32003 when ops-on (NYA stub
+     reachable) and -32602 "tool not found" when ops-off (tool not registered). A23 derives the
+     NYA sweep set dynamically when ops-on and uses the static EXPECTED_TOOLS_NYA set with
+     zero-leakage assertion when ops-off; 5 read-only live tools exercised end-to-end;
+     9 non-exercised live tools: 4 structurally read-only but out of preflight scope
+     (list_aliases, list_sensor_specs, explain_alias, validate_config) + 5 mutating
+     (reload_config, create_alias, delete_alias, confirm_action, add_sensor_spec) —
      preflight is READ-ONLY; no write-back to sensors, no config changes, no alias mutations
   2. 4 sensor adapters × their tables (CrowdStrike, Cyberint, Claroty, Armis — Section B) + 2 global enrichment DTUs (ThreatIntel, NVD — Section E, exercised as typed-UDF callees, not as sensors-with-tables)
   3. All query modes (SQL, pipe, SqlPipe, filter, stats, joins, enrichment, temporal)
@@ -775,26 +780,53 @@ def run_audit():
             "create_action", "delete_action", "get_help",
         }
         _EXPECTED_TOOLS_ALL = EXPECTED_TOOLS_FULL | EXPECTED_TOOLS_NYA  # 54 total
+        # Initialize before A2 block so A19/A20/A21/A23 can reference them regardless of
+        # whether list_tools returned an error.
+        tool_names = set()   # populated in else branch below
+        OPS_GATED = False    # True when `operations` feature is off (14-tool catalog)
+        _A2_KEY = "[A2] tools/list: full catalog present (feature-aware: 14 live when ops off, 54 live+NYA when ops on)"
         if err:
-            results["[A2] tools/list: full 54-tool catalog present (14 live + 40 NYA)"] = f"FAIL: {err}"
+            results[_A2_KEY] = f"FAIL: {err}"
         else:
             tool_names = {t.get("name", "") for t in tools_result.get("tools", [])}
-            missing_live = EXPECTED_TOOLS_FULL - tool_names
-            missing_nya = EXPECTED_TOOLS_NYA - tool_names
-            extra_unknown = tool_names - _EXPECTED_TOOLS_ALL
-            if missing_live or missing_nya or extra_unknown:
-                results["[A2] tools/list: full 54-tool catalog present (14 live + 40 NYA)"] = (
-                    f"FAIL: 54-tool catalog mismatch (OBS-001): "
-                    + (f"missing_live={sorted(missing_live)}; " if missing_live else "")
-                    + (f"missing_nya={sorted(missing_nya)}; " if missing_nya else "")
-                    + (f"extra_unknown={sorted(extra_unknown)}; " if extra_unknown else "")
-                    + f"got {len(tool_names)} tools"
-                )
+            # OPS_GATED: True when none of the 40 NYA ops tool names appear in the catalog.
+            # This is the canonical indicator that the `operations` Cargo feature is off.
+            OPS_GATED = not bool(tool_names & EXPECTED_TOOLS_NYA)
+            if OPS_GATED:
+                # Default production build: `operations` feature is off → expect exactly
+                # EXPECTED_TOOLS_FULL (14 live tools), no NYA stubs in catalog (AC-003).
+                extra_unknown = tool_names - EXPECTED_TOOLS_FULL
+                missing_live = EXPECTED_TOOLS_FULL - tool_names
+                if missing_live or extra_unknown:
+                    results[_A2_KEY] = (
+                        f"FAIL: ops-off catalog mismatch — expected 14 live tools: "
+                        + (f"missing_live={sorted(missing_live)}; " if missing_live else "")
+                        + (f"extra_unknown={sorted(extra_unknown)}; " if extra_unknown else "")
+                        + f"got {len(tool_names)} tools"
+                    )
+                else:
+                    results[_A2_KEY] = (
+                        f"PASS: {len(tool_names)} tools — exact 14-tool live-only catalog "
+                        f"(operations feature off; zero NYA stubs registered)"
+                    )
             else:
-                results["[A2] tools/list: full 54-tool catalog present (14 live + 40 NYA)"] = (
-                    f"PASS: {len(tool_names)} tools — exact 54-tool catalog match "
-                    f"(14 live + 40 NYA; OBS-001 union assertion confirmed)"
-                )
+                # Full build: `operations` feature is on → expect full 54-tool union.
+                missing_live = EXPECTED_TOOLS_FULL - tool_names
+                missing_nya = EXPECTED_TOOLS_NYA - tool_names
+                extra_unknown = tool_names - _EXPECTED_TOOLS_ALL
+                if missing_live or missing_nya or extra_unknown:
+                    results[_A2_KEY] = (
+                        f"FAIL: 54-tool catalog mismatch (OBS-001): "
+                        + (f"missing_live={sorted(missing_live)}; " if missing_live else "")
+                        + (f"missing_nya={sorted(missing_nya)}; " if missing_nya else "")
+                        + (f"extra_unknown={sorted(extra_unknown)}; " if extra_unknown else "")
+                        + f"got {len(tool_names)} tools"
+                    )
+                else:
+                    results[_A2_KEY] = (
+                        f"PASS: {len(tool_names)} tools — exact 54-tool catalog match "
+                        f"(14 live + 40 NYA; OBS-001 union assertion confirmed)"
+                    )
 
         # ── A3: resources/list — exact static resource set ───────────────────
         # LOW-003 (F-AUD-P26): require ALL 3 static resources returned by
@@ -1357,7 +1389,12 @@ def run_audit():
             else:
                 results["[A18] HANG-FIX: investigate_host returns promptly"] = f"FAIL: prompt returned no messages ({len(msgs)} messages)"
 
-        # ── A19: list_infusions NYA -32003 promptly ───────────────────────────
+        # ── A19: list_infusions — ops-on: NYA -32003 promptly; ops-off: tool-not-found -32602 ─
+        # F-AUD-P2-MED-001 (amended S-MCP-TOOL-GATE-001): when `operations` feature is on,
+        # list_infusions is registered as a stub and must return -32003 (E-INFRA-NYA).
+        # When `operations` feature is off, list_infusions is not registered; calling it
+        # returns -32602 "tool not found" (AC-003, S-MCP-TOOL-GATE-001).
+        _A19_KEY = "[A19] HANG-FIX: list_infusions NYA(-32003 ops-on) or tool-not-found(-32602 ops-off)"
         t0 = time.time()
         rid = next_id()
         send_msg(proc, {"jsonrpc": "2.0", "id": rid, "method": "tools/call",
@@ -1365,21 +1402,33 @@ def run_audit():
         resp, err = read_msg(proc, timeout=5.0, expected_id=rid)
         elapsed = time.time() - t0
         if err:
-            results["[A19] HANG-FIX: list_infusions returns promptly"] = f"FAIL: {err} ({elapsed:.2f}s)"
+            results[_A19_KEY] = f"FAIL: {err} ({elapsed:.2f}s)"
         elif elapsed > 3.0:
-            results["[A19] HANG-FIX: list_infusions returns promptly"] = f"FAIL: took {elapsed:.2f}s"
+            results[_A19_KEY] = f"FAIL: took {elapsed:.2f}s"
         elif "error" in resp:
-            # F-AUD-P2-MED-001: require code == -32003 (E-INFRA-NYA per server.rs not_yet_available_msg)
             code = resp["error"].get("code", "?")
             msg = resp["error"].get("message", "")
-            if code == -32003:
-                results["[A19] HANG-FIX: list_infusions returns promptly"] = f"PASS: NYA code=-32003 in {elapsed:.2f}s"
+            if OPS_GATED:
+                # ops-off: tool not registered — expect -32602 "tool not found"
+                if code == -32602 and msg == "tool not found":
+                    results[_A19_KEY] = f"PASS: ops-off tool-not-found code=-32602 in {elapsed:.2f}s"
+                else:
+                    results[_A19_KEY] = (
+                        f"FAIL: ops-off mode: expected -32602 'tool not found' (AC-003); "
+                        f"got code={code}, msg={msg[:60]!r}"
+                    )
             else:
-                results["[A19] HANG-FIX: list_infusions returns promptly"] = f"FAIL: NYA stub must return -32003 (E-INFRA-NYA); got code={code}, msg={msg[:60]!r}"
+                # ops-on: stub registered — expect -32003 E-INFRA-NYA
+                if code == -32003:
+                    results[_A19_KEY] = f"PASS: NYA code=-32003 in {elapsed:.2f}s"
+                else:
+                    results[_A19_KEY] = f"FAIL: NYA stub must return -32003 (E-INFRA-NYA); got code={code}, msg={msg[:60]!r}"
         else:
-            results["[A19] HANG-FIX: list_infusions returns promptly"] = f"FAIL: NYA stub returned success (expected -32003 E-INFRA-NYA)"
+            results[_A19_KEY] = f"FAIL: NYA stub returned success (expected -32003 E-INFRA-NYA or -32602 tool-not-found)"
 
-        # ── A20: plugin_status NYA ────────────────────────────────────────────
+        # ── A20: plugin_status — ops-on: NYA -32003 promptly; ops-off: tool-not-found -32602 ─
+        # F-AUD-P2-MED-001 (amended S-MCP-TOOL-GATE-001): same dual-mode pattern as A19.
+        _A20_KEY = "[A20] HANG-FIX: plugin_status NYA(-32003 ops-on) or tool-not-found(-32602 ops-off)"
         t0 = time.time()
         rid = next_id()
         send_msg(proc, {"jsonrpc": "2.0", "id": rid, "method": "tools/call",
@@ -1387,21 +1436,33 @@ def run_audit():
         resp, err = read_msg(proc, timeout=5.0, expected_id=rid)
         elapsed = time.time() - t0
         if err:
-            results["[A20] HANG-FIX: plugin_status returns promptly"] = f"FAIL: {err} ({elapsed:.2f}s)"
+            results[_A20_KEY] = f"FAIL: {err} ({elapsed:.2f}s)"
         elif elapsed > 3.0:
-            results["[A20] HANG-FIX: plugin_status returns promptly"] = f"FAIL: took {elapsed:.2f}s"
+            results[_A20_KEY] = f"FAIL: took {elapsed:.2f}s"
         elif "error" in resp:
-            # F-AUD-P2-MED-001: require code == -32003 (E-INFRA-NYA per server.rs not_yet_available_msg)
             code = resp["error"].get("code", "?")
             msg = resp["error"].get("message", "")
-            if code == -32003:
-                results["[A20] HANG-FIX: plugin_status returns promptly"] = f"PASS: NYA code=-32003 in {elapsed:.2f}s"
+            if OPS_GATED:
+                # ops-off: tool not registered — expect -32602 "tool not found"
+                if code == -32602 and msg == "tool not found":
+                    results[_A20_KEY] = f"PASS: ops-off tool-not-found code=-32602 in {elapsed:.2f}s"
+                else:
+                    results[_A20_KEY] = (
+                        f"FAIL: ops-off mode: expected -32602 'tool not found' (AC-003); "
+                        f"got code={code}, msg={msg[:60]!r}"
+                    )
             else:
-                results["[A20] HANG-FIX: plugin_status returns promptly"] = f"FAIL: NYA stub must return -32003 (E-INFRA-NYA); got code={code}, msg={msg[:60]!r}"
+                # ops-on: stub registered — expect -32003 E-INFRA-NYA
+                if code == -32003:
+                    results[_A20_KEY] = f"PASS: NYA code=-32003 in {elapsed:.2f}s"
+                else:
+                    results[_A20_KEY] = f"FAIL: NYA stub must return -32003 (E-INFRA-NYA); got code={code}, msg={msg[:60]!r}"
         else:
-            results["[A20] HANG-FIX: plugin_status returns promptly"] = f"FAIL: NYA stub returned success (expected -32003 E-INFRA-NYA)"
+            results[_A20_KEY] = f"FAIL: NYA stub returned success (expected -32003 E-INFRA-NYA or -32602 tool-not-found)"
 
-        # ── A21: infusion_status NYA ──────────────────────────────────────────
+        # ── A21: infusion_status — ops-on: NYA -32003 promptly; ops-off: tool-not-found -32602 ─
+        # F-AUD-P2-MED-001 (amended S-MCP-TOOL-GATE-001): same dual-mode pattern as A19/A20.
+        _A21_KEY = "[A21] HANG-FIX: infusion_status NYA(-32003 ops-on) or tool-not-found(-32602 ops-off)"
         t0 = time.time()
         rid = next_id()
         send_msg(proc, {"jsonrpc": "2.0", "id": rid, "method": "tools/call",
@@ -1409,63 +1470,106 @@ def run_audit():
         resp, err = read_msg(proc, timeout=5.0, expected_id=rid)
         elapsed = time.time() - t0
         if err:
-            results["[A21] HANG-FIX: infusion_status returns promptly"] = f"FAIL: {err} ({elapsed:.2f}s)"
+            results[_A21_KEY] = f"FAIL: {err} ({elapsed:.2f}s)"
         elif elapsed > 3.0:
-            results["[A21] HANG-FIX: infusion_status returns promptly"] = f"FAIL: took {elapsed:.2f}s"
+            results[_A21_KEY] = f"FAIL: took {elapsed:.2f}s"
         elif "error" in resp:
-            # F-AUD-P2-MED-001: require code == -32003 (E-INFRA-NYA per server.rs not_yet_available_msg)
             code = resp["error"].get("code", "?")
             msg = resp["error"].get("message", "")
-            if code == -32003:
-                results["[A21] HANG-FIX: infusion_status returns promptly"] = f"PASS: NYA code=-32003 in {elapsed:.2f}s"
+            if OPS_GATED:
+                # ops-off: tool not registered — expect -32602 "tool not found"
+                if code == -32602 and msg == "tool not found":
+                    results[_A21_KEY] = f"PASS: ops-off tool-not-found code=-32602 in {elapsed:.2f}s"
+                else:
+                    results[_A21_KEY] = (
+                        f"FAIL: ops-off mode: expected -32602 'tool not found' (AC-003); "
+                        f"got code={code}, msg={msg[:60]!r}"
+                    )
             else:
-                results["[A21] HANG-FIX: infusion_status returns promptly"] = f"FAIL: NYA stub must return -32003 (E-INFRA-NYA); got code={code}, msg={msg[:60]!r}"
+                # ops-on: stub registered — expect -32003 E-INFRA-NYA
+                if code == -32003:
+                    results[_A21_KEY] = f"PASS: NYA code=-32003 in {elapsed:.2f}s"
+                else:
+                    results[_A21_KEY] = f"FAIL: NYA stub must return -32003 (E-INFRA-NYA); got code={code}, msg={msg[:60]!r}"
         else:
-            results["[A21] HANG-FIX: infusion_status returns promptly"] = f"FAIL: NYA stub returned success (expected -32003 E-INFRA-NYA)"
+            results[_A21_KEY] = f"FAIL: NYA stub returned success (expected -32003 E-INFRA-NYA or -32602 tool-not-found)"
 
-        # ── A23: all NYA stubs return -32003/-32602 (dynamic sweep; direct -32003 handler-gate assurance via A19/A20/A21) ─────────
+        # ── A23: NYA stubs (feature-aware sweep) ──────────────────────────────
         # OBS-002 (F-AUD-P28): A23 runs BEFORE A22 (check_sensor_health) by deliberate
-        # design.  A23 derives the NYA stub set as (tools/list names − EXPECTED_TOOLS_FULL),
-        # which is a read-only enumeration probe.  A22 calls check_sensor_health, which
-        # exercises the live sensor health path and may mutate probe-state caches.  Running
-        # the read-only NYA sweep (A23) before the cache-mutating health probe (A22) keeps
-        # the NYA response character stable and prevents A22's side-effects from masking an
-        # NYA regression.  Do NOT reorder A23 and A22.
-        # F-AUD-P13-OBS-004: Replace 3/40 sampling gap with full dynamic coverage.
-        # Derives stub set at runtime: (tools/list names) − (EXPECTED_TOOLS_FULL 14 implemented).
-        # OBS-001 cross-reference ← A2: A2 gates full 54-tool membership (14 live + 40 NYA);
-        # this derivation (tool_names − EXPECTED_TOOLS_FULL) is consistent with A2 — when A2
-        # passes it yields exactly EXPECTED_TOOLS_NYA (40 names).  If tool registration
-        # changes, update EXPECTED_TOOLS_NYA in A2 and re-verify the A23 derivation count.
-        # Each stub is called once with minimal empty args {}.
-        # Acceptable outcomes:
-        #   -32003: explicit E-INFRA-NYA (spec-correct NYA response)
-        #   -32602: schema param validation fires before handler body (acceptable NYA-equivalent;
-        #           stubs whose Param structs have non-optional required fields fail serde
-        #           deserialization before the handler runs — this IS validation preceding the
-        #           NYA gate per BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER)
-        # Deviant outcomes (→ FAIL): success response, any other error code, timeout.
-        # Named representatives A19/A20/A21 remain as-is (response-time bounds unchanged).
-        # F-AUD-P15-LOW-004: A19 uses {} args for list_infusions and requires strict -32003
-        # (not -32602). This is correct: ListInfusionsParams has pub client_id: Option<String>
-        # (all fields optional, #[serde(deny_unknown_fields)]); {} deserializes to
-        # ListInfusionsParams { client_id: None } without error → handler body runs →
-        # not_yet_available_msg fires → -32003. A23 accepts -32602 for the full stub set
-        # because some stubs (e.g. InfusionStatusParams.infusion_id: String — required) return
-        # -32602 via serde before the handler runs. For list_infusions specifically, {} is a
-        # valid param shape that reaches the NYA gate directly.
-        # F-AUD-P30-LOW-001: guard against nameless registered tools before deriving the NYA
-        # sweep set.  A nameless tool (`name` missing or empty string) is a registration defect
-        # that must never reach the NYA sweep — it would contribute "" to the set-difference
-        # and appear as an -32602 "compliant" result, masking the defect.
+        # design.  A23 is a read-only enumeration probe; A22 may mutate probe-state caches.
+        # Do NOT reorder A23 and A22.
+        #
+        # S-MCP-TOOL-GATE-001 dual-mode amendment:
+        #   ops-on:  derive NYA stub set dynamically as (tools/list names − EXPECTED_TOOLS_FULL);
+        #            accept -32003 (explicit NYA gate) or -32602 (schema-validation precedes
+        #            NYA gate per BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER).
+        #   ops-off: assert zero-leakage (tool_names ∩ EXPECTED_TOOLS_NYA == ∅), then sweep
+        #            the static EXPECTED_TOOLS_NYA set calling each tool and asserting -32602
+        #            (tool not registered → tool-not-found from MCP layer, AC-003).
+        #
+        # F-AUD-P13-OBS-004: Replace 3/40 sampling gap with full dynamic (ops-on) or full
+        # static (ops-off) coverage.
+        # OBS-001 cross-reference ← A2: A2 gates catalog membership per mode; A23 is
+        # consistent with A2 — when both pass, the catalog and sweep sets are coherent.
+        # F-AUD-P15-LOW-004: A19 uses {} args for list_infusions; when ops-on this produces
+        # -32003 because ListInfusionsParams has all-optional fields. A23 (ops-on) also
+        # accepts -32602 for stubs with required fields (e.g. InfusionStatusParams.infusion_id).
+        # F-AUD-P30-LOW-001: guard against nameless registered tools.
+        _A23_KEY = "[A23] NYA stubs return -32003/-32602 (ops-on: dynamic sweep; ops-off: zero-leakage + static-set sweep)"
         _all_tool_entries = (tools_result or {}).get("tools", []) if tools_result else []
         _nameless_tools = [t for t in _all_tool_entries if not t.get("name")]
         if _nameless_tools:
-            results["[A23] all NYA stubs return -32003/-32602 (dynamic sweep; direct -32003 handler-gate assurance via A19/A20/A21)"] = (
+            results[_A23_KEY] = (
                 f"FAIL: {len(_nameless_tools)} registered tool(s) with missing/empty name — "
                 f"registration defect; cannot proceed with NYA sweep (F-AUD-P30-LOW-001)"
             )
+        elif OPS_GATED:
+            # ops-off path: `operations` feature is off — no NYA stubs are registered.
+            # Step 1: zero-leakage assertion (none of EXPECTED_TOOLS_NYA in catalog).
+            _leaked = tool_names & EXPECTED_TOOLS_NYA
+            if _leaked:
+                results[_A23_KEY] = (
+                    f"FAIL: ops-off zero-leakage violation: "
+                    f"{len(_leaked)} ops tool(s) unexpectedly in catalog: {sorted(_leaked)}"
+                )
+            else:
+                # Step 2: static sweep — call each tool in EXPECTED_TOOLS_NYA and assert -32602
+                # (tool not registered → tool-not-found response from MCP layer, AC-003).
+                _nya_stub_names_static = sorted(EXPECTED_TOOLS_NYA)
+                _nya_deviants = []
+                _nya_pass_count = 0
+                for _nya_name in _nya_stub_names_static:
+                    _rid = next_id()
+                    send_msg(proc, {"jsonrpc": "2.0", "id": _rid, "method": "tools/call",
+                                    "params": {"name": _nya_name, "arguments": {}}})
+                    _resp, _err = read_msg(proc, timeout=5.0, expected_id=_rid)
+                    if _err:
+                        _nya_deviants.append((_nya_name, f"timeout/error: {_err}"))
+                    elif "error" in _resp:
+                        _code = _resp["error"].get("code", "?")
+                        _emsg = _resp["error"].get("message", "")
+                        if _code == -32602:
+                            # -32602: tool not registered (AC-003 ops-off behavior).
+                            _nya_pass_count += 1
+                        else:
+                            _nya_deviants.append((_nya_name, f"code={_code}, msg={_emsg[:60]!r}"))
+                    else:
+                        _nya_deviants.append((_nya_name, "SUCCESS (expected -32602 tool-not-found)"))
+                _nya_total_static = len(_nya_stub_names_static)
+                if _nya_deviants:
+                    results[_A23_KEY] = (
+                        f"FAIL: ops-off static sweep: {len(_nya_deviants)}/{_nya_total_static} "
+                        f"stubs deviated (expected -32602 tool-not-found): "
+                        + "; ".join(f"{n}={o}" for n, o in _nya_deviants[:5])
+                    )
+                else:
+                    results[_A23_KEY] = (
+                        f"PASS: ops-off: zero-leakage confirmed ({len(tool_names)} tools in catalog, "
+                        f"0 NYA stubs); {_nya_pass_count}/{_nya_total_static} static-sweep stubs "
+                        f"returned -32602 (tool-not-found, AC-003)"
+                    )
         else:
+            # ops-on path: `operations` feature is on — derive NYA set dynamically.
             _nya_stub_names = sorted(
                 {t.get("name") for t in _all_tool_entries if t.get("name")} - EXPECTED_TOOLS_FULL
             ) if tools_result else []
@@ -1501,17 +1605,17 @@ def run_audit():
                     # Success response — stub returned data; NYA contract violated
                     _nya_deviants.append((_nya_name, "SUCCESS (expected -32003 E-INFRA-NYA)"))
             if not _nya_stub_names:
-                results["[A23] all NYA stubs return -32003/-32602 (dynamic sweep; direct -32003 handler-gate assurance via A19/A20/A21)"] = (
+                results[_A23_KEY] = (
                     "FAIL: could not derive NYA stub set (tools/list unavailable or empty)"
                 )
             elif _nya_deviants:
-                results["[A23] all NYA stubs return -32003/-32602 (dynamic sweep; direct -32003 handler-gate assurance via A19/A20/A21)"] = (
+                results[_A23_KEY] = (
                     f"FAIL: {len(_nya_deviants)}/{_nya_total} stubs deviated from NYA contract "
                     f"(-32003 expected): "
                     + "; ".join(f"{n}={o}" for n, o in _nya_deviants[:5])
                 )
             else:
-                results["[A23] all NYA stubs return -32003/-32602 (dynamic sweep; direct -32003 handler-gate assurance via A19/A20/A21)"] = (
+                results[_A23_KEY] = (
                     f"PASS: {_nya_pass_count}/{_nya_total} stubs NYA-compliant "
                     f"(-32003 explicit or -32602 schema-validation-precedes-NYA-gate)"
                 )
@@ -5575,7 +5679,7 @@ def run_audit():
 # ─────────────────────────────────────────────────────────────────────────────
 COVERAGE_MATRIX = [
     ("[A1]",  "MCP Protocol",  "INIT: server boots"),
-    ("[A2]",  "MCP Protocol",  "tools/list 54-tool catalog (14 live + 40 NYA; OBS-001 union)"),
+    ("[A2]",  "MCP Protocol",  "tools/list catalog (feature-aware: 14 live when ops-off, 54 live+NYA when ops-on)"),
     ("[A3]",  "MCP Protocol",  "resources/list prismql://reference"),
     ("[A4]",  "MCP Protocol",  "prompts/list all 5 prompts"),
     ("[A5]",  "MCP Protocol",  "list_capabilities client_registered (D-1312)"),
@@ -5592,11 +5696,11 @@ COVERAGE_MATRIX = [
     ("[A16]", "MCP Protocol",  "triage_alerts prompt underscore names"),
     ("[A17]", "MCP Protocol",  "query_tutorial prompt no-hang"),
     ("[A18]", "MCP Protocol",  "investigate_host prompt no-hang"),
-    ("[A19]", "MCP Protocol",  "list_infusions NYA promptly"),
-    ("[A20]", "MCP Protocol",  "plugin_status NYA promptly"),
-    ("[A21]", "MCP Protocol",  "infusion_status NYA promptly"),
+    ("[A19]", "MCP Protocol",  "list_infusions NYA(-32003 ops-on) or tool-not-found(-32602 ops-off)"),
+    ("[A20]", "MCP Protocol",  "plugin_status NYA(-32003 ops-on) or tool-not-found(-32602 ops-off)"),
+    ("[A21]", "MCP Protocol",  "infusion_status NYA(-32003 ops-on) or tool-not-found(-32602 ops-off)"),
     ("[A22]", "MCP Protocol",  "check_sensor_health (S-5.04 gate)"),
-    ("[A23]", "MCP Protocol",  "all NYA stubs return -32003/-32602 (dynamic sweep; direct -32003 handler-gate assurance via A19/A20/A21)"),
+    ("[A23]", "MCP Protocol",  "NYA stubs return -32003/-32602 (ops-on: dynamic sweep; ops-off: zero-leakage + static-set sweep)"),
     ("[B1]",  "Sensor Tables", "CrowdStrike detections org-c"),
     ("[B2]",  "Sensor Tables", "Armis devices org-c"),
     ("[B3]",  "Sensor Tables", "Claroty devices org-c"),
