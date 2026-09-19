@@ -1,0 +1,46 @@
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"_meta\":{\"data_source\":[],\"has_more\":false,\"next_cursor\":null,\"page\":1,\"query_time\":\"2026-09-18T23:35:01.033361+00:00\",\"safety_flags\":[],\"tool\":\"list_capabilities\",\"total_results\":0,\"trust_level\":\"internal\"},\"content\":[{\"text\":\"0 results found\",\"type\":\"text\"}],\"results\":{\"capabilities\":{},\"client_id\":\"demo-client\",\"client_registered\":false,\"not_registered_tools\":[]},\"structuredContent\":{\"results\":{\"capabilities\":{},\"client_id\":\"demo-client\",\"client_registered\":false,\"not_registered_tools\":[]}}}"
+      }
+    ],
+    "structuredContent": {
+      "_meta": {
+        "data_source": [],
+        "has_more": false,
+        "next_cursor": null,
+        "page": 1,
+        "query_time": "2026-09-18T23:35:01.033361+00:00",
+        "safety_flags": [],
+        "tool": "list_capabilities",
+        "total_results": 0,
+        "trust_level": "internal"
+      },
+      "content": [
+        {
+          "text": "0 results found",
+          "type": "text"
+        }
+      ],
+      "results": {
+        "capabilities": {},
+        "client_id": "demo-client",
+        "client_registered": false,
+        "not_registered_tools": []
+      },
+      "structuredContent": {
+        "results": {
+          "capabilities": {},
+          "client_id": "demo-client",
+          "client_registered": false,
+          "not_registered_tools": []
+        }
+      }
+    },
+    "isError": false
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "error": {
+    "code": -32003,
+    "message": "Feature not yet available: sensor diagnostics \u2014 adapter registry empty (GAP-002-A; full sensor adapter dispatch wires in S-5.04-SENSOR-HEALTH-ADAPTER-DISPATCH) (prism-operations not merged)"
+  }
+}

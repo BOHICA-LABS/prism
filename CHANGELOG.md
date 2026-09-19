@@ -5,6 +5,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Gate 40 operations stub tool handlers behind default-off `operations` Cargo feature (S-MCP-TOOL-GATE-001): `tools/list` now returns only the 14 always-live tools in production builds; stub handlers and `NOT_YET_AVAILABLE_TOOLS` entries are compiled and registered only when `--features operations` is passed. `list_capabilities.not_registered_tools` is empty by default. Addresses BC-2.10.017 §Postconditions INV-OPERATIONS-FEATURE-GATE.
+
 ## [1.0.0-beta.2] - 2026-09-09
 
 ### Highlights

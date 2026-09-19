@@ -418,6 +418,9 @@ impl AuditWriter for PanickingAuditWriter {
 /// Red Gate: current code calls `scan_inputs_audited(...)` then `emit_tool_audit(...)`
 /// BEFORE the `-32003` return. The slow writer blocks `emit_tool_audit`, the 1-second
 /// timeout fires → test fails RED (BLOCKER-004).
+///
+/// Gated on `operations` feature: the ops stub methods are not compiled without it.
+#[cfg(feature = "operations")]
 #[tokio::test]
 async fn test_bc_2_10_017_not_yet_available_fast_fail_under_1s() {
     use prism_mcp::server::{InfusionStatusParams, ListInfusionsParams, PluginStatusParams};
@@ -495,6 +498,9 @@ async fn test_bc_2_10_017_not_yet_available_fast_fail_under_1s() {
 ///
 /// Red Gate: current handlers call `emit_tool_audit` before returning `-32003`,
 /// so the panicking writer panics → nextest reports FAILED (process panicked) → RED.
+///
+/// Gated on `operations` feature: the ops stub methods are not compiled without it.
+#[cfg(feature = "operations")]
 #[tokio::test]
 async fn test_bc_2_10_017_not_yet_available_guard_precedes_audit() {
     use prism_mcp::server::ListInfusionsParams;
@@ -547,6 +553,9 @@ async fn test_bc_2_10_017_not_yet_available_guard_precedes_audit() {
 /// All three handlers must:
 /// 1. Return Err(-32003) without panicking (PanickingAuditWriter never invoked).
 /// 2. Return within 1 second when wired with a 10-second SlowAuditWriter.
+///
+/// Gated on `operations` feature: the ops stub methods are not compiled without it.
+#[cfg(feature = "operations")]
 #[tokio::test]
 async fn test_bc_2_10_017_sibling_handlers_guard_precedes_audit() {
     use prism_mcp::server::{CreateScheduleParams, ListPluginsParams, ReloadInfusionParams};
