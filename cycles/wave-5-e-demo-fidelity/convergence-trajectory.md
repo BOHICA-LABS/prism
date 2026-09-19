@@ -510,3 +510,38 @@ Frozen feature HEAD: `6a0986ace` (unchanged). Story at v1.10 (`@8afffe10b`). Zer
 **D-2579 state-manager burst:** convergence recorded. trajectory-tail →1→0→0→0. STATE v10.084→v10.085.
 
 **Next (per per-story-delivery + CLAUDE.md story-level holdout gate):** story-level holdout gate (holdout-evaluator runs HS-001/HS-002/HS-003 vs built binary — BLOCKING) → demo-recorder per-AC → push → pr-manager 9-step PR → autonomous admin-merge (D-2445).
+
+---
+
+## S-MCP-TOOL-GATE-001 PR-LEVEL Cascade (PR #297)
+
+Frozen PR HEAD throughout: `ce4a945e1` (post-pass-1 fix-burst; story v1.11). PR-LEVEL pass-1 recorded in STATE.md D-2582; passes 2/3/4 recorded here.
+
+| Pass | Date | Findings | HIGH | MED | LOW | OBS | Streak | Verdict |
+|------|------|----------|------|-----|-----|-----|--------|---------|
+| PR-LEVEL Pass 1 | 2026-09-18 | 3 | 0 | 1 | 2 | 0 | 0/3 | CLEAN(strict): NO; F-001 [MED] + OBS-001/OBS-002 [LOW] — fix-burst HEAD 41541f496→ce4a945e1. D-2582. |
+| PR-LEVEL Pass 2 | 2026-09-18 | 0 | 0 | 0 | 0 | 0 | 1/3 | CLEAN(strict): YES; CLEAN(PR-merge): YES — zero findings. Frozen HEAD ce4a945e1. All pass-1 fixes verified. Streak 0/3→1/3. |
+| PR-LEVEL Pass 3 | 2026-09-18 | 0 | 0 | 0 | 0 | 0 | 2/3 | CLEAN(strict): YES; CLEAN(PR-merge): YES — zero findings. Frozen HEAD ce4a945e1. Non-scoring advisory: branch-currency resolved (ce4a945e1 contains integration-merge). Streak 1/3→2/3. |
+| PR-LEVEL Pass 4 | 2026-09-18 | 0 | 0 | 0 | 0 | 0 | 3/3 | CLEAN(strict): YES; CLEAN(PR-merge): YES — zero findings. Frozen HEAD ce4a945e1. BC-5.39.001 PR-LEVEL CONVERGED. |
+
+**PR-LEVEL Pass 2 finding summary (CLEAN(strict): YES; zero findings; streak 0/3→1/3):**
+
+Frozen PR HEAD: `ce4a945e1`. Story v1.11. All pass-1 fixes verified: F-001 §File Structure 1:1 diff confirmed; OBS-001 counts corrected; OBS-002 `-32603→-32602` in 5 checks confirmed. Fresh-context audit of 18-file diff found zero new issues. Gate mechanism AC-001..005 PASS. Repo-wide sibling sweep CLEAR (feature-aware audit, D-2582a scope). TD-VSDD-097 Dim-1/2/3 CLEAR. SAP-1/SAP-3 PASS.
+
+**PR-LEVEL Pass 3 finding summary (CLEAN(strict): YES; zero findings; streak 1/3→2/3):**
+
+Frozen PR HEAD: `ce4a945e1`. Story v1.11. Second independent zero-finding pass. Non-scoring advisory: branch-currency vs develop@528f9bdd3 — integration merge already present in ce4a945e1 (incorporated in pass-1 fix-burst); NOT a finding. All checks consistent with pass-2.
+
+**PR-LEVEL Pass 4 finding summary (CLEAN(strict): YES; zero findings; streak 2/3→3/3 CONVERGED):**
+
+Frozen PR HEAD: `ce4a945e1`. Story v1.11. Third independent zero-finding pass. BC-5.39.001 CONVERGED — strict 3/3 on frozen PR HEAD `ce4a945e1` (passes 2/3/4; unchanged HEAD per DRIFT-ORCH-PRLEVEL-PUSH-001).
+
+**Full PR-LEVEL cascade:** 4 passes — pass-1 found 3 findings (F-001 MED + OBS-001/002 LOW) all CLOSED in fix-burst (41541f496→ce4a945e1); passes 2/3/4 CLEAN(strict).
+
+**D-2583 state-manager burst:** PR-LEVEL convergence recorded. Remaining merge gates (D-2445): CI green on ce4a945e1 (verifying) + independent pr-reviewer READY (in flight) + security CLEAN (pr-manager APPROVED on 41541f496; ce4a945e1 delta script-comments only). Merge `gh pr merge 297 --squash --delete-branch --admin` classifier-BLOCKED for AI (D-2504/D-2507) — surfaced to human as final action. trajectory-tail →0→0→0→0 (PR pass-4 CLEAN).
+
+**Story-2 all quality gates passed:**
+- LOCAL adversarial cascade 3-CLEAN: PASSED (D-2579, passes 12/13/14 on HEAD 6a0986ace)
+- Story-level holdout gate: PASSED (D-2580: HS-001/002/003 mean 1.00)
+- Integration-merge re-gate: PASSED (develop@528f9bdd3 incorporated)
+- PR-LEVEL adversarial cascade 3-CLEAN: PASSED (D-2583, passes 2/3/4 on HEAD ce4a945e1)
