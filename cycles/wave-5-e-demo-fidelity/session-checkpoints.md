@@ -1022,3 +1022,11 @@ Prism at develop@f38604da4 — PIPELINE IN-PROGRESS (S-JSON-EXTRACT-UDF-001 MERG
 **RESUME story-2 order (D-2576):** adversary LOCAL pass-8 re-gate on frozen HEAD 0af76be5c + story v1.9 → if CLEAN(strict) → 1/3; repeat to 3/3 → holdout → demo → PR → autonomous admin-merge.
 
 **NOTE: Superseded by D-2577 — PASS9-REPORT-DOCS-FIX-BURST 2026-09-18; STATE v10.083.**
+
+---
+
+## Archived: D-2581 — DEVELOP-RECONCILE 2026-09-18; STATE v10.087; develop@528f9bdd3; feature HEAD 6a0986ace; LOCAL 3/3 CONVERGED; holdout gate PASS; PROCESS-GAP D-2576 OPEN; BLOCKER-FED-SPOTLIGHT-001 OPEN
+
+**RESUME IN ONE BREATH (D-2581):** Prism at develop@528f9bdd3 — IN-PROGRESS. NOTE D-2581: develop advanced out-of-session f38604da4→528f9bdd3 via PR #292 (BOHICA-LABS/fix/clippy-all-targets; external maintenance; no pipeline story); SHA-currency reconciled. (a) POSITION: Phase 3, cycle wave-5-e-demo-fidelity, BETA.3 Batch-1 TDD delivery. Story 1/10 S-JSON-EXTRACT-UDF-001 DELIVERED (PR #296 @f38604da4). BC-2.11.025 active. CURRENT = story 2/10 S-MCP-TOOL-GATE-001. (b) CONVERGENCE COUNTER: LOCAL adversarial cascade CONVERGED — BC-5.39.001 strict 3/3 CLEAN(strict) on frozen HEAD 6a0986ace (passes 12/13/14 all zero-findings; D-2579). 14-pass cascade complete. HOLDOUT GATE: PASSED (D-2580) — holdout-evaluator ran HS-001/HS-002/HS-003 against DEFAULT-features prism-bin from frozen HEAD 6a0986ace over real MCP stdio; 3/3 P0 satisfied mean 1.00 min 1.00; HS-033 all consumed. FEDERATION: RATIFICATION HELD (BLOCKER-FED-SPOTLIGHT-001 OPEN; vulns path blocked; detections unblocked; Batch-1 unaffected). (c) NEXT STEP: demo-recorder per-AC → push → pr-manager 9-step PR cycle → autonomous admin-merge (D-2445). (d) PENDING HUMAN DECISIONS / BLOCKERS: (i) BLOCKER-FED-SPOTLIGHT-001. (ii) PROCESS-GAP D-2576: POL-39 "Version at Authoring" exemption (human). (iii) S-BETA3-RELEASE-001 DELIVERY-BLOCKED until RELEASE_PROMOTE_TOKEN PAT re-scoped. (iv) process-gaps D-2565a/b/c open. (v) OBS-DEFER-1 → S-JSON-EXTRACT-NESTED-001. (vi) MAINT-DEFER-1 → S-MAINT-TOOLS-MODULE-DOC-SWEEP-001. (e) WIP BRANCHES: none; feature HEAD 6a0986ace. (f) RESUME COMMAND: /vsdd-factory:rehydrate-wave then /vsdd-factory:next-step.
+
+**NOTE: Superseded by D-2582 — PR-LEVEL-PASS-1 2026-09-18; STATE v10.088.**
