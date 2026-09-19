@@ -721,15 +721,16 @@ def run_audit():
 
         # ── A2: tools/list — enumerate all available tools ────────────────────
         # NOTE: query_tutorial and investigate_host are MCP Prompts, NOT Tools.
-        # The expected tools are ALL 54 registered MCP tools (server.rs has 56 #[tool*]
-        # annotations per `rg '^\s*#\[tool' server.rs | wc -l`: 2 struct/impl macros
-        # (#[tool_router], #[tool_handler]) + 54 #[tool(...)] method annotations:
-        # 14 real implementations (LIVE_TOOLS), 40 runtime -32003 NYA stubs
+        # The expected tools are ALL 54 registered MCP tools (server.rs has 57 #[tool*]
+        # annotations per `rg '^\s*#\[tool' server.rs | wc -l`: 3 struct/impl macros
+        # (TWO #[tool_router] blocks + one #[tool_handler]) + 54 #[tool(...)] method
+        # annotations: 14 real implementations (LIVE_TOOLS), 40 runtime -32003 NYA stubs
         # (NOT_YET_AVAILABLE_TOOLS)).
         #
-        # tools/list returns ALL 54 registered tools (server.rs has NO custom list_tools
-        # override; #[tool_handler] returns tool_router().list_all() — confirmed by
-        # test_MCP_01_capability_classification_partitions_tool_catalog).
+        # tools/list is feature-aware: ops-off → 14 live tools only; ops-on → all 54
+        # (14 live + 40 NYA stubs). When ops-on, #[tool_handler] returns
+        # tool_router().list_all() — confirmed by
+        # test_MCP_01_capability_classification_partitions_tool_catalog.
         # OBS-001: A2 was previously an exact-set check against only the 14 live tools
         # (EXPECTED_TOOLS_FULL), which produced a false-FAIL because tools/list returns
         # all 54 and the 40 NYA tools appeared as "extra".  A2 now asserts the full
@@ -763,7 +764,7 @@ def run_audit():
             "confirm_action", "add_sensor_spec", "list_sensor_specs", "validate_config",
         }
         # Grounded in NOT_YET_AVAILABLE_TOOLS constant in crates/prism-mcp/src/server.rs.
-        # Byte-exact copy of NOT_YET_AVAILABLE_TOOLS @ server.rs ~line 1447 (40 names).
+        # Byte-exact copy of the NOT_YET_AVAILABLE_TOOLS const in crates/prism-mcp/src/server.rs (40 names).
         # CONSCIOUS-UPDATE: when a stub is implemented, move its name from this set to
         # EXPECTED_TOOLS_FULL in the same commit.
         EXPECTED_TOOLS_NYA = {
